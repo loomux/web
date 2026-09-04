@@ -1,0 +1,39 @@
+import { useCallback, useMemo } from "react";
+import { api, ApiError } from "./api";
+import { useAuth } from "./auth";
+
+// Binds every token-requiring `api` call to the current session token and
+// routes a 401 through handleUnauthorized (clears the stale token, which
+// ProtectedRoute reacts to by redirecting to /login) before rethrowing —
+// see docs/design/web-client-design.md "Auth flow": "A 401 from any call
+// clears the stored token and redirects to /login."
+export function useApiClient() {
+  const { token, handleUnauthorized } = useAuth();
+
+  const guarded = useCallback(
+    async <T>(fn: (token: string) => Promise<T>): Promise<T> => {
+      if (!token) throw new ApiError(401, "not logged in");
+      try {
+        return await fn(token);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          handleUnauthorized();
+        }
+        throw err;
+      }
+    },
+    [token, handleUnauthorized],
+  );
+
+  return useMemo(
+    () => ({
+      dispatch: (conversationId: string, message: string) =>
+        guarded((t) => api.dispatch(t, conversationId, message)),
+      listWorkspaces: () => guarded((t) => api.listWorkspaces(t)),
+      listConversations: () => guarded((t) => api.listConversations(t)),
+      getConversation: (id: string) => guarded((t) => api.getConversation(t, id)),
+      getAttachInfo: (taskId: string) => guarded((t) => api.getAttachInfo(t, taskId)),
+    }),
+    [guarded],
+  );
+}
