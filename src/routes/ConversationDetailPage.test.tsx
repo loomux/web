@@ -136,6 +136,66 @@ describe("ConversationDetailPage", () => {
     });
   });
 
+  it("disables the input while a dispatch is in flight so a second submit can't race the first", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const user = userEvent.setup();
+
+    let dispatchCalls = 0;
+    let getCalls = 0;
+    let resolveDispatch: (value: Response) => void = () => {};
+    const dispatchPromise = new Promise<Response>((resolve) => {
+      resolveDispatch = resolve;
+    });
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/v1/conversations/abc123" && method === "GET") {
+        getCalls += 1;
+        const messages =
+          getCalls === 1
+            ? []
+            : [
+                { id: "m1", role: "user", content: "first message", task_id: "t1", created_at: "2026-09-01T00:00:00Z" },
+                { id: "m2", role: "assistant", content: "ack", task_id: "t1", created_at: "2026-09-01T00:00:01Z" },
+              ];
+        return jsonResponse({ conversation_id: "abc123", tasks: [], messages });
+      }
+
+      if (url === "/api/v1/dispatch" && method === "POST") {
+        dispatchCalls += 1;
+        return dispatchPromise;
+      }
+
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+
+    renderPage();
+
+    const input = screen.getByPlaceholderText(/message the agent fleet/i);
+    await waitFor(() => expect(input).not.toBeDisabled());
+
+    await user.type(input, "first message");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByText("first message")).toBeInTheDocument();
+    await waitFor(() => expect(input).toBeDisabled());
+
+    // Typing/submitting while the first dispatch is still pending must not
+    // fire a second one — the input is disabled, so this is a no-op.
+    await user.type(input, "second message");
+    await user.keyboard("{Enter}");
+
+    expect(dispatchCalls).toBe(1);
+    expect(screen.queryByText("second message")).not.toBeInTheDocument();
+
+    resolveDispatch(jsonResponse({ reply: "ack" }));
+
+    expect(await screen.findByText("ack")).toBeInTheDocument();
+    await waitFor(() => expect(dispatchCalls).toBe(1));
+  });
+
   it("keeps the optimistic user message visible and shows an error when dispatch fails", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();

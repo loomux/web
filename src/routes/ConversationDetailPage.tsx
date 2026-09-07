@@ -48,7 +48,7 @@ export function ConversationDetailPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!conversationId || draft.trim() === "") return;
+    if (!conversationId || draft.trim() === "" || sending) return;
     const text = draft;
     setDraft("");
     setError(null);
@@ -123,7 +123,8 @@ export function ConversationDetailPage() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Message the agent fleet…"
-          className="flex-1 rounded border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+          disabled={sending}
+          className="flex-1 rounded border border-neutral-300 px-3 py-2 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
         />
         <button
           type="submit"
