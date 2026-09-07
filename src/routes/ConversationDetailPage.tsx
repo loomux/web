@@ -5,9 +5,10 @@ import { useApiClient } from "../lib/useApiClient";
 import { useConversationStream } from "../lib/useConversationStream";
 import { AttachInfo } from "../components/AttachInfo";
 
-interface LocalMessage {
-  role: "user" | "agent";
+interface DisplayMessage {
+  role: "user" | "assistant";
   text: string;
+  key: string;
 }
 
 // Statuses where a human plausibly wants to intervene — see
@@ -23,10 +24,10 @@ export function ConversationDetailPage() {
   const conversationId = id ?? null;
   const apiClient = useApiClient();
 
-  // Task history: accurate lifecycle metadata, but no message text (see
-  // "Known API gap" in the design doc) — a fresh conversation 404s here
-  // until its first dispatch, which is expected, not an error to surface.
-  const { data: history } = useQuery({
+  // Task history plus the persisted per-turn transcript (LOOM-31) — a
+  // fresh conversation 404s here until its first dispatch, which is
+  // expected, not an error to surface.
+  const { data: history, refetch: refetchHistory } = useQuery({
     queryKey: ["conversation", conversationId],
     queryFn: () => apiClient.getConversation(conversationId!),
     enabled: !!conversationId,
@@ -35,28 +36,43 @@ export function ConversationDetailPage() {
 
   const { event: liveTask, connected } = useConversationStream(conversationId);
 
-  const [messages, setMessages] = useState<LocalMessage[]>([]);
+  // Optimistic entries for the turn currently in flight. Cleared once the
+  // post-dispatch refetch lands, at which point history.messages is the
+  // sole source of truth again — avoids ever showing both an optimistic
+  // and a persisted copy of the same message at once.
+  const [pendingUser, setPendingUser] = useState<string | null>(null);
+  const [pendingReply, setPendingReply] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!conversationId || draft.trim() === "") return;
+    if (!conversationId || draft.trim() === "" || sending) return;
     const text = draft;
     setDraft("");
     setError(null);
-    setMessages((prev) => [...prev, { role: "user", text }]);
+    setPendingUser(text);
+    setPendingReply(null);
     setSending(true);
     try {
       const { reply } = await apiClient.dispatch(conversationId, text);
-      setMessages((prev) => [...prev, { role: "agent", text: reply }]);
+      setPendingReply(reply);
+      await refetchHistory();
+      setPendingUser(null);
+      setPendingReply(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Dispatch failed");
     } finally {
       setSending(false);
     }
   }
+
+  const messages: DisplayMessage[] = [
+    ...(history?.messages ?? []).map((m) => ({ role: m.role, text: m.content, key: m.id })),
+    ...(pendingUser !== null ? [{ role: "user" as const, text: pendingUser, key: "pending-user" }] : []),
+    ...(pendingReply !== null ? [{ role: "assistant" as const, text: pendingReply, key: "pending-reply" }] : []),
+  ];
 
   const latestTask = history?.tasks[history.tasks.length - 1];
 
@@ -81,15 +97,11 @@ export function ConversationDetailPage() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
-          <p className="text-neutral-500 text-sm">
-            No messages sent yet this session. (Message text for older
-            conversations isn't available yet — see project docs on
-            LOOM-31.)
-          </p>
+          <p className="text-neutral-500 text-sm">No messages yet — send one to get started.</p>
         )}
-        {messages.map((m, i) => (
+        {messages.map((m) => (
           <div
-            key={i}
+            key={m.key}
             className={
               m.role === "user"
                 ? "ml-auto max-w-[75%] rounded-lg bg-neutral-900 px-3 py-2 text-white dark:bg-neutral-100 dark:text-neutral-900"
@@ -111,7 +123,8 @@ export function ConversationDetailPage() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Message the agent fleet…"
-          className="flex-1 rounded border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+          disabled={sending}
+          className="flex-1 rounded border border-neutral-300 px-3 py-2 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
         />
         <button
           type="submit"

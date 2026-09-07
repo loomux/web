@@ -70,6 +70,15 @@ export interface ConversationTask {
   completed_at?: string;
 }
 
+// Per-turn message transcript, oldest first — LOOM-31.
+export interface ConversationMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  task_id: string;
+  created_at: string;
+}
+
 export interface AttachTargetInfo {
   id: string;
   name: string;
@@ -119,10 +128,11 @@ export const api = {
     request<{ conversations: ConversationSummary[] }>("/conversations", token),
 
   getConversation: (token: string, id: string) =>
-    request<{ conversation_id: string; tasks: ConversationTask[] }>(
-      `/conversations/${id}`,
-      token,
-    ),
+    request<{
+      conversation_id: string;
+      tasks: ConversationTask[];
+      messages: ConversationMessage[];
+    }>(`/conversations/${id}`, token),
 
   getAttachInfo: (token: string, taskId: string) =>
     request<AttachInfoResponse>(`/tasks/${taskId}/attach-info`, token),
