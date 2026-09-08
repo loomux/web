@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useApiClient } from "../lib/useApiClient";
 import { useConversationStream } from "../lib/useConversationStream";
 import { AttachInfo } from "../components/AttachInfo";
+import { MessageContent } from "../components/MessageContent";
 
 interface DisplayMessage {
   role: "user" | "assistant";
@@ -108,7 +109,7 @@ export function ConversationDetailPage() {
                 : "mr-auto max-w-[75%] rounded-lg bg-neutral-100 px-3 py-2 dark:bg-neutral-800"
             }
           >
-            {m.text}
+            <MessageContent role={m.role} text={m.text} />
           </div>
         ))}
       </div>
