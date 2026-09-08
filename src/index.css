@@ -8,6 +8,26 @@ body {
   margin: 0;
 }
 
+/* Inline vs. block code styling for rendered Markdown messages (see
+   src/components/MessageContent.tsx). Block code (`<pre><code>`) already
+   gets its background/padding from the `pre` element; this only needs to
+   style code that isn't inside a `pre` — a selector, not a JS check for a
+   `language-*` class, since a fenced block with no declared language
+   (common for shell/log output) has no such class but must still render
+   as a block. */
+.markdown-content :not(pre) > code {
+  background: rgb(0 0 0 / 10%);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content :not(pre) > code {
+    background: rgb(255 255 255 / 10%);
+  }
+}
+
 /* Syntax-highlighting theme for rehype-highlight's `hljs-*` token classes
    (see src/components/MessageContent.tsx) — hand-written rather than
    pulling in a highlight.js theme package just for its CSS. Colors are
