@@ -64,6 +64,45 @@ describe("ConversationDetailPage", () => {
     expect(screen.queryByText(/LOOM-31/)).not.toBeInTheDocument();
   });
 
+  it("renders markdown in message content, with fenced code blocks distinct from surrounding prose", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const reply = [
+      "Here's the fix:",
+      "",
+      "```python",
+      "def add(a, b):",
+      "    return a + b",
+      "```",
+      "",
+      "Then call **add(1, 2)**.",
+    ].join("\n");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [],
+          messages: [{ id: "m1", role: "assistant", content: reply, task_id: "t1", created_at: "2026-09-01T00:00:00Z" }],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    const { container } = renderPage();
+
+    expect(await screen.findByText("Here's the fix:")).toBeInTheDocument();
+
+    const codeBlock = container.querySelector("pre code");
+    expect(codeBlock).not.toBeNull();
+    expect(codeBlock?.textContent).toContain("def add(a, b):");
+    expect(codeBlock?.className).toContain("language-python");
+
+    // Bold prose renders as a <strong> element, not literal `**` markers.
+    expect(container.querySelector("strong")?.textContent).toBe("add(1, 2)");
+    expect(container.textContent).not.toContain("**");
+  });
+
   it("shows an empty-state message with no stale LOOM-31 reference when there is no transcript", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
