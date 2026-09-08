@@ -4,17 +4,64 @@ import rehypeHighlight from "rehype-highlight";
 
 type PluginList = NonNullable<Options["rehypePlugins"]>;
 
+// A minimal hast-shaped node — avoids importing `hast`'s types directly
+// (a transitive dependency, not one of this project's own).
+interface HastLikeNode {
+  type: string;
+  tagName?: string;
+  properties?: { className?: unknown[] } & Record<string, unknown>;
+  children?: HastLikeNode[];
+}
+
+// rehype-highlight extracts a fenced block's declared language straight off
+// the `language-*`/`lang-*` class on the `<code>` element and compares it
+// against `plainText` with an exact, case-sensitive `Array.includes` (its
+// `language()` helper reads the class value as-is, before lowlight resolves
+// any alias). That means the exclusion below only works for the exact
+// casing listed — an uppercase ```C or ```CPP fence would bypass it and
+// still run the vulnerable tokenizer. This plugin runs first and lowercases
+// that class so the comparison rehype-highlight does is effectively
+// case-insensitive.
+function rehypeLowercaseCodeLanguage() {
+  return function transformer(tree: HastLikeNode) {
+    visit(tree);
+  };
+
+  function visit(node: HastLikeNode, parent?: HastLikeNode) {
+    if (
+      node.type === "element" &&
+      node.tagName === "code" &&
+      parent?.type === "element" &&
+      parent.tagName === "pre" &&
+      Array.isArray(node.properties?.className)
+    ) {
+      node.properties.className = node.properties.className.map((value) => {
+        const str = String(value);
+        return /^(language|lang)-/.test(str) ? str.toLowerCase() : str;
+      });
+    }
+    for (const child of node.children ?? []) {
+      visit(child, node);
+    }
+  }
+}
+
 // highlight.js's C/C++/Arduino grammars share a known, unfixed ReDoS regex
 // (highlightjs/highlight.js#4362) in their function-declaration matcher.
-// Since this renders LLM-generated content, a crafted ```cpp fenced block
-// could freeze the tab — so those languages (and every alias lowlight
-// registers for them) are rendered unhighlighted instead of running the
-// vulnerable tokenizer. See docs/design/web-client-phase2-design.md
-// "/conversations/:id — the chat view itself".
+// Since this renders LLM-generated content, a crafted fenced block (e.g.
+// ```cpp) could freeze the tab — so every alias lowlight registers for
+// these grammars is listed here (lowercase; rehypeLowercaseCodeLanguage
+// above normalizes the fence tag's case before this list is checked) and
+// rendered unhighlighted instead of running the vulnerable tokenizer. See
+// docs/design/web-client-phase2-design.md "/conversations/:id — the chat
+// view itself".
 const REDOS_AFFECTED_LANGUAGES = ["c", "h", "cpp", "cc", "c++", "h++", "hpp", "hh", "hxx", "cxx", "arduino", "ino"];
 
 const remarkPlugins: PluginList = [remarkGfm];
-const rehypePlugins: PluginList = [[rehypeHighlight, { plainText: REDOS_AFFECTED_LANGUAGES }]];
+const rehypePlugins: PluginList = [
+  rehypeLowercaseCodeLanguage,
+  [rehypeHighlight, { plainText: REDOS_AFFECTED_LANGUAGES }],
+];
 
 // Block code styling (padding, background, syntax-highlight token colors)
 // lives in index.css via `pre code` / `:not(pre) > code` selectors, rather

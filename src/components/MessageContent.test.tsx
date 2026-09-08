@@ -43,6 +43,15 @@ describe("MessageContent", () => {
     expect(code?.textContent).toContain("int a a a a a;");
   });
 
+  it("does not run the ReDoS-affected grammars regardless of the fence tag's letter case", () => {
+    const { container } = render(<MessageContent role="assistant" text={"```CPP\nint a a a a a;\n```"} />);
+
+    const code = container.querySelector("pre code");
+    expect(code).not.toBeNull();
+    expect(code?.className).not.toMatch(/\bhljs\b/);
+    expect(code?.querySelectorAll("span")).toHaveLength(0);
+  });
+
   it("escapes raw HTML from message content instead of rendering it as an element", () => {
     const { container } = render(<MessageContent role="assistant" text={"<script>alert(1)</script>"} />);
 
@@ -57,7 +66,7 @@ describe("MessageContent", () => {
     // accessible "link" role, so query it directly rather than by role.
     const link = container.querySelector("a");
     expect(link).not.toBeNull();
-    expect(link?.getAttribute("href")).not.toMatch(/^javascript:/i);
+    expect(link?.getAttribute("href")).toBe("");
   });
 
   it("drops markdown images instead of rendering an <img> that fetches an external URL", () => {
