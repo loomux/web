@@ -108,4 +108,47 @@ describe("ConversationsPage", () => {
     expect(screen.queryByText("running")).not.toBeInTheDocument();
     expect(screen.getByText("awaiting input")).toBeInTheDocument();
   });
+
+  it("falls back to raw workspace_id when workspace is not in the registry", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({
+          conversations: [
+            { conversation_id: "conv-1", workspace_id: "unknown-ws", status: "running", updated_at: "2026-09-10T10:00:00Z" },
+          ],
+        });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("unknown-ws")).toBeInTheDocument();
+  });
+
+  it("does not show the empty state when the conversations fetch fails", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({ error: "server error" }, 500);
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/server error/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No conversations yet/i)).not.toBeInTheDocument();
+  });
 });

@@ -1,7 +1,5 @@
 import type { ConversationSummary } from "./api";
 
-export type ConversationStatus = ConversationSummary["status"];
-
 export type FilterKey = "all" | "needs-you" | "running" | "done";
 
 export const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
@@ -34,7 +32,7 @@ export function compareConversationSummaries(
   if (rankDiff !== 0) return rankDiff;
 
   const dateDiff = Date.parse(b.updated_at) - Date.parse(a.updated_at);
-  if (dateDiff !== 0 || Number.isNaN(dateDiff)) return dateDiff;
+  if (!Number.isNaN(dateDiff) && dateDiff !== 0) return dateDiff;
 
   return a.conversation_id.localeCompare(b.conversation_id);
 }

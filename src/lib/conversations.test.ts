@@ -55,6 +55,14 @@ describe("compareConversationSummaries", () => {
     const sorted = [a, b].sort(compareConversationSummaries);
     expect(sorted.map((c) => c.conversation_id)).toEqual(["a-id", "b-id"]);
   });
+
+  it("falls back to conversation_id tie-breaker when updated_at is unparseable", () => {
+    const a = make("running", "not-a-date", "a-id");
+    const b = make("running", "also-not-a-date", "b-id");
+
+    const sorted = [b, a].sort(compareConversationSummaries);
+    expect(sorted.map((c) => c.conversation_id)).toEqual(["a-id", "b-id"]);
+  });
 });
 
 describe("statusBadgeClasses", () => {

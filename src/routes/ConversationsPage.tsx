@@ -70,7 +70,7 @@ export function ConversationsPage() {
 
       {isLoading && <p className="text-neutral-500">Loading…</p>}
       {error && <p className="text-red-600">{(error as Error).message}</p>}
-      {!isLoading && visibleConversations.length === 0 && (
+      {!isLoading && !error && visibleConversations.length === 0 && (
         <p className="text-neutral-500">
           {filter === "all"
             ? "No conversations yet — start one above."
