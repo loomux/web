@@ -20,12 +20,12 @@ export function DashboardPage() {
   const apiClient = useApiClient();
   const navigate = useNavigate();
 
-  const { data: conversationsData, isLoading: conversationsLoading } = useQuery({
+  const { data: conversationsData, isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ["conversations"],
     queryFn: apiClient.listConversations,
   });
 
-  const { data: workspacesData, isLoading: workspacesLoading } = useQuery({
+  const { data: workspacesData, isLoading: workspacesLoading, error: workspacesError } = useQuery({
     queryKey: ["workspaces"],
     queryFn: apiClient.listWorkspaces,
   });
@@ -61,6 +61,8 @@ export function DashboardPage() {
         </h2>
         {conversationsLoading ? (
           <p className="text-neutral-500">Loading conversations…</p>
+        ) : conversationsError ? (
+          <p className="text-red-600">{(conversationsError as Error).message}</p>
         ) : attentionConversations.length === 0 ? (
           <p className="text-neutral-500">No conversations need your attention right now.</p>
         ) : (
@@ -94,6 +96,8 @@ export function DashboardPage() {
         </h2>
         {workspacesLoading ? (
           <p className="text-neutral-500">Loading workspaces…</p>
+        ) : workspacesError ? (
+          <p className="text-red-600">{(workspacesError as Error).message}</p>
         ) : workspacesData?.workspaces.length === 0 ? (
           <p className="text-neutral-500">No workspaces registered.</p>
         ) : (

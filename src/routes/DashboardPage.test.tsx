@@ -149,4 +149,44 @@ describe("DashboardPage", () => {
 
     expect(router.state.location.pathname).toMatch(/^\/conversations\/[\w-]+$/);
   });
+
+  it("shows error when conversations fetch fails", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({ error: "server error" }, 500);
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderDashboard();
+
+    expect(await screen.findByText(/server error/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No conversations need your attention right now/i)).not.toBeInTheDocument();
+  });
+
+  it("shows error when workspaces fetch fails", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({ conversations: [] });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ error: "server error" }, 500);
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderDashboard();
+
+    expect(await screen.findByText(/server error/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No workspaces registered/i)).not.toBeInTheDocument();
+  });
 });
