@@ -49,6 +49,13 @@ export interface WorkspaceSummary {
   name: string;
   target_id: string;
   status: string;
+  // LOOM-44 metadata — additive, may be absent from older servers.
+  tags?: string[];
+  description?: string;
+  capabilities?: string[];
+  rolling_summary?: string;
+  is_dynamic?: boolean;
+  last_used_at?: string;
 }
 
 export interface ConversationSummary {
