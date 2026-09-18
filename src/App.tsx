@@ -1,12 +1,22 @@
+import { lazy, Suspense } from "react";
 import { Link, Outlet, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { VersionBanner } from "./components/VersionBanner";
-import { LoginPage } from "./routes/LoginPage";
-import { DashboardPage } from "./routes/DashboardPage";
-import { WorkspacesPage } from "./routes/WorkspacesPage";
-import { ConversationsPage } from "./routes/ConversationsPage";
-import { ConversationDetailPage } from "./routes/ConversationDetailPage";
 import { useAuth } from "./lib/auth";
+
+// Lazy-loaded per route: keeps ConversationDetailPage's markdown/syntax-
+// highlighting dependencies (the bulk of the production bundle) out of the
+// initial load for users who only ever see the dashboard or workspaces.
+const LoginPage = lazy(() => import("./routes/LoginPage").then((m) => ({ default: m.LoginPage })));
+const DashboardPage = lazy(() => import("./routes/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const WorkspacesPage = lazy(() => import("./routes/WorkspacesPage").then((m) => ({ default: m.WorkspacesPage })));
+const ConversationsPage = lazy(() =>
+  import("./routes/ConversationsPage").then((m) => ({ default: m.ConversationsPage })),
+);
+const ConversationDetailPage = lazy(() =>
+  import("./routes/ConversationDetailPage").then((m) => ({ default: m.ConversationDetailPage })),
+);
 
 function AppShell() {
   const { logout } = useAuth();
@@ -30,18 +40,26 @@ function AppShell() {
   );
 }
 
+function RouteFallback() {
+  return <p className="p-4 text-neutral-500">Loading…</p>;
+}
+
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/workspaces" element={<WorkspacesPage />} />
-          <Route path="/conversations" element={<ConversationsPage />} />
-          <Route path="/conversations/:id" element={<ConversationDetailPage />} />
-        </Route>
-      </Route>
-    </Routes>
+    <RouteErrorBoundary>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppShell />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/workspaces" element={<WorkspacesPage />} />
+              <Route path="/conversations" element={<ConversationsPage />} />
+              <Route path="/conversations/:id" element={<ConversationDetailPage />} />
+            </Route>
+          </Route>
+        </Routes>
+      </Suspense>
+    </RouteErrorBoundary>
   );
 }
