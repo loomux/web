@@ -5,10 +5,11 @@ log in, see registered workspaces, hold conversations with the agent fleet,
 watch a dispatch progress live, and get the attach-info needed to `ssh` +
 `tmux attach` for a manual takeover.
 
-**Status: initial scaffold (LOOM-23 design approved, LOOM-24 build-out in
-progress).** Auth, routing, the typed API client, and stub pages for every
-route exist and are wired up end-to-end against a real `loomuxd`; the pages
-themselves are minimal and will keep growing under LOOM-24.
+**Status: LOOM-24 build-out.** Auth, the attention-first dashboard,
+workspaces, the conversations list, and the conversation detail view (live
+SSE task status, persisted transcript, Markdown + syntax-highlighted
+rendering, attach-info surfacing) are all shipped and wired up end-to-end
+against a real `loomuxd`.
 
 ## Design
 
@@ -20,12 +21,10 @@ repo; [`loomux/server`](https://github.com/loomux/server)'s copy of the
 same file is the historical record of what was approved (mirrors how that
 repo's own `docs/design/core-design.md` relates to command-center's copy).
 
-**Known dependency this design flags, not yet built:** for the "static
-files served by `loomuxd`" hosting model to work in production, the server
-repo needs a small addition — serving a configured static directory for
-non-`/api/*` paths with SPA fallback. See the design doc's "Hosting /
-serving integration" section. Until that lands, run this client against a
-local `loomuxd` via `npm run dev` (see below).
+The hosting dependency the design originally flagged — `loomuxd` serving
+this client's static build for production — has since shipped server-side
+(LOOM-33). For local development, run this client against a `loomuxd` via
+`npm run dev` (see below).
 
 ## Development
 
@@ -54,14 +53,24 @@ dev server proxies `/api/*` to `http://localhost:8080` by default
 - `src/lib/useConversationStream.ts` — SSE client for
   `/conversations/{id}/stream` via `@microsoft/fetch-event-source` (not
   native `EventSource` — see the design doc for why)
-- `src/routes/` — one file per page (`LoginPage`, `WorkspacesPage`,
-  `ConversationsPage`, `ConversationDetailPage`)
+- `src/lib/conversations.ts` — shared sorting/filtering/status-label logic
+  for the dashboard and conversations list
+- `src/routes/` — one file per page (`LoginPage`, `DashboardPage`,
+  `WorkspacesPage`, `ConversationsPage`, `ConversationDetailPage`), lazy-
+  loaded per route in `App.tsx`
 - `src/components/` — `ProtectedRoute` (auth gate), `VersionBanner`
-  (API-version-mismatch warning), `AttachInfo` (on-demand attach command)
+  (API-version-mismatch warning), `AttachInfo` (on-demand attach command),
+  `MessageContent` (Markdown/GFM + syntax-highlighted rendering of
+  assistant replies, with a denylist of ReDoS-affected languages that are
+  rendered unhighlighted — see the comments in that file), `RouteErrorBoundary`
+  (catches a failed lazy-route chunk fetch — e.g. an old tab open across a
+  redeploy — and offers a reload instead of a blank screen)
 
 ## Testing
 
-`src/lib/api.test.ts` covers the API client's success/error/auth-header
-behavior against a mocked `fetch`. `src/routes/LoginPage.test.tsx` covers
-the login flow (token stored on success, server error message shown on
-failure) with React Testing Library. Run with `npx vitest run`.
+Vitest + React Testing Library. Every route except `WorkspacesPage`, plus
+`src/lib/api.ts` and `src/lib/conversations.ts`, has a co-located
+`*.test.ts(x)` file — the API client's success/error/auth-header behavior
+against a mocked `fetch`, the login flow, dashboard/conversations sorting
+and filtering, and the conversation detail view's message rendering and
+live-stream handling. Run with `npx vitest run`.
