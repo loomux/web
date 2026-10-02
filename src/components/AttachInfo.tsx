@@ -11,6 +11,7 @@ export function AttachInfo({ taskId }: { taskId: string }) {
   const [info, setInfo] = useState<AttachInfoResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function reveal() {
     setLoading(true);
@@ -39,9 +40,28 @@ export function AttachInfo({ taskId }: { taskId: string }) {
 
   const command = `ssh ${info.target.user}@${info.target.host} tmux attach -t ${info.tmux_session}`;
 
+  async function copy() {
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Ignore copy failures; the command remains selectable as text.
+    }
+  }
+
   return (
-    <code className="block text-xs rounded bg-neutral-100 px-2 py-1.5 dark:bg-neutral-800">
-      {command}
-    </code>
+    <div className="relative">
+      <code className="block text-xs rounded bg-neutral-100 px-2 py-1.5 pr-16 dark:bg-neutral-800">
+        {command}
+      </code>
+      <button
+        onClick={copy}
+        className="absolute right-1 top-1 rounded bg-neutral-200 px-2 py-0.5 text-xs hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
   );
 }
