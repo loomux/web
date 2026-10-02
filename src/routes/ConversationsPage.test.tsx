@@ -151,4 +151,60 @@ describe("ConversationsPage", () => {
     expect(await screen.findByText(/server error/i)).toBeInTheDocument();
     expect(screen.queryByText(/No conversations yet/i)).not.toBeInTheDocument();
   });
+
+  it("renders a preview of the conversation's first message when the server provides one", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({
+          conversations: [
+            {
+              conversation_id: "conv-preview",
+              workspace_id: "ws-a",
+              status: "running",
+              updated_at: "2026-09-10T10:00:00Z",
+              preview: "First question about the deployment",
+            },
+          ],
+        });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({
+          workspaces: [{ id: "ws-a", name: "Alpha Workspace", target_id: "tgt-a", status: "online" }],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Alpha Workspace")).toBeInTheDocument();
+    expect(await screen.findByText("First question about the deployment")).toBeInTheDocument();
+    expect(screen.queryByText("conv-preview")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the conversation_id when no preview is available", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({
+          conversations: [
+            { conversation_id: "conv-no-preview", workspace_id: "ws-a", status: "running", updated_at: "2026-09-10T10:00:00Z" },
+          ],
+        });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("conv-no-preview")).toBeInTheDocument();
+  });
 });
