@@ -149,6 +149,9 @@ describe("ConversationDetailPage", () => {
           messages: [{ id: "m1", role: "assistant", content: reply, task_id: "t1", created_at: "2026-09-01T00:00:00Z" }],
         });
       }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
       throw new Error(`unexpected fetch: ${url}`);
     });
 
@@ -172,6 +175,9 @@ describe("ConversationDetailPage", () => {
       const url = String(input);
       if (url === "/api/v1/conversations/abc123") {
         return jsonResponse({ conversation_id: "abc123", tasks: [], messages: [] });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
       }
       throw new Error(`unexpected fetch: ${url}`);
     });
@@ -212,6 +218,10 @@ describe("ConversationDetailPage", () => {
 
       if (url === "/api/v1/dispatch" && method === "POST") {
         return dispatchPromise;
+      }
+
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
       }
 
       throw new Error(`unexpected fetch: ${method} ${url}`);
@@ -270,6 +280,10 @@ describe("ConversationDetailPage", () => {
         return dispatchPromise;
       }
 
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+
       throw new Error(`unexpected fetch: ${method} ${url}`);
     });
 
@@ -312,6 +326,10 @@ describe("ConversationDetailPage", () => {
 
       if (url === "/api/v1/dispatch" && method === "POST") {
         return jsonResponse({ error: "dispatch failed" }, 500);
+      }
+
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
       }
 
       throw new Error(`unexpected fetch: ${method} ${url}`);
