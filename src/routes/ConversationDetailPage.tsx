@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useApiClient } from "../lib/useApiClient";
 import { useConversationStream } from "../lib/useConversationStream";
+import { formatRelativeTime } from "../lib/time";
 import { AttachInfo } from "../components/AttachInfo";
 import { MessageContent } from "../components/MessageContent";
 
@@ -10,6 +11,7 @@ interface DisplayMessage {
   role: "user" | "assistant";
   text: string;
   key: string;
+  createdAt?: string;
 }
 
 // Statuses where a human plausibly wants to intervene — see
@@ -70,7 +72,12 @@ export function ConversationDetailPage() {
   }
 
   const messages: DisplayMessage[] = [
-    ...(history?.messages ?? []).map((m) => ({ role: m.role, text: m.content, key: m.id })),
+    ...(history?.messages ?? []).map((m) => ({
+      role: m.role,
+      text: m.content,
+      key: m.id,
+      createdAt: m.created_at,
+    })),
     ...(pendingUser !== null ? [{ role: "user" as const, text: pendingUser, key: "pending-user" }] : []),
     ...(pendingReply !== null ? [{ role: "assistant" as const, text: pendingReply, key: "pending-reply" }] : []),
   ];
@@ -110,6 +117,17 @@ export function ConversationDetailPage() {
             }
           >
             <MessageContent role={m.role} text={m.text} />
+            {m.createdAt && (
+              <time
+                dateTime={new Date(m.createdAt).toISOString()}
+                title={new Date(m.createdAt).toLocaleString()}
+                className={`block mt-1 text-xs text-neutral-400 dark:text-neutral-500 ${
+                  m.role === "user" ? "text-right" : "text-left"
+                }`}
+              >
+                {formatRelativeTime(m.createdAt)}
+              </time>
+            )}
           </div>
         ))}
       </div>
