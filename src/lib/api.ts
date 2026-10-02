@@ -63,6 +63,9 @@ export interface ConversationSummary {
   workspace_id: string;
   status: string;
   updated_at: string;
+  // First-message preview, added server-side in LOOM-45. Older servers may
+  // omit it, so the UI falls back to the conversation_id.
+  preview?: string;
 }
 
 export interface ConversationTask {

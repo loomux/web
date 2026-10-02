@@ -81,6 +81,7 @@ export function ConversationsPage() {
       <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
         {visibleConversations.map((c) => {
           const workspaceName = workspaceNameById.get(c.workspace_id);
+          const subtitle = c.preview?.trim() || c.conversation_id;
           return (
             <li key={c.conversation_id} className="py-3">
               <Link
@@ -89,7 +90,7 @@ export function ConversationsPage() {
               >
                 <div>
                   <p className="font-medium">{workspaceName ?? c.workspace_id}</p>
-                  <p className="text-sm text-neutral-500">{c.conversation_id}</p>
+                  <p className="text-sm text-neutral-500">{subtitle}</p>
                 </div>
                 <span className={`text-sm rounded-full px-2 py-0.5 ${statusBadgeClasses(c.status)}`}>
                   {formatStatusLabel(c.status)}
