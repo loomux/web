@@ -64,6 +64,36 @@ describe("ConversationDetailPage", () => {
     expect(screen.queryByText(/LOOM-31/)).not.toBeInTheDocument();
   });
 
+  it("renders a relative timestamp with an absolute tooltip for each persisted message", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const now = new Date("2026-09-01T00:12:00Z").getTime();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [],
+          messages: [
+            { id: "m1", role: "user", content: "hi there", task_id: "t1", created_at: "2026-09-01T00:00:00Z" },
+            { id: "m2", role: "assistant", content: "hello back", task_id: "t1", created_at: "2026-09-01T00:05:00Z" },
+          ],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("12m ago")).toBeInTheDocument();
+    expect(screen.getByText("7m ago")).toBeInTheDocument();
+
+    const timestamps = screen.getAllByText(/\d+m ago$/).map((el) => el.closest("time"));
+    expect(timestamps[0]).toHaveAttribute("datetime", "2026-09-01T00:00:00.000Z");
+    expect(timestamps[1]).toHaveAttribute("datetime", "2026-09-01T00:05:00.000Z");
+  });
+
   it("renders markdown in message content, with fenced code blocks distinct from surrounding prose", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const reply = [
