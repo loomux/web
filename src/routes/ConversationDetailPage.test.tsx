@@ -54,6 +54,9 @@ describe("ConversationDetailPage", () => {
           ],
         });
       }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
       throw new Error(`unexpected fetch: ${url}`);
     });
 
@@ -81,6 +84,9 @@ describe("ConversationDetailPage", () => {
           ],
         });
       }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
       throw new Error(`unexpected fetch: ${url}`);
     });
 
@@ -92,6 +98,33 @@ describe("ConversationDetailPage", () => {
     const timestamps = screen.getAllByText(/\d+m ago$/).map((el) => el.closest("time"));
     expect(timestamps[0]).toHaveAttribute("datetime", "2026-09-01T00:00:00.000Z");
     expect(timestamps[1]).toHaveAttribute("datetime", "2026-09-01T00:05:00.000Z");
+  });
+
+  it("shows the latest task's workspace name in the header, falling back to the raw workspace_id", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [
+            { id: "t1", workspace_id: "ws-a", kind: "agent", agent_type: "default", status: "running", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z" },
+          ],
+          messages: [],
+        });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({
+          workspaces: [{ id: "ws-a", name: "Alpha Workspace", target_id: "tgt-a", status: "online" }],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/Alpha Workspace/)).toBeInTheDocument();
+    expect(screen.queryByText(/ws-a/)).not.toBeInTheDocument();
   });
 
   it("renders markdown in message content, with fenced code blocks distinct from surrounding prose", async () => {
@@ -116,6 +149,9 @@ describe("ConversationDetailPage", () => {
           messages: [{ id: "m1", role: "assistant", content: reply, task_id: "t1", created_at: "2026-09-01T00:00:00Z" }],
         });
       }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
       throw new Error(`unexpected fetch: ${url}`);
     });
 
@@ -139,6 +175,9 @@ describe("ConversationDetailPage", () => {
       const url = String(input);
       if (url === "/api/v1/conversations/abc123") {
         return jsonResponse({ conversation_id: "abc123", tasks: [], messages: [] });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
       }
       throw new Error(`unexpected fetch: ${url}`);
     });
@@ -179,6 +218,10 @@ describe("ConversationDetailPage", () => {
 
       if (url === "/api/v1/dispatch" && method === "POST") {
         return dispatchPromise;
+      }
+
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
       }
 
       throw new Error(`unexpected fetch: ${method} ${url}`);
@@ -237,6 +280,10 @@ describe("ConversationDetailPage", () => {
         return dispatchPromise;
       }
 
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+
       throw new Error(`unexpected fetch: ${method} ${url}`);
     });
 
@@ -279,6 +326,10 @@ describe("ConversationDetailPage", () => {
 
       if (url === "/api/v1/dispatch" && method === "POST") {
         return jsonResponse({ error: "dispatch failed" }, 500);
+      }
+
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
       }
 
       throw new Error(`unexpected fetch: ${method} ${url}`);

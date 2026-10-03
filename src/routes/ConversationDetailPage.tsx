@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useApiClient } from "../lib/useApiClient";
@@ -22,10 +22,24 @@ const ATTACH_RELEVANT_STATUSES = new Set([
   "human-takeover",
 ]);
 
+function useWorkspaceNameById() {
+  const apiClient = useApiClient();
+  const { data } = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: apiClient.listWorkspaces,
+  });
+  return useMemo(() => {
+    const map = new Map<string, string>();
+    data?.workspaces.forEach((ws) => map.set(ws.id, ws.name));
+    return map;
+  }, [data]);
+}
+
 export function ConversationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const conversationId = id ?? null;
   const apiClient = useApiClient();
+  const workspaceNameById = useWorkspaceNameById();
 
   // Task history plus the persisted per-turn transcript (LOOM-31) — a
   // fresh conversation 404s here until its first dispatch, which is
@@ -83,12 +97,20 @@ export function ConversationDetailPage() {
   ];
 
   const latestTask = history?.tasks[history.tasks.length - 1];
+  const latestWorkspaceName = latestTask
+    ? (workspaceNameById.get(latestTask.workspace_id) ?? latestTask.workspace_id)
+    : null;
 
   return (
     <div className="flex flex-col h-[calc(100svh-3rem)]">
       <div className="border-b border-neutral-200 px-4 py-2 dark:border-neutral-800">
         <p className="text-sm text-neutral-500">
           Conversation {conversationId}
+          {latestWorkspaceName && (
+            <span className="ml-2">
+              · workspace: <span className="font-medium">{latestWorkspaceName}</span>
+            </span>
+          )}
           {liveTask && (
             <span className="ml-2">
               · status: <span className="font-medium">{liveTask.status}</span>
