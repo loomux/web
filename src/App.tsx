@@ -17,6 +17,7 @@ const ConversationsPage = lazy(() =>
 const ConversationDetailPage = lazy(() =>
   import("./routes/ConversationDetailPage").then((m) => ({ default: m.ConversationDetailPage })),
 );
+const TargetsPage = lazy(() => import("./routes/TargetsPage").then((m) => ({ default: m.TargetsPage })));
 
 function AppShell() {
   const { logout } = useAuth();
@@ -28,6 +29,7 @@ function AppShell() {
           <Link to="/">Dashboard</Link>
           <Link to="/workspaces">Workspaces</Link>
           <Link to="/conversations">Conversations</Link>
+          <Link to="/targets">Targets</Link>
         </div>
         <button onClick={logout} className="text-sm text-neutral-500 hover:underline">
           Log out
@@ -56,6 +58,7 @@ export function App() {
               <Route path="/workspaces" element={<WorkspacesPage />} />
               <Route path="/conversations" element={<ConversationsPage />} />
               <Route path="/conversations/:id" element={<ConversationDetailPage />} />
+              <Route path="/targets" element={<TargetsPage />} />
             </Route>
           </Route>
         </Routes>

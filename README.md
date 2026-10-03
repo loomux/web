@@ -6,10 +6,11 @@ watch a dispatch progress live, and get the attach-info needed to `ssh` +
 `tmux attach` for a manual takeover.
 
 **Status: LOOM-24 build-out.** Auth, the attention-first dashboard,
-workspaces, the conversations list, and the conversation detail view (live
+workspaces, the conversations list, the conversation detail view (live
 SSE task status, persisted transcript, Markdown + syntax-highlighted
-rendering, attach-info surfacing) are all shipped and wired up end-to-end
-against a real `loomuxd`.
+rendering, attach-info surfacing), and target registration (LOOM-69:
+register/edit/remove the hosts workspaces live on) are all shipped and
+wired up end-to-end against a real `loomuxd`.
 
 ## Design
 
@@ -55,9 +56,12 @@ dev server proxies `/api/*` to `http://localhost:8080` by default
   native `EventSource` — see the design doc for why)
 - `src/lib/conversations.ts` — shared sorting/filtering/status-label logic
   for the dashboard and conversations list
+- `src/lib/targets.ts` — target form state, and the client-side mirror of
+  the server's `registry.Target.Validate` so the register/edit form
+  previews the exact message a `400` would carry
 - `src/routes/` — one file per page (`LoginPage`, `DashboardPage`,
-  `WorkspacesPage`, `ConversationsPage`, `ConversationDetailPage`), lazy-
-  loaded per route in `App.tsx`
+  `WorkspacesPage`, `ConversationsPage`, `ConversationDetailPage`,
+  `TargetsPage`), lazy-loaded per route in `App.tsx`
 - `src/components/` — `ProtectedRoute` (auth gate), `VersionBanner`
   (API-version-mismatch warning), `AttachInfo` (on-demand attach command),
   `MessageContent` (Markdown/GFM + syntax-highlighted rendering of
@@ -69,8 +73,9 @@ dev server proxies `/api/*` to `http://localhost:8080` by default
 ## Testing
 
 Vitest + React Testing Library. Every route except `WorkspacesPage`, plus
-`src/lib/api.ts` and `src/lib/conversations.ts`, has a co-located
-`*.test.ts(x)` file — the API client's success/error/auth-header behavior
-against a mocked `fetch`, the login flow, dashboard/conversations sorting
-and filtering, and the conversation detail view's message rendering and
-live-stream handling. Run with `npx vitest run`.
+`src/lib/api.ts`, `src/lib/conversations.ts` and `src/lib/targets.ts`, has
+a co-located `*.test.ts(x)` file — the API client's success/error/auth-header
+behavior against a mocked `fetch`, the login flow, dashboard/conversations
+sorting and filtering, the conversation detail view's message rendering and
+live-stream handling, and the targets page's validation gate, PUT
+round-tripping and delete-conflict surfacing. Run with `npx vitest run`.
