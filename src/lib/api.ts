@@ -86,6 +86,35 @@ export interface ConversationMessage {
   created_at: string;
 }
 
+// A registered host Loomux can run tmux sessions on — LOOM-59's
+// targetResponse. `ssh_key_ref` is a vault reference, never secret material.
+export interface Target {
+  id: string;
+  name: string;
+  kind: string;
+  host: string;
+  user: string;
+  ssh_key_ref: string;
+  // LOOM-90 metadata — additive, may be absent from older servers. Empty
+  // means the target's default ($HOME/loomux-workspaces).
+  workspace_root?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Body for POST/PUT /targets (LOOM-59's targetRequest). No `id`: the server
+// mints it on create and takes it from the path on update. PUT replaces the
+// record, so every field the server stores has to be sent back on an edit or
+// it is cleared — see lib/targets.ts targetFormFromTarget.
+export interface TargetRequest {
+  name: string;
+  kind: string;
+  host: string;
+  user: string;
+  ssh_key_ref: string;
+  workspace_root?: string;
+}
+
 export interface AttachTargetInfo {
   id: string;
   name: string;
@@ -140,6 +169,25 @@ export const api = {
       tasks: ConversationTask[];
       messages: ConversationMessage[];
     }>(`/conversations/${id}`, token),
+
+  listTargets: (token: string) =>
+    request<{ targets: Target[] }>("/targets", token),
+
+  createTarget: (token: string, body: TargetRequest) =>
+    request<Target>("/targets", token, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateTarget: (token: string, id: string, body: TargetRequest) =>
+    request<Target>(`/targets/${id}`, token, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  // 204 No Content on success; 409 when a workspace still references it.
+  deleteTarget: (token: string, id: string) =>
+    request<void>(`/targets/${id}`, token, { method: "DELETE" }),
 
   getAttachInfo: (token: string, taskId: string) =>
     request<AttachInfoResponse>(`/tasks/${taskId}/attach-info`, token),

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { api, ApiError } from "./api";
+import { api, ApiError, type TargetRequest } from "./api";
 import { useAuth } from "./auth";
 
 // Binds every token-requiring `api` call to the current session token and
@@ -31,6 +31,11 @@ export function useApiClient() {
         guarded((t) => api.dispatch(t, conversationId, message)),
       listWorkspaces: () => guarded((t) => api.listWorkspaces(t)),
       listConversations: () => guarded((t) => api.listConversations(t)),
+      listTargets: () => guarded((t) => api.listTargets(t)),
+      createTarget: (body: TargetRequest) => guarded((t) => api.createTarget(t, body)),
+      updateTarget: (id: string, body: TargetRequest) =>
+        guarded((t) => api.updateTarget(t, id, body)),
+      deleteTarget: (id: string) => guarded((t) => api.deleteTarget(t, id)),
       getConversation: (id: string) => guarded((t) => api.getConversation(t, id)),
       getAttachInfo: (taskId: string) => guarded((t) => api.getAttachInfo(t, taskId)),
     }),
