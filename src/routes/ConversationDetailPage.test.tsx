@@ -294,4 +294,42 @@ describe("ConversationDetailPage", () => {
     expect(await screen.findByText("hello?")).toBeInTheDocument();
     expect(await screen.findByText("dispatch failed")).toBeInTheDocument();
   });
+
+  it("uses a multiline composer where Shift+Enter inserts a newline and Enter sends", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const user = userEvent.setup();
+
+    let dispatchCalls = 0;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/v1/conversations/abc123" && method === "GET") {
+        return jsonResponse({ conversation_id: "abc123", tasks: [], messages: [] });
+      }
+
+      if (url === "/api/v1/dispatch" && method === "POST") {
+        dispatchCalls += 1;
+        return jsonResponse({ reply: "ack" });
+      }
+
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+
+    renderPage();
+
+    const composer = await screen.findByPlaceholderText(/message the agent fleet/i);
+    expect(composer.tagName.toLowerCase()).toBe("textarea");
+
+    await user.type(composer, "line one");
+    await user.keyboard("{Shift>}{Enter}{/Shift}");
+
+    expect(composer).toHaveValue("line one\n");
+    expect(dispatchCalls).toBe(0);
+
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(dispatchCalls).toBe(1));
+    await waitFor(() => expect(composer).toHaveValue(""));
+  });
 });

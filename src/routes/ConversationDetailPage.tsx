@@ -138,12 +138,19 @@ export function ConversationDetailPage() {
         onSubmit={handleSubmit}
         className="border-t border-neutral-200 p-3 flex gap-2 dark:border-neutral-800"
       >
-        <input
+        <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
           placeholder="Message the agent fleet…"
           disabled={sending}
-          className="flex-1 rounded border border-neutral-300 px-3 py-2 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
+          rows={1}
+          className="flex-1 resize-none rounded border border-neutral-300 px-3 py-2 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
         />
         <button
           type="submit"
