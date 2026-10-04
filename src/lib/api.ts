@@ -78,6 +78,19 @@ export interface ConversationTask {
   updated_at: string;
   started_at?: string;
   completed_at?: string;
+  // The prompt a needs-attention task's agent is stopped at (LOOM-97).
+  attention?: Attention;
+}
+
+// A prompt read off an agent's pane (LOOM-97): an approval, a question or
+// the folder-trust dialog, with the options it lists.
+export interface Attention {
+  kind: "permission" | "question" | "trust" | "login";
+  title?: string;
+  detail?: string;
+  question?: string;
+  options?: { label: string; description?: string }[];
+  selected: number;
 }
 
 // Per-turn message transcript, oldest first — LOOM-31.

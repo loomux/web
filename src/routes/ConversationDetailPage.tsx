@@ -6,6 +6,7 @@ import { useConversationStream } from "../lib/useConversationStream";
 import { formatRelativeTime } from "../lib/time";
 import { AttachInfo } from "../components/AttachInfo";
 import { MessageContent } from "../components/MessageContent";
+import { AttentionCard } from "../components/AttentionCard";
 
 interface DisplayMessage {
   role: "user" | "assistant";
@@ -18,6 +19,7 @@ interface DisplayMessage {
 // docs/design/web-client-design.md "Attach-info surfacing".
 const ATTACH_RELEVANT_STATUSES = new Set([
   "running",
+  "needs-attention",
   "awaiting-input",
   "human-takeover",
 ]);
@@ -63,11 +65,17 @@ export function ConversationDetailPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!conversationId || draft.trim() === "" || sending) return;
-    const text = draft;
-    setDraft("");
+    if (draft.trim() === "") return;
+    void send(draft, () => setDraft(""));
+  }
+
+  // send dispatches text as the conversation's next message — typed in
+  // the composer, or an answer from the needs-attention card.
+  async function send(text: string, onAccepted?: () => void) {
+    if (!conversationId || sending) return;
+    onAccepted?.();
     setError(null);
     setPendingUser(text);
     setPendingReply(null);
@@ -102,6 +110,9 @@ export function ConversationDetailPage() {
   ];
 
   const latestTask = history?.tasks[history.tasks.length - 1];
+  // A needs-attention task's prompt (LOOM-97) — shown until it's answered,
+  // and not while that answer is on its way.
+  const attentionTask = history?.tasks.findLast((t) => t.status === "needs-attention" && t.attention);
   const latestWorkspaceName = latestTask
     ? (workspaceNameById.get(latestTask.workspace_id) ?? latestTask.workspace_id)
     : null;
@@ -160,6 +171,15 @@ export function ConversationDetailPage() {
       </div>
 
       {error && <p className="px-4 text-sm text-red-600">{error}</p>}
+
+      {attentionTask?.attention && pendingUser === null && (
+        <AttentionCard
+          attention={attentionTask.attention}
+          agent={attentionTask.agent_type || "The agent"}
+          disabled={sending}
+          onAnswer={(answer) => void send(answer)}
+        />
+      )}
 
       <form
         onSubmit={handleSubmit}
