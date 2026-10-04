@@ -33,6 +33,7 @@ const REMOTE_TARGET = {
   user: "agent",
   ssh_key_ref: "vault://keys/beta",
   workspace_root: "/srv/loomux",
+  permission_mode: "auto",
   created_at: "2026-09-01T00:00:00Z",
   updated_at: "2026-09-01T00:00:00Z",
 };
@@ -95,6 +96,9 @@ describe("TargetsPage", () => {
     expect(within(remote).getByText("remote")).toBeInTheDocument();
     expect(within(remote).getByText("agent@beta.example")).toBeInTheDocument();
     expect(within(remote).getByText(/2 workspaces reference this target/)).toBeInTheDocument();
+    // A target's permission mode shows on its row; the default shows nothing.
+    expect(within(remote).getByText("Permissions: auto")).toBeInTheDocument();
+    expect(within(local).queryByText(/Permissions:/)).not.toBeInTheDocument();
   });
 
   it("filters by kind when a chip is clicked", async () => {
@@ -153,6 +157,7 @@ describe("TargetsPage", () => {
       user: "agent",
       ssh_key_ref: "",
       workspace_root: "",
+      permission_mode: "",
     });
   });
 
@@ -191,6 +196,7 @@ describe("TargetsPage", () => {
       user: "",
       ssh_key_ref: "",
       workspace_root: "",
+      permission_mode: "",
     });
   });
 
@@ -246,7 +252,7 @@ describe("TargetsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("edits via PUT, round-tripping ssh_key_ref and workspace_root", async () => {
+  it("edits via PUT, round-tripping ssh_key_ref and workspace_root, and sets permission_mode", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();
     let put: unknown = null;
@@ -272,8 +278,13 @@ describe("TargetsPage", () => {
     expect(screen.getByLabelText(/SSH key reference/)).toHaveValue("vault://keys/beta");
     expect(screen.getByLabelText(/Workspace root/)).toHaveValue("/srv/loomux");
 
+    expect(screen.getByLabelText(/Permission mode/)).toHaveValue("auto");
+
     await user.clear(screen.getByLabelText("User"));
     await user.type(screen.getByLabelText("User"), "runner");
+    await user.selectOptions(screen.getByLabelText(/Permission mode/), "manual");
+    // Each mode says what it means.
+    expect(screen.getByText(/Every file edit and command waits for approval/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await vi.waitFor(() => expect(put).not.toBeNull());
@@ -284,6 +295,7 @@ describe("TargetsPage", () => {
       user: "runner",
       ssh_key_ref: "vault://keys/beta",
       workspace_root: "/srv/loomux",
+      permission_mode: "manual",
     });
   });
 

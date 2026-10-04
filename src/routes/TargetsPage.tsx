@@ -9,11 +9,13 @@ import {
   KIND_FILTER_OPTIONS,
   kindBadgeClasses,
   matchesKindFilter,
+  PERMISSION_MODES,
   TARGET_KINDS,
   targetFormFromTarget,
   toTargetRequest,
   validateTargetRequest,
   type KindFilterKey,
+  type PermissionMode,
   type TargetFormValues,
   type TargetKind,
 } from "../lib/targets";
@@ -265,6 +267,26 @@ export function TargetsPage() {
             />
           </label>
 
+          <label className="block space-y-1">
+            <span className="text-sm text-neutral-600 dark:text-neutral-400">Permission mode</span>
+            <select
+              value={values.permission_mode}
+              onChange={(e) =>
+                setValues({ ...values, permission_mode: e.target.value as PermissionMode })
+              }
+              className={INPUT_CLASSES}
+            >
+              {PERMISSION_MODES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <span className="block text-sm text-neutral-500">
+              {PERMISSION_MODES.find((m) => m.value === values.permission_mode)?.description}
+            </span>
+          </label>
+
           {submitError && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {submitError}
@@ -313,6 +335,9 @@ export function TargetsPage() {
                   <p className="truncate text-sm text-neutral-500">
                     {formatDestination(target)}
                   </p>
+                  {target.permission_mode && (
+                    <p className="text-sm text-neutral-500">Permissions: {target.permission_mode}</p>
+                  )}
                   {workspaceCount > 0 && (
                     <p className="text-sm text-neutral-500">
                       {workspaceCount === 1

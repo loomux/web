@@ -4,6 +4,38 @@ export type TargetKind = "local" | "remote";
 
 export const TARGET_KINDS: TargetKind[] = ["local", "remote"];
 
+// registry.Target.PermissionMode's values. "" is each agent-type's own
+// default (auto, today).
+export type PermissionMode = "" | "auto" | "accept-edits" | "manual";
+
+export const PERMISSION_MODES: { value: PermissionMode; label: string; description: string }[] = [
+  {
+    value: "",
+    label: "Agent default",
+    description: "Each agent's own default — automatic mode for Claude Code and Codex.",
+  },
+  {
+    value: "auto",
+    label: "Auto",
+    description:
+      "Routine edits and commands go ahead; anything the agent judges risky stops and asks you in the chat.",
+  },
+  {
+    value: "accept-edits",
+    label: "Accept edits",
+    description: "File edits in the workspace go ahead; every command waits for your approval in the chat.",
+  },
+  {
+    value: "manual",
+    label: "Manual",
+    description: "Every file edit and command waits for approval in the chat.",
+  },
+];
+
+function isPermissionMode(v: string | undefined): v is PermissionMode {
+  return PERMISSION_MODES.some((m) => m.value === v);
+}
+
 export type KindFilterKey = "all" | TargetKind;
 
 export const KIND_FILTER_OPTIONS: { key: KindFilterKey; label: string }[] = [
@@ -22,6 +54,7 @@ export interface TargetFormValues {
   user: string;
   ssh_key_ref: string;
   workspace_root: string;
+  permission_mode: PermissionMode;
 }
 
 export const EMPTY_TARGET_FORM: TargetFormValues = {
@@ -31,6 +64,7 @@ export const EMPTY_TARGET_FORM: TargetFormValues = {
   user: "",
   ssh_key_ref: "",
   workspace_root: "",
+  permission_mode: "",
 };
 
 // Pre-fills the edit form from a stored row. ssh_key_ref and workspace_root
@@ -45,6 +79,7 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
     user: target.user,
     ssh_key_ref: target.ssh_key_ref,
     workspace_root: target.workspace_root ?? "",
+    permission_mode: isPermissionMode(target.permission_mode) ? target.permission_mode : "",
   };
 }
 
@@ -61,6 +96,7 @@ export function toTargetRequest(values: TargetFormValues): TargetRequest {
     user: local ? "" : values.user.trim(),
     ssh_key_ref: values.ssh_key_ref.trim(),
     workspace_root: values.workspace_root.trim(),
+    permission_mode: values.permission_mode,
   };
 }
 
@@ -95,6 +131,10 @@ export function validateTargetRequest(req: TargetRequest): string | null {
     }
   } else {
     return 'kind must be "local" or "remote"';
+  }
+
+  if (!isPermissionMode(req.permission_mode ?? "")) {
+    return 'permission_mode must be empty, "auto", "accept-edits" or "manual"';
   }
 
   const root = req.workspace_root ?? "";
