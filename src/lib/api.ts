@@ -114,6 +114,10 @@ export interface Target {
   // LOOM-90 metadata — additive, may be absent from older servers. Empty
   // means the target's default ($HOME/loomux-workspaces).
   workspace_root?: string;
+  // How much agents on this target may do without asking (server #142):
+  // "", "auto", "accept-edits" or "manual". Empty is each agent's default.
+  // Absent from older servers.
+  permission_mode?: string;
   created_at: string;
   updated_at: string;
 }
@@ -129,6 +133,7 @@ export interface TargetRequest {
   user: string;
   ssh_key_ref: string;
   workspace_root?: string;
+  permission_mode?: string;
 }
 
 export interface AttachTargetInfo {

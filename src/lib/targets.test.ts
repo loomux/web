@@ -20,6 +20,7 @@ function makeTarget(overrides: Partial<Target> = {}): Target {
     user: "agent",
     ssh_key_ref: "vault://keys/alpha",
     workspace_root: "/srv/loomux",
+    permission_mode: "manual",
     created_at: "2026-09-01T00:00:00Z",
     updated_at: "2026-09-01T00:00:00Z",
     ...overrides,
@@ -34,6 +35,7 @@ function form(overrides: Partial<TargetFormValues> = {}): TargetFormValues {
     user: "agent",
     ssh_key_ref: "",
     workspace_root: "",
+    permission_mode: "",
     ...overrides,
   };
 }
@@ -47,7 +49,15 @@ describe("targetFormFromTarget", () => {
       user: "agent",
       ssh_key_ref: "vault://keys/alpha",
       workspace_root: "/srv/loomux",
+      permission_mode: "manual",
     });
+  });
+
+  it("treats an absent or unknown permission_mode as the default", () => {
+    const target = makeTarget();
+    delete target.permission_mode;
+    expect(targetFormFromTarget(target).permission_mode).toBe("");
+    expect(targetFormFromTarget(makeTarget({ permission_mode: "yolo" })).permission_mode).toBe("");
   });
 
   it("treats an absent workspace_root as empty (older servers omit it)", () => {
@@ -81,6 +91,11 @@ describe("toTargetRequest", () => {
     );
     expect(req.ssh_key_ref).toBe("vault://keys/alpha");
     expect(req.workspace_root).toBe("/srv/loomux");
+  });
+
+  it("sends permission_mode as chosen, empty meaning the agent's default", () => {
+    expect(toTargetRequest(form({ permission_mode: "manual" })).permission_mode).toBe("manual");
+    expect(toTargetRequest(form()).permission_mode).toBe("");
   });
 });
 
@@ -122,6 +137,13 @@ describe("validateTargetRequest", () => {
   it("rejects an unknown kind", () => {
     expect(validateTargetRequest({ ...base, kind: "kubernetes" })).toBe(
       'kind must be "local" or "remote"',
+    );
+  });
+
+  it("rejects an unknown permission_mode", () => {
+    expect(validateTargetRequest({ ...base, permission_mode: "auto" })).toBeNull();
+    expect(validateTargetRequest({ ...base, permission_mode: "yolo" })).toBe(
+      'permission_mode must be empty, "auto", "accept-edits" or "manual"',
     );
   });
 
