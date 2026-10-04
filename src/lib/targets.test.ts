@@ -85,6 +85,10 @@ describe("targetFormFromTarget", () => {
     });
   });
 
+  it("reads a stored purpose of personal as the default the select shows", () => {
+    expect(targetFormFromTarget(makeTarget({ purpose: "personal" })).purpose).toBe("");
+  });
+
   it("treats an absent or unknown permission_mode as the default", () => {
     const target = makeTarget();
     delete target.permission_mode;

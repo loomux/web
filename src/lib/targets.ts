@@ -36,8 +36,9 @@ function isPermissionMode(v: string | undefined): v is PermissionMode {
   return PERMISSION_MODES.some((m) => m.value === v);
 }
 
-// registry.TargetPolicy.Purpose; "" is personal.
-export type TargetPurpose = "" | "personal" | "work";
+// registry.TargetPolicy.Purpose; "" is personal (a stored "personal" is
+// read as "", the one option the form offers for it).
+export type TargetPurpose = "" | "work";
 
 export type KindFilterKey = "all" | TargetKind;
 
@@ -94,7 +95,7 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
     ssh_key_ref: target.ssh_key_ref,
     workspace_root: target.workspace_root ?? "",
     permission_mode: isPermissionMode(target.permission_mode) ? target.permission_mode : "",
-    purpose: target.purpose === "personal" || target.purpose === "work" ? target.purpose : "",
+    purpose: target.purpose === "work" ? "work" : "",
     allowed_agent_types: (target.allowed_agent_types ?? []).join(", "),
     allow_provision: target.allow_provision ?? true,
     allow_shell: target.allow_shell ?? true,
