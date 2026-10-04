@@ -62,6 +62,8 @@ export interface WorkspaceSummary {
   rolling_summary?: string;
   is_dynamic?: boolean;
   last_used_at?: string;
+  // Why it's in its status, e.g. what made it failed (LOOM-77).
+  status_reason?: string;
 }
 
 export interface ConversationSummary {
@@ -250,6 +252,16 @@ export const api = {
 
   listWorkspaces: (token: string) =>
     request<{ workspaces: WorkspaceSummary[] }>("/workspaces", token),
+
+  // Deletes a workspace, its tasks and their tmux sessions (LOOM-70); the
+  // files on its target are kept. 409 carries why it can't be deleted yet.
+  deleteWorkspace: (token: string, id: string) =>
+    request<{ sessions_not_killed: string[] }>(`/workspaces/${id}`, token, { method: "DELETE" }),
+
+  // "idle" puts a failed or archived workspace back in service; "archived"
+  // takes one out (LOOM-70).
+  setWorkspaceStatus: (token: string, id: string, status: "idle" | "archived") =>
+    request<void>(`/workspaces/${id}`, token, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   listConversations: (token: string) =>
     request<{ conversations: ConversationSummary[] }>("/conversations", token),
