@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useApiClient } from "../lib/useApiClient";
@@ -64,6 +64,15 @@ export function ConversationDetailPage() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The composer has focus whenever it can take input: on opening a
+  // conversation, and again once a send finishes (sending disables it,
+  // which drops focus). A message typed straight after opening one then
+  // goes where it's meant to.
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!sending) composerRef.current?.focus();
+  }, [sending, conversationId]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -186,6 +195,7 @@ export function ConversationDetailPage() {
         className="border-t border-neutral-200 p-3 flex gap-2 dark:border-neutral-800"
       >
         <textarea
+          ref={composerRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
