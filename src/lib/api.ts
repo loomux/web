@@ -154,10 +154,16 @@ export const api = {
   logout: (token: string) =>
     request<void>("/logout", token, { method: "POST" }),
 
-  dispatch: (token: string, conversationId: string, message: string) =>
+  // workspaceHint (LOOM-87) is the conversation's current workspace, so the
+  // router can route a follow-up back to it. Advisory: the server decides.
+  dispatch: (token: string, conversationId: string, message: string, workspaceHint?: string) =>
     request<{ reply: string }>("/dispatch", token, {
       method: "POST",
-      body: JSON.stringify({ conversation_id: conversationId, message }),
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        message,
+        ...(workspaceHint ? { workspace_hint: workspaceHint } : {}),
+      }),
     }),
 
   listWorkspaces: (token: string) =>

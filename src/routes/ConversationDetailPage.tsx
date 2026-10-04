@@ -73,7 +73,10 @@ export function ConversationDetailPage() {
     setPendingReply(null);
     setSending(true);
     try {
-      const { reply } = await apiClient.dispatch(conversationId, text);
+      // The conversation's current workspace (its latest task's) goes along as
+      // workspace_hint (LOOM-87), so a follow-up lands back in it.
+      const workspaceHint = history?.tasks[history.tasks.length - 1]?.workspace_id;
+      const { reply } = await apiClient.dispatch(conversationId, text, workspaceHint);
       setPendingReply(reply);
       await refetchHistory();
       setPendingUser(null);
