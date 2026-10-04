@@ -7,22 +7,22 @@ import { formatRelativeTime } from "../lib/time";
 import { AttachInfo } from "../components/AttachInfo";
 import { MessageContent } from "../components/MessageContent";
 import { AttentionCard } from "../components/AttentionCard";
+import { DispatchErrorCard, DispatchProgressCard } from "../components/DispatchCards";
+import { ApiError, type Dispatch } from "../lib/api";
+import { isTerminalDispatch, turnStage } from "../lib/dispatchTurn";
 
 interface DisplayMessage {
   role: "user" | "assistant";
   text: string;
   key: string;
   createdAt?: string;
+  // The turn this user message started, when it failed (LOOM-81).
+  failed?: Dispatch;
 }
 
 // Statuses where a human plausibly wants to intervene — see
 // docs/design/web-client-design.md "Attach-info surfacing".
-const ATTACH_RELEVANT_STATUSES = new Set([
-  "running",
-  "needs-attention",
-  "awaiting-input",
-  "human-takeover",
-]);
+const ATTACH_RELEVANT_STATUSES = new Set(["running", "needs-attention", "awaiting-input", "human-takeover"]);
 
 function useWorkspaceNameById() {
   const apiClient = useApiClient();
@@ -46,24 +46,65 @@ export function ConversationDetailPage() {
   // Task history plus the persisted per-turn transcript (LOOM-31) — a
   // fresh conversation 404s here until its first dispatch, which is
   // expected, not an error to surface.
+  const { event: liveTask, dispatchEvent, connected } = useConversationStream(conversationId);
+
+  // The dispatch this page started (or was pointed at by a 409) and is
+  // following, until it ends (LOOM-81).
+  const [followed, setFollowed] = useState<Dispatch | null>(null);
+
   const { data: history, refetch: refetchHistory } = useQuery({
     queryKey: ["conversation", conversationId],
     queryFn: () => apiClient.getConversation(conversationId!),
     enabled: !!conversationId,
     retry: false,
+    // The stream says when a turn moves on; without it, look every few
+    // seconds while one is in flight.
+    refetchInterval: (query) => {
+      const inFlight = query.state.data?.dispatches?.some((d) => !isTerminalDispatch(d.status));
+      return (inFlight || followed) && !connected ? 3000 : false;
+    },
   });
 
-  const { event: liveTask, connected } = useConversationStream(conversationId);
+  // The turn in flight: the one followed, else any the server says is
+  // running (a reload mid-turn), with the stream's latest word on it.
+  let active: Dispatch | null =
+    (followed && history?.dispatches?.find((d) => d.dispatch_id === followed.dispatch_id)) ||
+    followed ||
+    history?.dispatches?.findLast((d) => !isTerminalDispatch(d.status)) ||
+    null;
+  if (active && dispatchEvent?.dispatch_id === active.dispatch_id) {
+    active = { ...active, ...dispatchEvent };
+  }
+  const inFlight = active !== null && !isTerminalDispatch(active.status);
+  const activeId = active?.dispatch_id;
+  const activeStatus = active?.status;
 
-  // Optimistic entries for the turn currently in flight. Cleared once the
-  // post-dispatch refetch lands, at which point history.messages is the
-  // sole source of truth again — avoids ever showing both an optimistic
-  // and a persisted copy of the same message at once.
+  // When the followed turn ends, the transcript has its answer (or its
+  // failure): fetch it, then stop following.
+  useEffect(() => {
+    if (!activeId || !activeStatus || !isTerminalDispatch(activeStatus)) return;
+    let cancelled = false;
+    void refetchHistory().then(() => {
+      if (!cancelled) setFollowed((f) => (f?.dispatch_id === activeId ? null : f));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId, activeStatus, refetchHistory]);
+
+  // A task moving on (launched, waiting for you, done) changes the stage.
+  useEffect(() => {
+    if (liveTask && inFlight) void refetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveTask?.task_id, liveTask?.status, liveTask?.updated_at]);
+
+  // The optimistic copy of a message until the server has it: it's stored
+  // when the dispatch is accepted, so the refetch after that replaces it.
   const [pendingUser, setPendingUser] = useState<string | null>(null);
-  const [pendingReply, setPendingReply] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const busy = sending || inFlight;
 
   // The composer has focus whenever it can take input: on opening a
   // conversation, and again once a send finishes (sending disables it,
@@ -71,8 +112,8 @@ export function ConversationDetailPage() {
   // goes where it's meant to.
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    if (!sending) composerRef.current?.focus();
-  }, [sending, conversationId]);
+    if (!busy) composerRef.current?.focus();
+  }, [busy, conversationId]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -82,12 +123,13 @@ export function ConversationDetailPage() {
 
   // send dispatches text as the conversation's next message — typed in
   // the composer, or an answer from the needs-attention card.
+  // It returns once the server has accepted the turn; the stream carries
+  // the rest. A Retry is a send of the same text.
   async function send(text: string, onAccepted?: () => void) {
-    if (!conversationId || sending) return;
+    if (!conversationId || busy) return;
     onAccepted?.();
     setError(null);
     setPendingUser(text);
-    setPendingReply(null);
     setSending(true);
     try {
       // The conversation's current workspace goes along as workspace_hint
@@ -95,27 +137,50 @@ export function ConversationDetailPage() {
       // A command task runs in the target's shell workspace, which the router
       // is never offered, so it says nothing about where the work is.
       const workspaceHint = history?.tasks.findLast((t) => t.kind === "agent")?.workspace_id;
-      const { reply } = await apiClient.dispatch(conversationId, text, workspaceHint);
-      setPendingReply(reply);
+      const accepted = await apiClient.dispatch(conversationId, text, workspaceHint, crypto.randomUUID());
+      if (accepted.dispatch_id) setFollowed(accepted);
       await refetchHistory();
       setPendingUser(null);
-      setPendingReply(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Dispatch failed");
+      if (err instanceof ApiError && err.status === 409 && err.dispatchId) {
+        // A turn is already running here (another tab, or a reload):
+        // follow that one; this message wasn't sent.
+        setFollowed({
+          dispatch_id: err.dispatchId,
+          conversation_id: conversationId,
+          status: "running",
+          created_at: new Date().toISOString(),
+        });
+        setPendingUser(null);
+        setDraft((d) => d || text);
+        setError(
+          "A turn is still running in this conversation. Your message wasn't sent; send it once that one finishes.",
+        );
+        void refetchHistory();
+      } else if (err instanceof ApiError && err.status === 503) {
+        setError("Loomux is restarting. Your message wasn't sent; try again in a moment.");
+      } else {
+        setError(err instanceof Error ? err.message : "Dispatch failed");
+      }
     } finally {
       setSending(false);
     }
   }
 
+  const failedById = new Map(
+    (history?.dispatches ?? [])
+      .filter((d) => d.status === "failed" || d.status === "interrupted")
+      .map((d) => [d.dispatch_id, d]),
+  );
   const messages: DisplayMessage[] = [
     ...(history?.messages ?? []).map((m) => ({
       role: m.role,
       text: m.content,
       key: m.id,
       createdAt: m.created_at,
+      failed: m.role === "user" && m.dispatch_id ? failedById.get(m.dispatch_id) : undefined,
     })),
     ...(pendingUser !== null ? [{ role: "user" as const, text: pendingUser, key: "pending-user" }] : []),
-    ...(pendingReply !== null ? [{ role: "assistant" as const, text: pendingReply, key: "pending-reply" }] : []),
   ];
 
   const latestTask = history?.tasks[history.tasks.length - 1];
@@ -143,7 +208,8 @@ export function ConversationDetailPage() {
             </span>
           )}
         </p>
-        {latestTask && ATTACH_RELEVANT_STATUSES.has(latestTask.status) && (
+        {/* While a turn is in flight its progress card carries the attach command. */}
+        {!inFlight && latestTask && ATTACH_RELEVANT_STATUSES.has(latestTask.status) && (
           <div className="mt-1">
             <AttachInfo taskId={latestTask.id} />
           </div>
@@ -155,28 +221,43 @@ export function ConversationDetailPage() {
           <p className="text-neutral-500 text-sm">No messages yet — send one to get started.</p>
         )}
         {messages.map((m) => (
-          <div
-            key={m.key}
-            className={
-              m.role === "user"
-                ? "ml-auto max-w-[75%] rounded-lg bg-neutral-900 px-3 py-2 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                : "mr-auto max-w-[75%] rounded-lg bg-neutral-100 px-3 py-2 dark:bg-neutral-800"
-            }
-          >
-            <MessageContent role={m.role} text={m.text} />
-            {m.createdAt && (
-              <time
-                dateTime={new Date(m.createdAt).toISOString()}
-                title={new Date(m.createdAt).toLocaleString()}
-                className={`block mt-1 text-xs text-neutral-400 dark:text-neutral-500 ${
-                  m.role === "user" ? "text-right" : "text-left"
-                }`}
-              >
-                {formatRelativeTime(m.createdAt)}
-              </time>
+          <div key={m.key} className="space-y-3">
+            <div
+              className={
+                m.role === "user"
+                  ? "ml-auto max-w-[75%] rounded-lg bg-neutral-900 px-3 py-2 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                  : "mr-auto max-w-[75%] rounded-lg bg-neutral-100 px-3 py-2 dark:bg-neutral-800"
+              }
+            >
+              <MessageContent role={m.role} text={m.text} />
+              {m.createdAt && (
+                <time
+                  dateTime={new Date(m.createdAt).toISOString()}
+                  title={new Date(m.createdAt).toLocaleString()}
+                  className={`block mt-1 text-xs text-neutral-400 dark:text-neutral-500 ${
+                    m.role === "user" ? "text-right" : "text-left"
+                  }`}
+                >
+                  {formatRelativeTime(m.createdAt)}
+                </time>
+              )}
+            </div>
+            {m.failed && (
+              <DispatchErrorCard
+                errorClass={m.failed.error_class}
+                error={m.failed.error}
+                retryDisabled={busy}
+                onRetry={() => void send(m.text)}
+              />
             )}
           </div>
         ))}
+        {inFlight && active && (
+          <DispatchProgressCard
+            stage={turnStage(active, history?.tasks ?? [], workspaceNameById)}
+            startedAt={active.created_at}
+          />
+        )}
       </div>
 
       {error && <p className="px-4 text-sm text-red-600">{error}</p>}
@@ -190,10 +271,7 @@ export function ConversationDetailPage() {
         />
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="border-t border-neutral-200 p-3 flex gap-2 dark:border-neutral-800"
-      >
+      <form onSubmit={handleSubmit} className="border-t border-neutral-200 p-3 flex gap-2 dark:border-neutral-800">
         <textarea
           ref={composerRef}
           value={draft}
@@ -205,16 +283,16 @@ export function ConversationDetailPage() {
             }
           }}
           placeholder="Message the agent fleet…"
-          disabled={sending}
+          disabled={busy}
           rows={1}
           className="flex-1 resize-none rounded border border-neutral-300 px-3 py-2 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900"
         />
         <button
           type="submit"
-          disabled={sending || draft.trim() === ""}
+          disabled={busy || draft.trim() === ""}
           className="rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
         >
-          {sending ? "Sending…" : "Send"}
+          {sending ? "Sending…" : inFlight ? "Working…" : "Send"}
         </button>
       </form>
     </div>
