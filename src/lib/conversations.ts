@@ -13,6 +13,7 @@ export const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
 // Highest urgency: statuses that require human intervention.
 // Within a group, most recently updated first; conversation_id is a stable tie-breaker.
 const STATUS_RANK: Record<string, number> = {
+  "needs-attention": 0,
   "awaiting-input": 0,
   "human-takeover": 0,
   running: 1,
@@ -39,6 +40,8 @@ export function compareConversationSummaries(
 
 export function statusBadgeClasses(status: string): string {
   switch (status) {
+    case "needs-attention":
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
     case "awaiting-input":
       return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
     case "human-takeover":
@@ -59,7 +62,7 @@ export function matchesStatusFilter(status: string, filter: FilterKey): boolean 
     case "all":
       return true;
     case "needs-you":
-      return status === "awaiting-input" || status === "human-takeover";
+      return status === "needs-attention" || status === "awaiting-input" || status === "human-takeover";
     case "running":
       return status === "running";
     case "done":

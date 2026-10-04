@@ -479,4 +479,58 @@ describe("ConversationDetailPage", () => {
     await waitFor(() => expect(dispatchCalls).toBe(1));
     await waitFor(() => expect(composer).toHaveValue(""));
   });
+  // LOOM-97: a needs-attention task's prompt is shown as a card whose
+  // buttons answer it with an ordinary chat message.
+  async function answerFromCard(click: (user: ReturnType<typeof userEvent.setup>) => Promise<void>) {
+    localStorage.setItem("loomux.token", "tok-1");
+    const user = userEvent.setup();
+    const bodies: Record<string, unknown>[] = [];
+    const task = {
+      id: "t1", workspace_id: "ws-1", kind: "agent", agent_type: "claude-code", status: "needs-attention",
+      created_at: "2026-10-04T18:00:00Z", updated_at: "2026-10-04T18:00:00Z",
+      attention: {
+        kind: "permission", title: "Bash command", detail: "rm -rf build", question: "Do you want to proceed?",
+        options: [{ label: "Yes" }, { label: "Yes, and don't ask again" }, { label: "No" }], selected: 0,
+      },
+    };
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/v1/conversations/abc123" && method === "GET") {
+        return jsonResponse({ conversation_id: "abc123", tasks: [task], messages: [] });
+      }
+      if (url === "/api/v1/dispatch" && method === "POST") {
+        bodies.push(JSON.parse(String(init?.body)));
+        return jsonResponse({ reply: "done" });
+      }
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+      if (url.startsWith("/api/v1/tasks/")) return jsonResponse({ error: "nope" }, 404);
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+    renderPage();
+    expect(await screen.findByRole("region", { name: /agent needs attention/i })).toBeInTheDocument();
+    expect(screen.getByText("claude-code needs your approval")).toBeInTheDocument();
+    expect(screen.getByText("rm -rf build")).toBeInTheDocument();
+    await click(user);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    return bodies[0];
+  }
+
+  it("approves a prompt from its card", async () => {
+    const body = await answerFromCard((user) => user.click(screen.getByRole("button", { name: "Approve" })));
+    expect(body.message).toBe("approve");
+  });
+
+  it("picks a prompt's option by number from its card", async () => {
+    const body = await answerFromCard((user) => user.click(screen.getByRole("button", { name: /3\. No/ })));
+    expect(body.message).toBe("3");
+  });
+
+  it("replies to a prompt in words from its card", async () => {
+    const body = await answerFromCard(async (user) => {
+      await user.type(screen.getByLabelText(/reply to the agent/i), "use make clean");
+      await user.click(screen.getByRole("button", { name: "Reply" }));
+    });
+    expect(body.message).toBe("use make clean");
+  });
 });
