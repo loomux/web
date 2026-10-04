@@ -118,6 +118,13 @@ export interface Target {
   // "", "auto", "accept-edits" or "manual". Empty is each agent's default.
   // Absent from older servers.
   permission_mode?: string;
+  // The target's policy (server LOOM-89): what Loomux may do there. Absent
+  // from older servers, which allow everything.
+  purpose?: string;
+  allowed_agent_types?: string[];
+  allow_provision?: boolean;
+  allow_shell?: boolean;
+  require_confirmation?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -134,6 +141,11 @@ export interface TargetRequest {
   ssh_key_ref: string;
   workspace_root?: string;
   permission_mode?: string;
+  purpose?: string;
+  allowed_agent_types?: string[];
+  allow_provision?: boolean;
+  allow_shell?: boolean;
+  require_confirmation?: boolean;
 }
 
 export interface AttachTargetInfo {

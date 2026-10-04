@@ -10,12 +10,14 @@ import {
   kindBadgeClasses,
   matchesKindFilter,
   PERMISSION_MODES,
+  describePolicy,
   TARGET_KINDS,
   targetFormFromTarget,
   toTargetRequest,
   validateTargetRequest,
   type KindFilterKey,
   type PermissionMode,
+  type TargetPurpose,
   type TargetFormValues,
   type TargetKind,
 } from "../lib/targets";
@@ -287,6 +289,56 @@ export function TargetsPage() {
             </span>
           </label>
 
+          <fieldset className="space-y-2 rounded border border-neutral-200 p-3 dark:border-neutral-800">
+            <legend className="px-1 text-sm text-neutral-600 dark:text-neutral-400">Policy</legend>
+            <label className="block space-y-1">
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">Purpose</span>
+              <select
+                value={values.purpose}
+                onChange={(e) => setValues({ ...values, purpose: e.target.value as TargetPurpose })}
+                className={INPUT_CLASSES}
+              >
+                <option value="">Personal (default)</option>
+                <option value="work">Work — agents run under your work logins</option>
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Allowed agent types <span className="text-neutral-400">(optional, comma-separated)</span>
+              </span>
+              <input
+                value={values.allowed_agent_types}
+                onChange={(e) => setValues({ ...values, allowed_agent_types: e.target.value })}
+                placeholder="all agent types"
+                className={INPUT_CLASSES}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.allow_provision}
+                onChange={(e) => setValues({ ...values, allow_provision: e.target.checked })}
+              />
+              Allow new workspaces here
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.allow_shell}
+                onChange={(e) => setValues({ ...values, allow_shell: e.target.checked })}
+              />
+              Allow plain shell commands here
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.require_confirmation}
+                onChange={(e) => setValues({ ...values, require_confirmation: e.target.checked })}
+              />
+              Ask me before starting new work here
+            </label>
+          </fieldset>
+
           {submitError && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {submitError}
@@ -335,6 +387,9 @@ export function TargetsPage() {
                   <p className="truncate text-sm text-neutral-500">
                     {formatDestination(target)}
                   </p>
+                  {describePolicy(target) && (
+                    <p className="text-sm text-neutral-500">Policy: {describePolicy(target)}</p>
+                  )}
                   {target.permission_mode && (
                     <p className="text-sm text-neutral-500">Permissions: {target.permission_mode}</p>
                   )}
