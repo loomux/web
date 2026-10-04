@@ -312,6 +312,53 @@ describe("ConversationDetailPage", () => {
     await waitFor(() => expect(dispatchCalls).toBe(1));
   });
 
+  // LOOM-87: the router is told which workspace the conversation is in, so a
+  // follow-up ("yes, go ahead") is routed back to it.
+  async function sendAndCaptureDispatchBody(tasks: unknown[]): Promise<Record<string, unknown>> {
+    localStorage.setItem("loomux.token", "tok-1");
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/v1/conversations/abc123" && method === "GET") {
+        return jsonResponse({ conversation_id: "abc123", tasks, messages: [] });
+      }
+      if (url === "/api/v1/dispatch" && method === "POST") {
+        body = JSON.parse(String(init?.body));
+        return jsonResponse({ reply: "ok" });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+
+    renderPage();
+    await waitFor(() => expect(screen.getByPlaceholderText(/message the agent fleet/i)).not.toBeDisabled());
+    await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "yes, go ahead");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(body).not.toBeNull());
+    return body!;
+  }
+
+  it("sends the conversation's current workspace as workspace_hint", async () => {
+    const task = (id: string, workspace: string, updated: string) => ({
+      id, workspace_id: workspace, kind: "agent", agent_type: "claude-code", status: "awaiting-input",
+      created_at: updated, updated_at: updated,
+    });
+    const body = await sendAndCaptureDispatchBody([
+      task("t1", "ws-old", "2026-09-01T00:00:00Z"),
+      task("t2", "ws-current", "2026-09-01T00:05:00Z"),
+    ]);
+    expect(body).toEqual({ conversation_id: "abc123", message: "yes, go ahead", workspace_hint: "ws-current" });
+  });
+
+  it("sends no workspace_hint when the conversation has no workspace yet", async () => {
+    const body = await sendAndCaptureDispatchBody([]);
+    expect(body).toEqual({ conversation_id: "abc123", message: "yes, go ahead" });
+  });
+
   it("keeps the optimistic user message visible and shows an error when dispatch fails", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();
