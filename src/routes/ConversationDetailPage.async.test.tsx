@@ -7,12 +7,12 @@ import { useSyncExternalStore } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
-import type { DispatchUpdateEvent } from "../lib/api";
+import type { DispatchUpdateEvent, MessageAddedEvent } from "../lib/api";
 import { ConversationDetailPage } from "./ConversationDetailPage";
 
 // A stream the tests push events into.
 const stream = vi.hoisted(() => {
-  let state = { event: null, dispatchEvent: null as unknown, connected: true };
+  let state = { event: null, dispatchEvent: null as unknown, messageEvent: null as unknown, connected: true };
   const listeners = new Set<() => void>();
   return {
     get: () => state,
@@ -24,8 +24,12 @@ const stream = vi.hoisted(() => {
       state = { ...state, dispatchEvent };
       listeners.forEach((l) => l());
     },
+    pushMessage(messageEvent: unknown) {
+      state = { ...state, messageEvent };
+      listeners.forEach((l) => l());
+    },
     reset() {
-      state = { event: null, dispatchEvent: null, connected: true };
+      state = { event: null, dispatchEvent: null, messageEvent: null, connected: true };
     },
   };
 });
@@ -174,6 +178,31 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     expect(await screen.findByText("fixed it")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument());
     await waitFor(() => expect(screen.getByPlaceholderText(/message the agent fleet/i)).not.toBeDisabled());
+  });
+
+  it("shows an agent's late report when the stream says a message was added (LOOM-121)", async () => {
+    const conv = {
+      messages: [
+        userMsg("m1", "build it", "d1"),
+        { id: "m2", role: "assistant", content: "Build started; I'll report back.", task_id: "t1", created_at: T0 },
+      ] as unknown[],
+      tasks: [] as unknown[],
+      dispatches: [
+        { dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: T0 },
+      ] as unknown[],
+    };
+    fakeServer(conv);
+    renderPage();
+    expect(await screen.findByText("Build started; I'll report back.")).toBeInTheDocument();
+
+    conv.messages = [
+      ...conv.messages,
+      { id: "m3", role: "assistant", content: "The build passed.", task_id: "t1", created_at: T0 },
+    ];
+    act(() =>
+      stream.pushMessage({ message_id: "m3", task_id: "t1", role: "assistant", created_at: T0 } satisfies MessageAddedEvent),
+    );
+    expect(await screen.findByText("The build passed.")).toBeInTheDocument();
   });
 
   it("shows a turn still running after a reload, with its agent and workspace", async () => {

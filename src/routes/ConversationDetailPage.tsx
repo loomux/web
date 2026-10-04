@@ -46,7 +46,7 @@ export function ConversationDetailPage() {
   // Task history plus the persisted per-turn transcript (LOOM-31) — a
   // fresh conversation 404s here until its first dispatch, which is
   // expected, not an error to surface.
-  const { event: liveTask, dispatchEvent, connected } = useConversationStream(conversationId);
+  const { event: liveTask, dispatchEvent, messageEvent, connected } = useConversationStream(conversationId);
 
   // The dispatch this page started (or was pointed at by a 409) and is
   // following, until it ends (LOOM-81).
@@ -97,6 +97,13 @@ export function ConversationDetailPage() {
     if (liveTask && inFlight) void refetchHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveTask?.task_id, liveTask?.status, liveTask?.updated_at]);
+
+  // A message the server logged on its own — an agent reporting after a
+  // turn it ended early (LOOM-121) — shows up without a send.
+  useEffect(() => {
+    if (messageEvent) void refetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageEvent?.message_id]);
 
   // The optimistic copy of a message until the server has it: it's stored
   // when the dispatch is accepted, so the refetch after that replaces it.

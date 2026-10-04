@@ -141,6 +141,16 @@ export interface DispatchUpdateEvent {
   updated_at: string;
 }
 
+// A stream's `message_added` (LOOM-121): a message was logged to the
+// conversation — notably an agent's late report, after a turn it ended
+// early, which no dispatch carries.
+export interface MessageAddedEvent {
+  message_id: string;
+  task_id?: string;
+  role: string;
+  created_at: string;
+}
+
 // A registered host Loomux can run tmux sessions on — LOOM-59's
 // targetResponse. `ssh_key_ref` is a vault reference, never secret material.
 export interface Target {
