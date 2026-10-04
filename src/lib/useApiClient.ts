@@ -31,6 +31,9 @@ export function useApiClient() {
         guarded((t) => api.dispatch(t, conversationId, message, workspaceHint, idempotencyKey)),
       getDispatch: (id: string) => guarded((t) => api.getDispatch(t, id)),
       listWorkspaces: () => guarded((t) => api.listWorkspaces(t)),
+      deleteWorkspace: (id: string) => guarded((t) => api.deleteWorkspace(t, id)),
+      setWorkspaceStatus: (id: string, status: "idle" | "archived") =>
+        guarded((t) => api.setWorkspaceStatus(t, id, status)),
       listConversations: () => guarded((t) => api.listConversations(t)),
       listTargets: () => guarded((t) => api.listTargets(t)),
       createTarget: (body: TargetRequest) => guarded((t) => api.createTarget(t, body)),
