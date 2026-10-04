@@ -359,6 +359,55 @@ describe("ConversationDetailPage", () => {
     expect(body).toEqual({ conversation_id: "abc123", message: "yes, go ahead" });
   });
 
+  // Replays the 2026-10-04 live session (LOOM-87 follow-up): a brand-new
+  // conversation (its first fetch 404s), a direct answer, a proposed command,
+  // "yes" (which runs it as a command task in the target's shell workspace),
+  // more commands, then an agent turn. The hint is the workspace the router
+  // can route to — an agent task's — never a command task's shell workspace,
+  // which the router is never offered.
+  it("hints the latest agent task's workspace, never a command task's shell workspace", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const user = userEvent.setup();
+    const bodies: Record<string, unknown>[] = [];
+    const task = (id: string, workspace: string, kind: string, at: string) => ({
+      id, workspace_id: workspace, kind, agent_type: kind === "agent" ? "claude-code" : "", status: "completed",
+      created_at: at, updated_at: at,
+    });
+    const cmdTask = task("t-cmd", "ws-shell-jet01", "command", "2026-10-04T15:05:05Z");
+    const agentTask = task("t-agent", "ws-project", "agent", "2026-10-04T15:07:07Z");
+    const cmdAfter = task("t-cmd2", "ws-shell-jet01", "command", "2026-10-04T15:09:00Z");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/v1/conversations/abc123" && method === "GET") {
+        if (bodies.length === 0) return jsonResponse({ error: "no such conversation" }, 404);
+        const tasks = [cmdTask, agentTask, cmdAfter].slice(0, Math.max(0, bodies.length - 2));
+        return jsonResponse({ conversation_id: "abc123", tasks, messages: [] });
+      }
+      if (url === "/api/v1/dispatch" && method === "POST") {
+        bodies.push(JSON.parse(String(init?.body)));
+        return jsonResponse({ reply: `reply ${bodies.length}` });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+
+    renderPage();
+    const box = () => screen.getByPlaceholderText(/message the agent fleet/i);
+    const messages = ["hi", "check disk on jet01", "yes", "now start claude in my project", "and memory?", "yes, go ahead"];
+    for (const [i, text] of messages.entries()) {
+      await waitFor(() => expect(box()).not.toBeDisabled());
+      await user.type(box(), text);
+      await user.click(screen.getByRole("button", { name: /send/i }));
+      await waitFor(() => expect(bodies).toHaveLength(i + 1));
+      await waitFor(() => expect(box()).not.toBeDisabled());
+    }
+    // Tasks seen before each send: none, none, none, [cmd], [cmd, agent], [cmd, agent, cmd].
+    expect(bodies.map((b) => b.workspace_hint)).toEqual([undefined, undefined, undefined, undefined, "ws-project", "ws-project"]);
+  });
+
   it("keeps the optimistic user message visible and shows an error when dispatch fails", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();

@@ -73,9 +73,11 @@ export function ConversationDetailPage() {
     setPendingReply(null);
     setSending(true);
     try {
-      // The conversation's current workspace (its latest task's) goes along as
-      // workspace_hint (LOOM-87), so a follow-up lands back in it.
-      const workspaceHint = history?.tasks[history.tasks.length - 1]?.workspace_id;
+      // The conversation's current workspace goes along as workspace_hint
+      // (LOOM-87), so a follow-up lands back in it: its latest agent task's.
+      // A command task runs in the target's shell workspace, which the router
+      // is never offered, so it says nothing about where the work is.
+      const workspaceHint = history?.tasks.findLast((t) => t.kind === "agent")?.workspace_id;
       const { reply } = await apiClient.dispatch(conversationId, text, workspaceHint);
       setPendingReply(reply);
       await refetchHistory();
