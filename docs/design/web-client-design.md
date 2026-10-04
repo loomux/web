@@ -45,8 +45,13 @@ All under `/api/v1/`, Bearer-token auth except `/login` and `/version`
 
 - `POST /login` — `{password}` → `{token}`
 - `POST /logout` — auth'd, revokes the presented token
-- `POST /dispatch` — auth'd, `{conversation_id, message}` → `{reply}`
-  (blocking — this is still the only source of actual reply text)
+- `POST /dispatch` — auth'd, `{conversation_id, message, workspace_hint?}`,
+  sent with `Prefer: respond-async` and an `Idempotency-Key` (a UUID per
+  submit) → `202` with the queued job `{dispatch_id, status, …}`
+  (LOOM-80/81). `409 {dispatch_id}` means a turn is already running in
+  the conversation; `503` means the server is restarting.
+- `GET /dispatches/{id}` — auth'd, one job: `{status: queued | running |
+  succeeded | failed | interrupted, reply?, error?, error_class?}`
 - `GET /workspaces` — auth'd, `{workspaces: [{id, name, target_id,
   status}, ...]}`
 - `GET /conversations` — auth'd, `{conversations: [{conversation_id,
@@ -69,9 +74,14 @@ oldest first — `{id, role, content, task_id, created_at}`) alongside the
 task-lifecycle rows, landed server-side in LOOM-31 and wired into this
 client in `loomux/web#1` (merged 2026-09-07). `history.messages` is the
 chat view's source of truth for persisted turns; the only client-side
-state is a short-lived optimistic entry for the turn currently in flight
-(the just-sent message + a pending reply while `POST /dispatch` is
-outstanding), cleared once the post-dispatch refetch lands. Reopening an
+state is a short-lived optimistic copy of the just-sent message, until the
+refetch after the `202` lands (the server stores the message when it
+accepts the dispatch). The conversation's `dispatches` and each user
+message's `dispatch_id` tie a turn to its job, so a failed turn is still
+shown after a reload: an error card under the message, in plain words
+from its `error_class` (`lib/dispatchTurn.ts`; the raw text sits under
+"Details"), with Retry, which sends the same text with a new key. A job
+still running on load gets the in-flight card (LOOM-81). Reopening an
 older conversation, or opening one from a second device, now shows the
 real prior message text, not just the task-history skeleton.
 
@@ -176,12 +186,16 @@ Loomux's client/server boundary entirely.
 
 `fetchEventSource` (`@microsoft/fetch-event-source`) against
 `/conversations/{id}/stream`, with the same `Authorization: Bearer <token>`
-header as every other call, drives a live status indicator while a `POST
-/dispatch` call is in flight or a task from a prior turn is still
-resolving. The dispatch call's own blocking response remains the sole
-source of actual reply text (matches the API's documented contract exactly
-— see "Persisted message transcript," above, and the stream is
-supplementary, never a replacement per `api/README.md`'s own design note).
+header as every other call, drives the turn in flight (LOOM-81):
+`dispatch_update` moves its job through queued → running → done, and
+`task_update` (which triggers a refetch of the conversation's tasks)
+gives its stage — deciding where it goes, the agent working in its
+workspace, waiting for you — with the elapsed time and the attach command.
+The server has no per-stage events yet (LOOM-96), so the stage is read off
+the job and task states. When the job ends, the conversation is refetched:
+the reply is in `messages`, a failure in `dispatches`. While the stream is
+down, the conversation is polled every 3s instead, only while a turn is in
+flight.
 The library handles
 reconnection on drop itself; no custom reconnect logic is written.
 
