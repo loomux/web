@@ -533,4 +533,16 @@ describe("ConversationDetailPage", () => {
     });
     expect(body.message).toBe("use make clean");
   });
+  it("focuses the composer when a conversation opens", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") return jsonResponse({ error: "no such conversation" }, 404);
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    renderPage();
+    const composer = await screen.findByPlaceholderText(/message the agent fleet/i);
+    await waitFor(() => expect(composer).toHaveFocus());
+  });
 });
