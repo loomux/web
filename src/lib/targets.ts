@@ -36,6 +36,10 @@ function isPermissionMode(v: string | undefined): v is PermissionMode {
   return PERMISSION_MODES.some((m) => m.value === v);
 }
 
+// registry.TargetPolicy.Purpose; "" is personal (a stored "personal" is
+// read as "", the one option the form offers for it).
+export type TargetPurpose = "" | "work";
+
 export type KindFilterKey = "all" | TargetKind;
 
 export const KIND_FILTER_OPTIONS: { key: KindFilterKey; label: string }[] = [
@@ -55,6 +59,12 @@ export interface TargetFormValues {
   ssh_key_ref: string;
   workspace_root: string;
   permission_mode: PermissionMode;
+  purpose: TargetPurpose;
+  // Comma-separated in the form; empty means every agent type.
+  allowed_agent_types: string;
+  allow_provision: boolean;
+  allow_shell: boolean;
+  require_confirmation: boolean;
 }
 
 export const EMPTY_TARGET_FORM: TargetFormValues = {
@@ -65,6 +75,11 @@ export const EMPTY_TARGET_FORM: TargetFormValues = {
   ssh_key_ref: "",
   workspace_root: "",
   permission_mode: "",
+  purpose: "",
+  allowed_agent_types: "",
+  allow_provision: true,
+  allow_shell: true,
+  require_confirmation: false,
 };
 
 // Pre-fills the edit form from a stored row. ssh_key_ref and workspace_root
@@ -80,6 +95,11 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
     ssh_key_ref: target.ssh_key_ref,
     workspace_root: target.workspace_root ?? "",
     permission_mode: isPermissionMode(target.permission_mode) ? target.permission_mode : "",
+    purpose: target.purpose === "work" ? "work" : "",
+    allowed_agent_types: (target.allowed_agent_types ?? []).join(", "),
+    allow_provision: target.allow_provision ?? true,
+    allow_shell: target.allow_shell ?? true,
+    require_confirmation: target.require_confirmation ?? false,
   };
 }
 
@@ -97,6 +117,14 @@ export function toTargetRequest(values: TargetFormValues): TargetRequest {
     ssh_key_ref: values.ssh_key_ref.trim(),
     workspace_root: values.workspace_root.trim(),
     permission_mode: values.permission_mode,
+    purpose: values.purpose,
+    allowed_agent_types: values.allowed_agent_types
+      .split(",")
+      .map((a) => a.trim())
+      .filter((a) => a !== ""),
+    allow_provision: values.allow_provision,
+    allow_shell: values.allow_shell,
+    require_confirmation: values.require_confirmation,
   };
 }
 
@@ -169,6 +197,20 @@ export function kindBadgeClasses(kind: string): string {
     default:
       return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   }
+}
+
+// A one-line summary of a target's non-default policy, or "" for the
+// default (allow everything).
+export function describePolicy(target: Target): string {
+  const parts: string[] = [];
+  if (target.purpose === "work") parts.push("work machine");
+  if (target.allow_provision === false) parts.push("no new workspaces");
+  if (target.allow_shell === false) parts.push("no shell commands");
+  if (target.allowed_agent_types && target.allowed_agent_types.length > 0) {
+    parts.push("only " + target.allowed_agent_types.join(", "));
+  }
+  if (target.require_confirmation) parts.push("asks before new work");
+  return parts.join(" · ");
 }
 
 // "remote" targets read as user@host; a local target has no destination.

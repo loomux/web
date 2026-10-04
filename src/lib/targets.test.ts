@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Target } from "./api";
 import {
   compareTargets,
+  describePolicy,
   formatDestination,
   kindBadgeClasses,
   matchesKindFilter,
@@ -21,6 +22,11 @@ function makeTarget(overrides: Partial<Target> = {}): Target {
     ssh_key_ref: "vault://keys/alpha",
     workspace_root: "/srv/loomux",
     permission_mode: "manual",
+    purpose: "work",
+    allowed_agent_types: ["claude-code"],
+    allow_provision: false,
+    allow_shell: true,
+    require_confirmation: true,
     created_at: "2026-09-01T00:00:00Z",
     updated_at: "2026-09-01T00:00:00Z",
     ...overrides,
@@ -36,6 +42,11 @@ function form(overrides: Partial<TargetFormValues> = {}): TargetFormValues {
     ssh_key_ref: "",
     workspace_root: "",
     permission_mode: "",
+    purpose: "",
+    allowed_agent_types: "",
+    allow_provision: true,
+    allow_shell: true,
+    require_confirmation: false,
     ...overrides,
   };
 }
@@ -50,7 +61,32 @@ describe("targetFormFromTarget", () => {
       ssh_key_ref: "vault://keys/alpha",
       workspace_root: "/srv/loomux",
       permission_mode: "manual",
+      purpose: "work",
+      allowed_agent_types: "claude-code",
+      allow_provision: false,
+      allow_shell: true,
+      require_confirmation: true,
     });
+  });
+
+  it("defaults the policy to allowing everything when the server omits it", () => {
+    const target = makeTarget();
+    delete target.purpose;
+    delete target.allowed_agent_types;
+    delete target.allow_provision;
+    delete target.allow_shell;
+    delete target.require_confirmation;
+    expect(targetFormFromTarget(target)).toMatchObject({
+      purpose: "",
+      allowed_agent_types: "",
+      allow_provision: true,
+      allow_shell: true,
+      require_confirmation: false,
+    });
+  });
+
+  it("reads a stored purpose of personal as the default the select shows", () => {
+    expect(targetFormFromTarget(makeTarget({ purpose: "personal" })).purpose).toBe("");
   });
 
   it("treats an absent or unknown permission_mode as the default", () => {
@@ -91,6 +127,21 @@ describe("toTargetRequest", () => {
     );
     expect(req.ssh_key_ref).toBe("vault://keys/alpha");
     expect(req.workspace_root).toBe("/srv/loomux");
+  });
+
+  it("sends the policy, splitting the agent-type list", () => {
+    const req = toTargetRequest(
+      form({ purpose: "work", allowed_agent_types: " claude-code, codex ,", allow_provision: false,
+        allow_shell: false, require_confirmation: true }),
+    );
+    expect(req).toMatchObject({
+      purpose: "work",
+      allowed_agent_types: ["claude-code", "codex"],
+      allow_provision: false,
+      allow_shell: false,
+      require_confirmation: true,
+    });
+    expect(toTargetRequest(form()).allowed_agent_types).toEqual([]);
   });
 
   it("sends permission_mode as chosen, empty meaning the agent's default", () => {
@@ -222,5 +273,14 @@ describe("matchesKindFilter", () => {
   it("matches on exact kind otherwise", () => {
     expect(matchesKindFilter("remote", "remote")).toBe(true);
     expect(matchesKindFilter("local", "remote")).toBe(false);
+  });
+});
+
+describe("describePolicy", () => {
+  it("summarises a non-default policy and says nothing for the default", () => {
+    expect(describePolicy(makeTarget())).toBe("work machine · no new workspaces · only claude-code · asks before new work");
+    expect(
+      describePolicy(makeTarget({ purpose: "", allowed_agent_types: [], allow_provision: true, require_confirmation: false })),
+    ).toBe("");
   });
 });

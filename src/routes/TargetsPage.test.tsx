@@ -34,6 +34,11 @@ const REMOTE_TARGET = {
   ssh_key_ref: "vault://keys/beta",
   workspace_root: "/srv/loomux",
   permission_mode: "auto",
+  purpose: "",
+  allowed_agent_types: [],
+  allow_provision: true,
+  allow_shell: true,
+  require_confirmation: false,
   created_at: "2026-09-01T00:00:00Z",
   updated_at: "2026-09-01T00:00:00Z",
 };
@@ -99,6 +104,7 @@ describe("TargetsPage", () => {
     // A target's permission mode shows on its row; the default shows nothing.
     expect(within(remote).getByText("Permissions: auto")).toBeInTheDocument();
     expect(within(local).queryByText(/Permissions:/)).not.toBeInTheDocument();
+    expect(within(remote).queryByText(/Policy:/)).not.toBeInTheDocument();
   });
 
   it("filters by kind when a chip is clicked", async () => {
@@ -158,6 +164,11 @@ describe("TargetsPage", () => {
       ssh_key_ref: "",
       workspace_root: "",
       permission_mode: "",
+      purpose: "",
+      allowed_agent_types: [],
+      allow_provision: true,
+      allow_shell: true,
+      require_confirmation: false,
     });
   });
 
@@ -197,6 +208,11 @@ describe("TargetsPage", () => {
       ssh_key_ref: "",
       workspace_root: "",
       permission_mode: "",
+      purpose: "",
+      allowed_agent_types: [],
+      allow_provision: true,
+      allow_shell: true,
+      require_confirmation: false,
     });
   });
 
@@ -283,6 +299,10 @@ describe("TargetsPage", () => {
     await user.clear(screen.getByLabelText("User"));
     await user.type(screen.getByLabelText("User"), "runner");
     await user.selectOptions(screen.getByLabelText(/Permission mode/), "manual");
+    await user.selectOptions(screen.getByLabelText(/Purpose/), "work");
+    await user.type(screen.getByLabelText(/Allowed agent types/), "claude-code");
+    await user.click(screen.getByLabelText(/Allow new workspaces/));
+    await user.click(screen.getByLabelText(/Ask me before starting new work/));
     // Each mode says what it means.
     expect(screen.getByText(/Every file edit and command waits for approval/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save changes" }));
@@ -296,6 +316,11 @@ describe("TargetsPage", () => {
       ssh_key_ref: "vault://keys/beta",
       workspace_root: "/srv/loomux",
       permission_mode: "manual",
+      purpose: "work",
+      allowed_agent_types: ["claude-code"],
+      allow_provision: false,
+      allow_shell: true,
+      require_confirmation: true,
     });
   });
 
