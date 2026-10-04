@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { streamUrl, type DispatchUpdateEvent, type TaskUpdateEvent } from "./api";
+import { streamUrl, type DispatchUpdateEvent, type MessageAddedEvent, type TaskUpdateEvent } from "./api";
 import { useAuth } from "./auth";
 
 interface StreamState {
   event: TaskUpdateEvent | null;
   // The latest `dispatch_update` (LOOM-80): a turn's job changed.
   dispatchEvent: DispatchUpdateEvent | null;
+  // The latest `message_added` (LOOM-121): the transcript has a new message.
+  messageEvent: MessageAddedEvent | null;
   connected: boolean;
 }
 
@@ -18,6 +20,7 @@ export function useConversationStream(conversationId: string | null): StreamStat
   const { token, handleUnauthorized } = useAuth();
   const [event, setEvent] = useState<TaskUpdateEvent | null>(null);
   const [dispatchEvent, setDispatchEvent] = useState<DispatchUpdateEvent | null>(null);
+  const [messageEvent, setMessageEvent] = useState<MessageAddedEvent | null>(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export function useConversationStream(conversationId: string | null): StreamStat
         if (!msg.data) return;
         if (msg.event === "task_update") setEvent(JSON.parse(msg.data) as TaskUpdateEvent);
         else if (msg.event === "dispatch_update") setDispatchEvent(JSON.parse(msg.data) as DispatchUpdateEvent);
+        else if (msg.event === "message_added") setMessageEvent(JSON.parse(msg.data) as MessageAddedEvent);
       },
       onclose() {
         setConnected(false);
@@ -56,5 +60,5 @@ export function useConversationStream(conversationId: string | null): StreamStat
     return () => controller.abort();
   }, [conversationId, token, handleUnauthorized]);
 
-  return { event, dispatchEvent, connected };
+  return { event, dispatchEvent, messageEvent, connected };
 }
