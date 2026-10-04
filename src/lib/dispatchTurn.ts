@@ -66,6 +66,12 @@ export function describeDispatchError(errorClass: string | undefined, error: str
         hint: "Retry to send it again.",
         detail,
       };
+    case "cancelled":
+      return {
+        message: "You cancelled this turn.",
+        hint: "Retry to send it again. The agent's session is kept, so you can attach to see what it had done.",
+        detail,
+      };
     case "login_required":
       return {
         message: "The agent needs to be signed in on that machine.",

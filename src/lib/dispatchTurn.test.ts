@@ -42,12 +42,17 @@ describe("describeDispatchError", () => {
       "target_unhealthy",
       "wait_failed",
       "interrupted",
+      "cancelled",
       "internal",
     ]) {
       const e = describeDispatchError(cls, "x");
       expect(e.message, cls).not.toBe("");
       expect(e.message, cls).not.toBe("x");
     }
+  });
+
+  it("tells a cancelled turn from a failure", () => {
+    expect(describeDispatchError("cancelled", "cancelled by the user").message).toMatch(/you cancelled/i);
   });
 
   it("keeps the server's own text as detail, and falls back to it for an unknown class", () => {

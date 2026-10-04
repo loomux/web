@@ -266,6 +266,12 @@ export const api = {
   getDispatch: (token: string, id: string) =>
     request<Dispatch>(`/dispatches/${id}`, token),
 
+  // Stops a turn in flight (LOOM-99): 202 once the job has been told; it
+  // then ends failed with error_class "cancelled". 409 if it had already
+  // ended.
+  cancelDispatch: (token: string, id: string) =>
+    request<{ dispatch_id: string }>(`/dispatches/${id}/cancel`, token, { method: "POST" }),
+
   listTargets: (token: string) =>
     request<{ targets: Target[] }>("/targets", token),
 

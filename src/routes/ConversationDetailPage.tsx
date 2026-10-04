@@ -167,6 +167,26 @@ export function ConversationDetailPage() {
     }
   }
 
+  // Cancel the turn in flight (LOOM-99). The stream then reports it
+  // failed with class "cancelled"; until then the button stays disabled.
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  async function cancelActive() {
+    if (!activeId) return;
+    setCancellingId(activeId);
+    setError(null);
+    try {
+      await apiClient.cancelDispatch(activeId);
+    } catch (err) {
+      setCancellingId(null);
+      if (err instanceof ApiError && err.status === 409) {
+        setError("That turn had already finished, so there was nothing to cancel.");
+        void refetchHistory();
+      } else {
+        setError(err instanceof Error ? `Couldn't cancel: ${err.message}` : "Couldn't cancel the turn");
+      }
+    }
+  }
+
   const failedById = new Map(
     (history?.dispatches ?? [])
       .filter((d) => d.status === "failed" || d.status === "interrupted")
@@ -256,6 +276,8 @@ export function ConversationDetailPage() {
           <DispatchProgressCard
             stage={turnStage(active, history?.tasks ?? [], workspaceNameById)}
             startedAt={active.created_at}
+            onCancel={() => void cancelActive()}
+            cancelling={cancellingId === active.dispatch_id}
           />
         )}
       </div>

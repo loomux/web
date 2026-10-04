@@ -2,9 +2,19 @@ import { useEffect, useState } from "react";
 import { describeDispatchError, formatElapsed, type TurnStage } from "../lib/dispatchTurn";
 import { AttachInfo } from "./AttachInfo";
 
-// The turn in flight (LOOM-81): its stage, how long it has run, and the
-// attach command once an agent's session exists.
-export function DispatchProgressCard({ stage, startedAt }: { stage: TurnStage; startedAt: string }) {
+// The turn in flight (LOOM-81): its stage, how long it has run, the
+// attach command once an agent's session exists, and Cancel (LOOM-99).
+export function DispatchProgressCard({
+  stage,
+  startedAt,
+  onCancel,
+  cancelling,
+}: {
+  stage: TurnStage;
+  startedAt: string;
+  onCancel?: () => void;
+  cancelling?: boolean;
+}) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -20,6 +30,16 @@ export function DispatchProgressCard({ stage, startedAt }: { stage: TurnStage; s
         <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-500" aria-hidden />
         <span className="font-medium">{stage.label}</span>
         <span className="text-neutral-500">{formatElapsed(now - Date.parse(startedAt))}</span>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={cancelling}
+            className="ml-auto rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-600 dark:hover:bg-neutral-800"
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </button>
+        )}
       </div>
       {stage.taskId && (
         <div className="mt-1">

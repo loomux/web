@@ -30,6 +30,7 @@ export function useApiClient() {
       dispatch: (conversationId: string, message: string, workspaceHint?: string, idempotencyKey?: string) =>
         guarded((t) => api.dispatch(t, conversationId, message, workspaceHint, idempotencyKey)),
       getDispatch: (id: string) => guarded((t) => api.getDispatch(t, id)),
+      cancelDispatch: (id: string) => guarded((t) => api.cancelDispatch(t, id)),
       listWorkspaces: () => guarded((t) => api.listWorkspaces(t)),
       listConversations: () => guarded((t) => api.listConversations(t)),
       listTargets: () => guarded((t) => api.listTargets(t)),

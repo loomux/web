@@ -1,7 +1,7 @@
 // LOOM-81: the async dispatch UX — a progress card for the turn in flight,
 // failed turns kept with a plain-language error and Retry, 409/503.
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useSyncExternalStore } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -71,6 +71,8 @@ interface Posted {
 // A server whose conversation state the test sets as it goes.
 function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: unknown[] }) {
   const posts: Posted[] = [];
+  const cancels: string[] = [];
+  let cancelResponse: () => Response = () => jsonResponse({ dispatch_id: cancels.at(-1) }, 202);
   let postResponse: () => Response = () =>
     jsonResponse({ dispatch_id: `d${posts.length}`, conversation_id: "abc123", status: "queued", created_at: T0 }, 202);
   globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -83,6 +85,11 @@ function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: u
       posts.push({ body: JSON.parse(String(init?.body)), headers: new Headers(init?.headers) });
       return postResponse();
     }
+    const cancel = url.match(/^\/api\/v1\/dispatches\/([^/]+)\/cancel$/);
+    if (cancel && method === "POST") {
+      cancels.push(cancel[1]);
+      return cancelResponse();
+    }
     if (url === "/api/v1/workspaces") {
       return jsonResponse({ workspaces: [{ id: "ws-1", name: "my-app", target_id: "t", status: "online" }] });
     }
@@ -90,8 +97,12 @@ function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: u
   });
   return {
     posts,
+    cancels,
     respondWith(fn: () => Response) {
       postResponse = fn;
+    },
+    respondToCancelWith(fn: () => Response) {
+      cancelResponse = fn;
     },
   };
 }
@@ -241,5 +252,57 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "hello");
     await user.click(screen.getByRole("button", { name: /send/i }));
     expect(await screen.findByText(/loomux is restarting/i)).toBeInTheDocument();
+  });
+
+  it("cancels the turn in flight, which then shows as cancelled with Retry (LOOM-99)", async () => {
+    const user = userEvent.setup();
+    const conv = {
+      messages: [userMsg("m1", "refactor everything", "d1")] as unknown[],
+      tasks: [] as unknown[],
+      dispatches: [
+        { dispatch_id: "d1", conversation_id: "abc123", status: "running", created_at: T0, started_at: T0 },
+      ] as unknown[],
+    };
+    const server = fakeServer(conv);
+    renderPage();
+
+    const card = await screen.findByRole("status", { name: /turn in progress/i });
+    await user.click(within(card).getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(server.cancels).toEqual(["d1"]));
+    expect(within(card).getByRole("button", { name: /cancelling/i })).toBeDisabled();
+
+    conv.dispatches = [
+      {
+        dispatch_id: "d1",
+        conversation_id: "abc123",
+        status: "failed",
+        error: "cancelled by the user",
+        error_class: "cancelled",
+        created_at: T0,
+      },
+    ];
+    act(() =>
+      stream.push({ dispatch_id: "d1", status: "failed", error_class: "cancelled", updated_at: T0 } satisfies DispatchUpdateEvent),
+    );
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/you cancelled this turn/i);
+    expect(within(alert).getByRole("button", { name: /retry/i })).toBeEnabled();
+    expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument();
+  });
+
+  it("says so when a cancel comes too late, and leaves the turn to finish", async () => {
+    const user = userEvent.setup();
+    const server = fakeServer({
+      messages: [userMsg("m1", "quick one", "d1")],
+      tasks: [],
+      dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "running", created_at: T0, started_at: T0 }],
+    });
+    server.respondToCancelWith(() => jsonResponse({ error: "the dispatch isn't running" }, 409));
+    renderPage();
+
+    const card = await screen.findByRole("status", { name: /turn in progress/i });
+    await user.click(within(card).getByRole("button", { name: /cancel/i }));
+    expect(await screen.findByText(/already finished/i)).toBeInTheDocument();
   });
 });
