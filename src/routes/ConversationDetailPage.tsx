@@ -72,7 +72,10 @@ export function ConversationDetailPage() {
     followed ||
     history?.dispatches?.findLast((d) => !isTerminalDispatch(d.status)) ||
     null;
-  if (active && dispatchEvent?.dispatch_id === active.dispatch_id) {
+  // A job only moves forward, so an end already in the history beats the
+  // stream's word: a restart closes the stream on a stale "running" and
+  // marks the job interrupted where only a fetch sees it.
+  if (active && dispatchEvent?.dispatch_id === active.dispatch_id && !isTerminalDispatch(active.status)) {
     active = { ...active, ...dispatchEvent };
   }
   const inFlight = active !== null && !isTerminalDispatch(active.status);
@@ -91,6 +94,12 @@ export function ConversationDetailPage() {
       cancelled = true;
     };
   }, [activeId, activeStatus, refetchHistory]);
+
+  // What the stream said while it was down (a restart, a lost network) is
+  // gone: once it's back, read the conversation again.
+  useEffect(() => {
+    if (connected) void refetchHistory();
+  }, [connected, refetchHistory]);
 
   // A task moving on (launched, waiting for you, done) changes the stage.
   useEffect(() => {

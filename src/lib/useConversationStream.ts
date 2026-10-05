@@ -38,6 +38,9 @@ export function useConversationStream(conversationId: string | null): StreamStat
           controller.abort();
           return;
         }
+        // While Loomux restarts, the proxy in front of it answers with an
+        // error page: a failed connection, retried via onerror.
+        if (!res.ok) throw new Error(`stream: HTTP ${res.status}`);
         setConnected(true);
       },
       onmessage(msg) {
@@ -48,6 +51,9 @@ export function useConversationStream(conversationId: string | null): StreamStat
       },
       onclose() {
         setConnected(false);
+        // The server ending the stream (a restart, say) isn't the end of
+        // the conversation: throwing hands it to onerror, which retries.
+        throw new Error("stream: closed by server");
       },
       onerror(err) {
         setConnected(false);
