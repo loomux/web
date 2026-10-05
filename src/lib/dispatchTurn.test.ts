@@ -40,6 +40,8 @@ describe("describeDispatchError", () => {
       "agent_exited",
       "target_unreachable",
       "target_unhealthy",
+      "agent_rate_limited",
+      "login_required",
       "wait_failed",
       "interrupted",
       "cancelled",
@@ -49,6 +51,16 @@ describe("describeDispatchError", () => {
       expect(e.message, cls).not.toBe("");
       expect(e.message, cls).not.toBe("x");
     }
+  });
+
+  it("says when a usage limit resets (LOOM-109)", () => {
+    const e = describeDispatchError(
+      "agent_rate_limited",
+      'router: dispatch: agent "claude-code" on sc1 hit its usage limit, resets 5pm (Europe/Istanbul) (it shows "5-hour limit reached ∙ resets 5pm (Europe/Istanbul)"). Send your message again after the reset, or ask for a different agent',
+    );
+    expect(e.message).toBe("The agent hit its usage limit. It resets 5pm (Europe/Istanbul).");
+    expect(e.hint).toMatch(/after the reset/);
+    expect(describeDispatchError("agent_rate_limited", "no reset given").message).toBe("The agent hit its usage limit.");
   });
 
   it("tells a cancelled turn from a failure", () => {
