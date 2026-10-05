@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # the release step below, on main only
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,3 +20,45 @@ jobs:
       - run: npm run lint
       - run: npx vitest run
       - run: npm run build
+
+      # LOOM-58: every tested main commit is published as a pre-release
+      # `web-<short sha>` holding the built bundle and web-release.json,
+      # which names the commit and the tarball's sha256. loomux/server's
+      # image build downloads the release its deploy/web-ref pins instead
+      # of building this repo itself; LOOM-118's updater reads the same
+      # JSON. See docs/release.md.
+      - name: Publish the bundle as a pre-release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${GITHUB_SHA}"
+          short="${sha:0:7}"
+          tag="web-${short}"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "Release ${tag} already exists; nothing to do."
+            exit 0
+          fi
+          test -f dist/index.html
+          tarball="loomux-web-${short}.tar.gz"
+          tar -C dist --sort=name --owner=0 --group=0 --numeric-owner -czf "${tarball}" .
+          jq -n \
+            --arg commit "${sha}" --arg short "${short}" --arg tag "${tag}" \
+            --arg tarball "${tarball}" \
+            --arg sha256 "$(sha256sum "${tarball}" | cut -d' ' -f1)" \
+            --arg built_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg subject "$(git log -1 --format=%s)" \
+            '{schema: 1, repo: "loomux/web", commit: $commit, short: $short, tag: $tag,
+              tarball: $tarball, sha256: $sha256, built_at: $built_at, subject: $subject}' \
+            > web-release.json
+          cat web-release.json
+          gh release create "${tag}" "${tarball}" web-release.json \
+            --target "${sha}" --prerelease \
+            --title "web ${short}" \
+            --notes "Built from ${sha}: $(git log -1 --format=%s)"
+          {
+            echo "### Published \`${tag}\`"
+            echo ""
+            echo "\`${tarball}\` sha256 \`$(jq -r .sha256 web-release.json)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
