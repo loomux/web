@@ -81,7 +81,7 @@ describe("WebClientUpdate", () => {
     });
     renderIt();
 
-    expect(await screen.findByText(/This is the newest version/)).toBeInTheDocument();
+    expect(await screen.findByText(/Up to date/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Roll back to web-aaaaaaa" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/now serves web-aaaaaaa/);
   });

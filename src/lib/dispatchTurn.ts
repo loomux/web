@@ -69,7 +69,7 @@ export function describeDispatchError(errorClass: string | undefined, error: str
     case "cancelled":
       return {
         message: "You cancelled this turn.",
-        hint: "Retry to send it again. The agent's session is kept, so you can attach to see what it had done.",
+        hint: "Retry to send it again. Its terminal session is kept, so you can attach to see how far it got.",
         detail,
       };
     case "login_required":
