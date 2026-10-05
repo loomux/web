@@ -46,11 +46,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-    # One at a time, so two merges in quick succession can't take the same
-    # version (LOOM-129).
-    concurrency:
-      group: web-release
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,6 +55,22 @@ jobs:
         with:
           name: dist
           path: dist
+      # LOOM-129: after the base v0.1.0, every merge to main is the next
+      # patch version, reserved first: the tag is created on the merge
+      # commit through the API, which refuses one that exists, so racing
+      # merges each get their own (no concurrency group, so no run is ever
+      # cancelled). A commit that already has a version keeps it.
+      - name: Reserve the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          had="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
+          version="$(scripts/release.sh reserve "${GITHUB_SHA}" patch)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ -n "${version}" ] && [ -z "${had}" ]; then echo "reserved=true" >> "$GITHUB_OUTPUT"; fi
+
       - name: Publish the bundle as a pre-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,29 +106,38 @@ jobs:
             echo "\`${tarball}\` sha256 \`$(jq -r .sha256 web-release.json)\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # LOOM-129: after the base v0.1.0, every merge to main is the next
-      # patch version: tagged on the merge commit, released as a
-      # pre-release (never "latest") with the merged pull request's title
-      # as its notes. A commit that already has a version keeps it.
-      - name: Release the next version
+      - name: Release the version
+        if: steps.version.outputs.version != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          existing="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
-          if [ -n "${existing}" ]; then echo "Already released as ${existing}."; exit 0; fi
-          latest="$(scripts/release.sh latest)"
-          if [ -z "${latest}" ]; then echo "No release line yet (v0.1.0 is tagged by hand)."; exit 0; fi
-          version="$(scripts/release.sh next patch "${latest}")"
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then echo "v${VERSION} is already released."; exit 0; fi
           gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
             --jq '.[] | "- \(.title) (#\(.number))"' > notes.md
           [ -s notes.md ] || git log -1 --format='- %s' > notes.md
           printf '\nThe bundle is release `web-%s`.\n' "${GITHUB_SHA:0:7}" >> notes.md
           pre=""
-          if scripts/release.sh prerelease "${version}"; then pre="--prerelease"; fi
-          gh release create "v${version}" --target "${GITHUB_SHA}" ${pre} --latest=false \
-            --title "Loomux web ${version}" --notes-file notes.md
-          echo "### Released \`v${version}\`" >> "$GITHUB_STEP_SUMMARY"
+          if scripts/release.sh prerelease "${VERSION}"; then pre="--prerelease"; fi
+          gh release create "v${VERSION}" --verify-tag ${pre} --latest=false \
+            --title "Loomux web ${VERSION}" --notes-file notes.md
+          echo "### Released \`v${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # A version reserved for a bundle that wasn't published is given back,
+      # only while its tag still points at this commit (tags never move,
+      # and creating one that exists is refused, so no newer reservation
+      # holds the name). Nothing was published under it.
+      - name: Give the version back
+        if: failure() && steps.version.outputs.reserved == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          at="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq .object.sha)"
+          if [ "${at}" = "${GITHUB_SHA}" ] && ! gh release view "${TAG}" >/dev/null 2>&1; then
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}"
+          fi
 
   # A hand-pushed version tag's GitHub release (LOOM-129): the base v0.1.0,
   # a MINOR milestone, an -rc. The bundle itself is the tagged commit's
