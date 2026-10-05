@@ -6,15 +6,22 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
 import { ConversationDetailPage } from "./ConversationDetailPage";
 
+const stream = vi.hoisted(() => ({
+  state: { event: null, dispatchEvent: null, connected: false } as Record<string, unknown>,
+}));
 vi.mock("../lib/useConversationStream", () => ({
-  useConversationStream: () => ({ event: null, connected: false }),
+  useConversationStream: () => stream.state,
 }));
 
 function renderPage(conversationId = "abc123") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return render(page(queryClient, conversationId));
+}
+
+function page(queryClient: QueryClient, conversationId = "abc123") {
+  return (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/conversations/${conversationId}`]}>
         <AuthProvider>
@@ -23,7 +30,7 @@ function renderPage(conversationId = "abc123") {
           </Routes>
         </AuthProvider>
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 
@@ -35,6 +42,7 @@ describe("ConversationDetailPage", () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
+    stream.state = { event: null, dispatchEvent: null, connected: false };
     globalThis.fetch = originalFetch;
     localStorage.clear();
     vi.restoreAllMocks();
@@ -246,6 +254,90 @@ describe("ConversationDetailPage", () => {
       expect(screen.getAllByText("what's up")).toHaveLength(1);
       expect(screen.getAllByText("not much")).toHaveLength(1);
     });
+  });
+
+  // A restart ends the stream on a "running" event; the job is then marked
+  // interrupted, which only a fetch of the history sees. That fresher word
+  // must win over the stale event, or the turn looks running forever.
+  it("shows a followed turn as interrupted when the history says so, over a stale running stream event", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const user = userEvent.setup();
+    stream.state = {
+      event: null,
+      dispatchEvent: { dispatch_id: "d1", status: "running", updated_at: "2026-10-05T09:05:00Z" },
+      connected: true,
+    };
+    let sent = false;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/v1/conversations/abc123" && method === "GET") {
+        if (!sent) return jsonResponse({ conversation_id: "abc123", tasks: [], messages: [] });
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [],
+          messages: [
+            { id: "m1", role: "user", content: "run it", dispatch_id: "d1", created_at: "2026-10-05T09:04:59Z" },
+          ],
+          dispatches: [
+            {
+              dispatch_id: "d1",
+              conversation_id: "abc123",
+              status: "interrupted",
+              error_class: "interrupted",
+              created_at: "2026-10-05T09:04:59Z",
+              finished_at: "2026-10-05T09:06:43Z",
+            },
+          ],
+        });
+      }
+      if (url === "/api/v1/dispatch" && method === "POST") {
+        sent = true;
+        return jsonResponse(
+          { dispatch_id: "d1", conversation_id: "abc123", status: "queued", created_at: "2026-10-05T09:04:59Z" },
+          202,
+        );
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+
+    renderPage();
+    const input = screen.getByPlaceholderText(/message the agent fleet/i);
+    await waitFor(() => expect(input).not.toBeDisabled());
+    await user.type(input, "run it");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByText(/interrupted when Loomux restarted/i)).toBeInTheDocument();
+    await waitFor(() => expect(input).not.toBeDisabled());
+  });
+
+  // Whatever the stream said while it was down is lost: on coming back,
+  // the page reads the conversation again.
+  it("refetches the conversation when the stream reconnects", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    let gets = 0;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        gets += 1;
+        return jsonResponse({ conversation_id: "abc123", tasks: [], messages: [] });
+      }
+      if (url === "/api/v1/workspaces") {
+        return jsonResponse({ workspaces: [] });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const { rerender } = render(page(queryClient));
+    await waitFor(() => expect(gets).toBe(1));
+
+    stream.state = { event: null, dispatchEvent: null, connected: true };
+    rerender(page(queryClient));
+    await waitFor(() => expect(gets).toBe(2));
   });
 
   it("disables the input while a dispatch is in flight so a second submit can't race the first", async () => {
