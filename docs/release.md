@@ -39,3 +39,18 @@ a release is a no-op.
 CI's `build` job (which runs npm code) has a read-only token. It hands
 the tested `dist/` to a separate `publish` job, which runs only for main
 pushes and is the only job that can write the repository.
+
+## Vulnerable dependencies (LOOM-125)
+
+CI's `audit` job runs `npm audit --audit-level=low` on every PR and main
+push: any known vulnerability, in a runtime or a dev dependency (the
+shipped bundle is built with the dev ones), fails it. On a finding:
+
+- update the package (`npm audit fix`, or bump the dependency that pulls
+  it in) and say so in the PR;
+- if there's no fix yet, decide whether it can reach the shipped bundle
+  or the build. If it can't, pin an `overrides` entry or record the
+  advisory here, with why it doesn't apply and when to look again,
+  rather than turning the job off.
+
+No advisory is accepted this way today.

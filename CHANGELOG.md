@@ -10,6 +10,11 @@ curated milestones.
 
 ## [Unreleased]
 
+### Added
+
+- CI fails on any known-vulnerable npm package (`npm audit`), dev
+  dependencies included (LOOM-125).
+
 ## [0.1.0] - 2026-10-05
 
 The first release, collecting everything built so far. From here on,
