@@ -72,6 +72,17 @@ export function describeDispatchError(errorClass: string | undefined, error: str
         hint: "Retry to send it again. Its terminal session is kept, so you can attach to see how far it got.",
         detail,
       };
+    case "agent_rate_limited": {
+      // The server's text reads `… hit its usage limit, resets 5pm (…) (it shows "…")`.
+      const resets = error?.match(/hit its usage limit, resets (.+?) \(it shows /)?.[1];
+      return {
+        message: resets
+          ? `The agent hit its usage limit. It resets ${resets}.`
+          : "The agent hit its usage limit.",
+        hint: "Send your message again after the reset, or ask for a different agent.",
+        detail,
+      };
+    }
     case "login_required":
       return {
         message: "The agent needs to be signed in on that machine.",
