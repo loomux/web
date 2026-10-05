@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { api, ApiError, type TargetRequest } from "./api";
+import { api, ApiError, type CredentialRequest, type TargetRequest } from "./api";
 import { useAuth } from "./auth";
 
 // Binds every token-requiring `api` call to the current session token and
@@ -46,6 +46,10 @@ export function useApiClient() {
       updateTarget: (id: string, body: TargetRequest) =>
         guarded((t) => api.updateTarget(t, id, body)),
       deleteTarget: (id: string) => guarded((t) => api.deleteTarget(t, id)),
+      listCredentials: () => guarded((t) => api.listCredentials(t)),
+      createCredential: (body: CredentialRequest) => guarded((t) => api.createCredential(t, body)),
+      setCredentialValue: (id: string, value: string) => guarded((t) => api.setCredentialValue(t, id, value)),
+      deleteCredential: (id: string) => guarded((t) => api.deleteCredential(t, id)),
       getConversation: (id: string) => guarded((t) => api.getConversation(t, id)),
       getAttachInfo: (taskId: string) => guarded((t) => api.getAttachInfo(t, taskId)),
       getWebVersion: () => guarded((t) => api.getWebVersion(t)),
