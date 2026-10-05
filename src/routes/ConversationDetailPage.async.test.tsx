@@ -232,7 +232,7 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
   it("keeps a failed turn after a reload, with a plain-language error and a Retry that sends the same text again", async () => {
     const user = userEvent.setup();
     const server = fakeServer({
-      messages: [userMsg("m1", "check disk on jet01", "d1")],
+      messages: [userMsg("m1", "check disk on devbox", "d1")],
       tasks: [],
       dispatches: [
         {
@@ -250,11 +250,11 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/couldn't reach the machine/i);
     expect(alert).toHaveTextContent(/reachable over ssh/i);
-    expect(screen.getByText("check disk on jet01")).toBeInTheDocument();
+    expect(screen.getByText("check disk on devbox")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry/i }));
     await waitFor(() => expect(server.posts).toHaveLength(1));
-    expect(server.posts[0].body.message).toBe("check disk on jet01");
+    expect(server.posts[0].body.message).toBe("check disk on devbox");
     expect(server.posts[0].headers.get("Idempotency-Key")).toBeTruthy();
   });
 

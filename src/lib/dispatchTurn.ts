@@ -13,7 +13,7 @@ export interface DispatchErrorText {
   detail?: string;
 }
 
-// The router's TargetUnhealthyError reads `target "jet01" can't be used
+// The router's TargetUnhealthyError reads `target "devbox" can't be used
 // right now: <reason>` — already plain, so it's quoted rather than
 // replaced, without the wrapping the dispatch error carries before it.
 function targetReason(error: string): string | null {
