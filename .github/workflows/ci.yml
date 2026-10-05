@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # the release step below, on main only
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,14 +21,35 @@ jobs:
       - run: npx vitest run
       - run: npm run build
 
-      # LOOM-58: every tested main commit is published as a pre-release
-      # `web-<short sha>` holding the built bundle and web-release.json,
-      # which names the commit and the tarball's sha256. loomux/server's
-      # image build downloads the release its deploy/web-ref pins instead
-      # of building this repo itself; LOOM-118's updater reads the same
-      # JSON. See docs/release.md.
-      - name: Publish the bundle as a pre-release
+      # The tested bundle goes to the publish job, on main only.
+      - uses: actions/upload-artifact@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+
+  # LOOM-58: every tested main commit is published as a pre-release
+  # `web-<short sha>` holding the built bundle and web-release.json,
+  # which names the commit and the tarball's sha256. loomux/server's
+  # image build downloads the release its deploy/web-ref pins instead
+  # of building this repo itself; LOOM-118's updater reads the same
+  # JSON. See docs/release.md. Its own job, so only this one, which runs
+  # no npm code, holds a token that can write the repository.
+  publish:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Publish the bundle as a pre-release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
