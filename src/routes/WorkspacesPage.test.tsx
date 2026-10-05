@@ -57,7 +57,7 @@ function rowFor(name: string): HTMLElement {
 const ws = (id: string, name: string, status: string, extra: Record<string, unknown> = {}) => ({
   id,
   name,
-  target_id: "jet01",
+  target_id: "devbox",
   status,
   ...extra,
 });

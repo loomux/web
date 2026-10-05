@@ -348,8 +348,8 @@ describe("ConversationDetailPage", () => {
       conversation_id: "abc123",
       tasks: [],
       messages: [
-        { id: "m1", role: "user", content: "how much disk is free on jet01?", dispatch_id: "d1", created_at: "2026-10-05T09:00:00Z" },
-        { id: "m2", role: "assistant", content: "I'd run this on jet01:\n\n    df -h", dispatch_id: "d1", created_at: "2026-10-05T09:00:01Z" },
+        { id: "m1", role: "user", content: "how much disk is free on devbox?", dispatch_id: "d1", created_at: "2026-10-05T09:00:00Z" },
+        { id: "m2", role: "assistant", content: "I'd run this on devbox:\n\n    df -h", dispatch_id: "d1", created_at: "2026-10-05T09:00:01Z" },
       ],
       dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: "2026-10-05T09:00:00Z" }],
       confirmations: [
@@ -357,7 +357,7 @@ describe("ConversationDetailPage", () => {
           id: "conf-1",
           dispatch_id: "d1",
           kind: "run_command",
-          target_name: "jet01",
+          target_name: "devbox",
           command: "df -h",
           status,
           created_at: "2026-10-05T09:00:01Z",
@@ -391,7 +391,7 @@ describe("ConversationDetailPage", () => {
 
       renderPage();
       const card = await screen.findByRole("region", { name: "Confirmation" });
-      expect(card).toHaveTextContent("Run this command on jet01?");
+      expect(card).toHaveTextContent("Run this command on devbox?");
       expect(card).toHaveTextContent("df -h");
 
       await user.click(screen.getByRole("button", { name: label }));
@@ -539,9 +539,9 @@ describe("ConversationDetailPage", () => {
       id, workspace_id: workspace, kind, agent_type: kind === "agent" ? "claude-code" : "", status: "completed",
       created_at: at, updated_at: at,
     });
-    const cmdTask = task("t-cmd", "ws-shell-jet01", "command", "2026-10-04T15:05:05Z");
+    const cmdTask = task("t-cmd", "ws-shell-devbox", "command", "2026-10-04T15:05:05Z");
     const agentTask = task("t-agent", "ws-project", "agent", "2026-10-04T15:07:07Z");
-    const cmdAfter = task("t-cmd2", "ws-shell-jet01", "command", "2026-10-04T15:09:00Z");
+    const cmdAfter = task("t-cmd2", "ws-shell-devbox", "command", "2026-10-04T15:09:00Z");
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
@@ -562,7 +562,7 @@ describe("ConversationDetailPage", () => {
 
     renderPage();
     const box = () => screen.getByPlaceholderText(/message the agent fleet/i);
-    const messages = ["hi", "check disk on jet01", "yes", "now start claude in my project", "and memory?", "yes, go ahead"];
+    const messages = ["hi", "check disk on devbox", "yes", "now start claude in my project", "and memory?", "yes, go ahead"];
     for (const [i, text] of messages.entries()) {
       await waitFor(() => expect(box()).not.toBeDisabled());
       await user.type(box(), text);

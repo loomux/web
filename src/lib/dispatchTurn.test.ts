@@ -65,7 +65,7 @@ describe("describeDispatchError", () => {
     // The router's TargetUnhealthyError text is already plain language.
     const e = describeDispatchError(
       "target_unhealthy",
-      'dispatch: target "jet01" can\'t be used right now: only 200 MiB free',
+      'dispatch: target "devbox" can\'t be used right now: only 200 MiB free',
     );
     expect(e.message).toContain("only 200 MiB free");
   });
