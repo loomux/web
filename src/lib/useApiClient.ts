@@ -27,8 +27,13 @@ export function useApiClient() {
 
   return useMemo(
     () => ({
-      dispatch: (conversationId: string, message: string, workspaceHint?: string, idempotencyKey?: string) =>
-        guarded((t) => api.dispatch(t, conversationId, message, workspaceHint, idempotencyKey)),
+      dispatch: (
+        conversationId: string,
+        message: string,
+        workspaceHint?: string,
+        idempotencyKey?: string,
+        confirmationId?: string,
+      ) => guarded((t) => api.dispatch(t, conversationId, message, workspaceHint, idempotencyKey, confirmationId)),
       getDispatch: (id: string) => guarded((t) => api.getDispatch(t, id)),
       cancelDispatch: (id: string) => guarded((t) => api.cancelDispatch(t, id)),
       listWorkspaces: () => guarded((t) => api.listWorkspaces(t)),
