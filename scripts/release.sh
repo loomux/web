@@ -5,6 +5,10 @@
 #   scripts/release.sh version <tag>            print the version a tag names
 #   scripts/release.sh prerelease <version>     exit 0 if it's a pre-release
 #   scripts/release.sh notes <version> [file]   print its CHANGELOG section
+#   scripts/release.sh latest [rev]             the highest vX.Y.Z tag reachable
+#                                              from rev (HEAD), or nothing
+#   scripts/release.sh next <patch|minor> <version>
+#                                              the version after it
 #
 # A tag is "v" + a SemVer 2.0.0 version without build metadata. Every
 # 0.y.z version and every version with a pre-release part (-alpha.1,
@@ -44,7 +48,25 @@ notes)
   grep -q '[^[:space:]]' "$notes" || die "$file has no non-empty section '## [$v] - <date>'"
   cat "$notes"
   ;;
+latest)
+  # Only plain X.Y.Z tags start the line: a -rc tag doesn't.
+  git tag --merged "${2:-HEAD}" --list 'v*' |
+    sed -n 's/^v\(\(0\|[1-9][0-9]*\)\.\(0\|[1-9][0-9]*\)\.\(0\|[1-9][0-9]*\)\)$/\1/p' |
+    sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1
+  ;;
+next)
+  kind="${2:-}"
+  v="${3:-}"
+  printf '%s\n' "$v" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' ||
+    die "next: '$v' is not X.Y.Z"
+  major="${v%%.*}"; rest="${v#*.}"; minor="${rest%%.*}"; patch="${rest#*.}"
+  case "$kind" in
+  patch) echo "$major.$minor.$((patch + 1))" ;;
+  minor) echo "$major.$((minor + 1)).0" ;;
+  *) die "next: kind must be patch or minor" ;;
+  esac
+  ;;
 *)
-  die "usage: $0 version <tag> | prerelease <version> | notes <version> [file]"
+  die "usage: $0 version <tag> | prerelease <version> | notes <version> [file] | latest [rev] | next <patch|minor> <version>"
   ;;
 esac
