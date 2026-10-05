@@ -36,6 +36,15 @@ jobs:
   # dependencies count: the bundle we ship is built with them. Needs no
   # install (it reads package-lock.json) and runs no package code. A
   # finding with no fix yet is triaged in docs/release.md.
+  # Changelog fragments (changes/*.md) are well-formed.
+  changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/changelog.sh check
+
   audit:
     runs-on: ubuntu-latest
     permissions:
