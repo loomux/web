@@ -32,6 +32,21 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # LOOM-125: no known-vulnerable npm package, at any severity. Dev
+  # dependencies count: the bundle we ship is built with them. Needs no
+  # install (it reads package-lock.json) and runs no package code. A
+  # finding with no fix yet is triaged in docs/release.md.
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm audit --audit-level=low
+
   # LOOM-58: every tested main commit is published as a pre-release
   # `web-<short sha>` holding the built bundle and web-release.json,
   # which names the commit and the tarball's sha256. loomux/server's
