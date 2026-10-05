@@ -8,7 +8,8 @@ import { AttachInfo } from "../components/AttachInfo";
 import { MessageContent } from "../components/MessageContent";
 import { AttentionCard } from "../components/AttentionCard";
 import { DispatchErrorCard, DispatchProgressCard } from "../components/DispatchCards";
-import { ApiError, type Dispatch } from "../lib/api";
+import { ApiError, type Confirmation, type Dispatch } from "../lib/api";
+import { ConfirmationCard } from "../components/ConfirmationCard";
 import { isTerminalDispatch, turnStage } from "../lib/dispatchTurn";
 
 interface DisplayMessage {
@@ -18,6 +19,8 @@ interface DisplayMessage {
   createdAt?: string;
   // The turn this user message started, when it failed (LOOM-81).
   failed?: Dispatch;
+  // The offer this reply made, awaiting or given an answer (LOOM-123).
+  confirmation?: Confirmation;
 }
 
 // Statuses where a human plausibly wants to intervene — see
@@ -141,7 +144,7 @@ export function ConversationDetailPage() {
   // the composer, or an answer from the needs-attention card.
   // It returns once the server has accepted the turn; the stream carries
   // the rest. A Retry is a send of the same text.
-  async function send(text: string, onAccepted?: () => void) {
+  async function send(text: string, onAccepted?: () => void, confirmationId?: string) {
     if (!conversationId || busy) return;
     onAccepted?.();
     setError(null);
@@ -153,7 +156,13 @@ export function ConversationDetailPage() {
       // A command task runs in the target's shell workspace, which the router
       // is never offered, so it says nothing about where the work is.
       const workspaceHint = history?.tasks.findLast((t) => t.kind === "agent")?.workspace_id;
-      const accepted = await apiClient.dispatch(conversationId, text, workspaceHint, crypto.randomUUID());
+      const accepted = await apiClient.dispatch(
+        conversationId,
+        text,
+        workspaceHint,
+        crypto.randomUUID(),
+        confirmationId,
+      );
       if (accepted.dispatch_id) setFollowed(accepted);
       await refetchHistory();
       setPendingUser(null);
@@ -208,6 +217,9 @@ export function ConversationDetailPage() {
       .filter((d) => d.status === "failed" || d.status === "interrupted")
       .map((d) => [d.dispatch_id, d]),
   );
+  const confirmationByDispatch = new Map(
+    (history?.confirmations ?? []).filter((c) => c.dispatch_id).map((c) => [c.dispatch_id, c]),
+  );
   const messages: DisplayMessage[] = [
     ...(history?.messages ?? []).map((m) => ({
       role: m.role,
@@ -215,6 +227,8 @@ export function ConversationDetailPage() {
       key: m.id,
       createdAt: m.created_at,
       failed: m.role === "user" && m.dispatch_id ? failedById.get(m.dispatch_id) : undefined,
+      confirmation:
+        m.role === "assistant" && m.dispatch_id ? confirmationByDispatch.get(m.dispatch_id) : undefined,
     })),
     ...(pendingUser !== null ? [{ role: "user" as const, text: pendingUser, key: "pending-user" }] : []),
   ];
@@ -278,6 +292,13 @@ export function ConversationDetailPage() {
                 </time>
               )}
             </div>
+            {m.confirmation && (
+              <ConfirmationCard
+                confirmation={m.confirmation}
+                disabled={busy}
+                onAnswer={(answer) => void send(answer, undefined, m.confirmation?.id)}
+              />
+            )}
             {m.failed && (
               <DispatchErrorCard
                 errorClass={m.failed.error_class}

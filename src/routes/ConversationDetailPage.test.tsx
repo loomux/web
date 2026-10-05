@@ -340,6 +340,80 @@ describe("ConversationDetailPage", () => {
     await waitFor(() => expect(gets).toBe(2));
   });
 
+  // LOOM-123: an offer awaiting a yes is a card under the reply that made
+  // it; Approve sends "yes" naming the offer, and once answered the card
+  // says how.
+  function offerHistory(status: string) {
+    return {
+      conversation_id: "abc123",
+      tasks: [],
+      messages: [
+        { id: "m1", role: "user", content: "how much disk is free on jet01?", dispatch_id: "d1", created_at: "2026-10-05T09:00:00Z" },
+        { id: "m2", role: "assistant", content: "I'd run this on jet01:\n\n    df -h", dispatch_id: "d1", created_at: "2026-10-05T09:00:01Z" },
+      ],
+      dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: "2026-10-05T09:00:00Z" }],
+      confirmations: [
+        {
+          id: "conf-1",
+          dispatch_id: "d1",
+          kind: "run_command",
+          target_name: "jet01",
+          command: "df -h",
+          status,
+          created_at: "2026-10-05T09:00:01Z",
+          expires_at: "2026-10-05T09:15:01Z",
+        },
+      ],
+    };
+  }
+
+  for (const [label, answer] of [
+    ["Approve", "yes"],
+    ["Deny", "no"],
+  ] as const) {
+    it(`answers an offer from its card: ${label}`, async () => {
+      localStorage.setItem("loomux.token", "tok-1");
+      const user = userEvent.setup();
+      let body: Record<string, unknown> | null = null;
+      globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        if (url === "/api/v1/conversations/abc123" && method === "GET") {
+          return jsonResponse(offerHistory(body ? (answer === "yes" ? "approved" : "denied") : "pending"));
+        }
+        if (url === "/api/v1/dispatch" && method === "POST") {
+          body = JSON.parse(String(init?.body));
+          return jsonResponse({ dispatch_id: "d2", conversation_id: "abc123", status: "succeeded", created_at: "2026-10-05T09:01:00Z" }, 202);
+        }
+        if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+        throw new Error(`unexpected fetch: ${method} ${url}`);
+      });
+
+      renderPage();
+      const card = await screen.findByRole("region", { name: "Confirmation" });
+      expect(card).toHaveTextContent("Run this command on jet01?");
+      expect(card).toHaveTextContent("df -h");
+
+      await user.click(screen.getByRole("button", { name: label }));
+      await waitFor(() => expect(body).toEqual({ conversation_id: "abc123", message: answer, confirmation_id: "conf-1" }));
+      expect(await screen.findByRole("status")).toHaveTextContent(answer === "yes" ? "Approved" : "Denied");
+      expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    });
+  }
+
+  it("shows an expired offer without buttons", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") return jsonResponse(offerHistory("expired"));
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    renderPage();
+    expect(await screen.findByRole("status")).toHaveTextContent(/Expired: nothing was run/);
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  });
+
   it("disables the input while a dispatch is in flight so a second submit can't race the first", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();

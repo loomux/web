@@ -103,6 +103,25 @@ export interface Attention {
   selected: number;
 }
 
+// An offer the router made and is waiting on a yes for (LOOM-123): what
+// it would do, where, and how it was answered. dispatch_id is the turn
+// whose reply made it.
+export interface Confirmation {
+  id: string;
+  dispatch_id?: string;
+  kind: "run_command" | "install_agent" | "clone_remote" | "policy";
+  target_id?: string;
+  target_name?: string;
+  agent_type?: string;
+  command?: string;
+  workspace?: string;
+  git_remote?: string;
+  status: "pending" | "approved" | "denied" | "expired";
+  created_at: string;
+  expires_at: string;
+  resolved_at?: string;
+}
+
 // Per-turn message transcript, oldest first — LOOM-31.
 export interface ConversationMessage {
   id: string;
@@ -268,6 +287,8 @@ export const api = {
     message: string,
     workspaceHint?: string,
     idempotencyKey?: string,
+    // The offer this message answers, from its card (LOOM-123).
+    confirmationId?: string,
   ) =>
     request<Dispatch>("/dispatch", token, {
       method: "POST",
@@ -279,6 +300,7 @@ export const api = {
         conversation_id: conversationId,
         message,
         ...(workspaceHint ? { workspace_hint: workspaceHint } : {}),
+        ...(confirmationId ? { confirmation_id: confirmationId } : {}),
       }),
     }),
 
@@ -305,6 +327,8 @@ export const api = {
       messages: ConversationMessage[];
       // Absent from servers before LOOM-80.
       dispatches?: Dispatch[];
+      // Absent from servers before LOOM-123.
+      confirmations?: Confirmation[];
     }>(`/conversations/${id}`, token),
 
   getDispatch: (token: string, id: string) =>
