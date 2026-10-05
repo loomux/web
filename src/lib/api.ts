@@ -225,6 +225,28 @@ export interface VersionResponse {
   api_version: string;
 }
 
+// A published web bundle (loomux/web docs/release.md), LOOM-118.
+export interface WebRelease {
+  commit: string;
+  short: string;
+  tag: string;
+  built_at: string;
+  subject?: string;
+}
+
+// GET /web/version: the bundle served and, when updates are set up, the
+// newest one published.
+export interface WebVersionResponse {
+  // null for an image bundle from before releases.
+  current: WebRelease | null;
+  source: "image" | "installed";
+  previous?: WebRelease;
+  latest?: WebRelease;
+  latest_error?: string;
+  update_available: boolean;
+  updates_enabled: boolean;
+}
+
 export const api = {
   login: (password: string) =>
     request<{ token: string }>("/login", null, {
@@ -317,6 +339,13 @@ export const api = {
     request<AttachInfoResponse>(`/tasks/${taskId}/attach-info`, token),
 
   getVersion: () => request<VersionResponse>("/version", null),
+
+  // LOOM-118. 404 from a server older than it.
+  getWebVersion: (token: string) => request<WebVersionResponse>("/web/version", token),
+  // 409 when already up to date; 503 when updates aren't set up.
+  updateWeb: (token: string) => request<WebVersionResponse>("/web/update", token, { method: "POST" }),
+  // 409 when there is nothing to roll back to.
+  rollbackWeb: (token: string) => request<WebVersionResponse>("/web/rollback", token, { method: "POST" }),
 };
 
 // streamUrl is exported for useConversationStream (lib/stream.ts) rather

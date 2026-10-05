@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { useApiClient } from "../lib/useApiClient";
+import { WebClientUpdate } from "../components/WebClientUpdate";
 import {
   compareConversationSummaries,
   formatStatusLabel,
@@ -143,6 +144,8 @@ export function DashboardPage() {
           </div>
         )}
       </section>
+
+      <WebClientUpdate />
     </div>
   );
 }
