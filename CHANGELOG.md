@@ -2,9 +2,11 @@
 
 All notable changes to the Loomux web client are documented here. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and the version is Loomux's own, shared with loomux/server
+and the web client has its own version line
 ([Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html); see
-loomux/server `docs/release/versioning.md`).
+loomux/server `docs/release/versioning.md`). Every merge to main is a
+patch release whose notes are on its GitHub release; this file has the
+curated milestones.
 
 ## [Unreleased]
 

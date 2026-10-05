@@ -25,6 +25,12 @@ describe("release.sh", () => {
     expect(release("prerelease", "1.0.0").ok).toBe(false);
   });
 
+  it("computes the next patch or minor version", () => {
+    expect(release("next", "patch", "0.1.9")).toEqual({ ok: true, out: "0.1.10" });
+    expect(release("next", "minor", "0.1.9")).toEqual({ ok: true, out: "0.2.0" });
+    expect(release("next", "patch", "1.0.0-rc.1").ok).toBe(false);
+  });
+
   it("takes a version's notes from its CHANGELOG section only", () => {
     const file = join(mkdtempSync(join(tmpdir(), "rel-")), "CHANGELOG.md");
     writeFileSync(file, "# C\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-05\n\n- first\n\n[0.1.0]: https://x\n");
