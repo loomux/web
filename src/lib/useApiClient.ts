@@ -43,6 +43,9 @@ export function useApiClient() {
       deleteTarget: (id: string) => guarded((t) => api.deleteTarget(t, id)),
       getConversation: (id: string) => guarded((t) => api.getConversation(t, id)),
       getAttachInfo: (taskId: string) => guarded((t) => api.getAttachInfo(t, taskId)),
+      getWebVersion: () => guarded((t) => api.getWebVersion(t)),
+      updateWeb: () => guarded((t) => api.updateWeb(t)),
+      rollbackWeb: () => guarded((t) => api.rollbackWeb(t)),
     }),
     [guarded],
   );
