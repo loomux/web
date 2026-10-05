@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+    # A version tag (LOOM-129): v + SemVer 2.0.0, on a main commit.
+    tags: ["v*"]
   pull_request:
 
 jobs:
@@ -83,3 +85,33 @@ jobs:
             echo ""
             echo "\`${tarball}\` sha256 \`$(jq -r .sha256 web-release.json)\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # A version tag's GitHub release (LOOM-129). The bundle itself is the
+  # tagged commit's web-<sha> pre-release, which loomux/server pins; this
+  # only names it and carries the CHANGELOG section. 0.y.z and -pre
+  # versions are pre-releases, and nothing here marks a release "latest".
+  version-release:
+    needs: build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          version="$(scripts/release.sh version "${GITHUB_REF_NAME}")"
+          git merge-base --is-ancestor HEAD origin/main || { echo "::error::${GITHUB_REF_NAME} is not on main"; exit 1; }
+          pkg="$(jq -r .version package.json)"
+          [ "${pkg}" = "${version}" ] || { echo "::error::package.json says ${pkg}, the tag ${version}"; exit 1; }
+          scripts/release.sh notes "${version}" > notes.md
+          printf '\nThe bundle is release `web-%s`.\n' "$(git rev-parse --short=7 HEAD)" >> notes.md
+          pre=""
+          if scripts/release.sh prerelease "${version}"; then pre="--prerelease"; fi
+          gh release create "${GITHUB_REF_NAME}" --verify-tag ${pre} --latest=false \
+            --title "Loomux web ${version}" --notes-file notes.md
