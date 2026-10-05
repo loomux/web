@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import { App } from "./App";
 import { AuthProvider } from "./lib/auth";
+import { registerServiceWorker } from "./lib/serviceWorker";
 
 const queryClient = new QueryClient();
 
@@ -19,3 +20,5 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+registerServiceWorker();
