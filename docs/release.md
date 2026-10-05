@@ -54,3 +54,15 @@ shipped bundle is built with the dev ones), fails it. On a finding:
   rather than turning the job off.
 
 No advisory is accepted this way today.
+
+## Changelog fragments
+
+A pull request with a user-visible change doesn't edit `CHANGELOG.md`:
+it adds `changes/<slug>.md` with its entry under Keep a Changelog
+headings (format in `changes/README.md`), so open pull requests never
+conflict over `[Unreleased]`. CI checks them (`scripts/changelog.sh
+check`). A milestone (a MINOR, an rc, 1.0.0) runs
+`scripts/changelog.sh release 0.2.0 2026-10-20`, which writes them into
+`CHANGELOG.md` as that version's section, updates the links and deletes
+them; edit the section, merge, then tag. `scripts/changelog.sh
+assemble` previews it.
