@@ -46,6 +46,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
+      # The bundle's build-provenance attestation (LOOM-118 option b).
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -108,6 +111,16 @@ jobs:
             echo ""
             echo "\`${tarball}\` sha256 \`$(jq -r .sha256 web-release.json)\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # LOOM-118 option b: a signed SLSA build-provenance attestation for
+      # the tarball, issued to this workflow on refs/heads/main. loomuxd's
+      # web updater installs a release only if one verifies: its digest is
+      # the tarball's and its source commit the release's.
+      - name: Attest the bundle
+        if: hashFiles('loomux-web-*.tar.gz') != ''
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: loomux-web-*.tar.gz
 
       - name: Release the version
         if: steps.version.outputs.version != ''
