@@ -1,0 +1,16 @@
+# Temporary: checks whether this private repo can create build-provenance
+# attestations on the org's plan (LOOM-118 option b). Not for merging.
+name: attest-probe
+on: pull_request
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - run: echo probe > probe.txt
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: probe.txt
