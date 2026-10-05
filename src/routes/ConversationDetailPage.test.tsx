@@ -414,6 +414,32 @@ describe("ConversationDetailPage", () => {
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
 
+  // LOOM-130: a new message (or the progress card) brings the view to the
+  // end of the conversation instead of leaving it where it was.
+  it("scrolls to the newest message", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [],
+          messages: [
+            { id: "m1", role: "user", content: "hi", created_at: "2026-10-05T09:00:00Z" },
+            { id: "m2", role: "assistant", content: "hello", created_at: "2026-10-05T09:00:01Z" },
+          ],
+        });
+      }
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    renderPage();
+    expect(await screen.findByText("hello")).toBeInTheDocument();
+    await waitFor(() => expect(scrolled).toHaveBeenCalled());
+  });
+
   it("disables the input while a dispatch is in flight so a second submit can't race the first", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();

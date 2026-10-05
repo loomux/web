@@ -130,6 +130,8 @@ export function ConversationDetailPage() {
   // which drops focus). A message typed straight after opening one then
   // goes where it's meant to.
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  // The end of the conversation, kept in view as messages arrive.
+  const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!busy) composerRef.current?.focus();
   }, [busy, conversationId]);
@@ -233,6 +235,13 @@ export function ConversationDetailPage() {
     ...(pendingUser !== null ? [{ role: "user" as const, text: pendingUser, key: "pending-user" }] : []),
   ];
 
+  // A new message, the progress card or an answer card: bring the end of
+  // the conversation into view (LOOM-130).
+  const lastKey = messages[messages.length - 1]?.key;
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: "end" });
+  }, [lastKey, messages.length, inFlight]);
+
   const latestTask = history?.tasks[history.tasks.length - 1];
   // A needs-attention task's prompt (LOOM-97) — shown until it's answered,
   // and not while that answer is on its way.
@@ -317,6 +326,7 @@ export function ConversationDetailPage() {
             cancelling={cancellingId === active.dispatch_id}
           />
         )}
+        <div ref={endRef} />
       </div>
 
       {error && <p className="px-4 text-sm text-red-600">{error}</p>}

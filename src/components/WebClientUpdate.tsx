@@ -54,7 +54,7 @@ export function WebClientUpdate({ reload = () => window.location.reload() }: { r
               <p className="text-amber-700 dark:text-amber-300">Couldn't check for updates: {data.latest_error}</p>
             )}
             {data.updates_enabled && !data.latest_error && data.latest && !data.update_available && (
-              <p className="text-neutral-500">This is the newest version.</p>
+              <p className="text-neutral-500">Up to date.</p>
             )}
             {data.update_available && data.latest && swapped === undefined && (
               <div className="flex flex-wrap items-center gap-3">
