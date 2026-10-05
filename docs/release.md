@@ -35,3 +35,7 @@ Pre-releases, not releases: nothing here is a versioned product release
 (semver releases are a separate, later decision). Pull requests build
 and test but publish nothing. Re-running CI on a commit that already has
 a release is a no-op.
+
+CI's `build` job (which runs npm code) has a read-only token. It hands
+the tested `dist/` to a separate `publish` job, which runs only for main
+pushes and is the only job that can write the repository.
