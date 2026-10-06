@@ -1,0 +1,34 @@
+#!/bin/sh
+# A stand-in for Claude Code in the e2e suite (e2e/README.md). Loomux probes
+# it (--version, auth status), launches it with the first prompt as the last
+# argument, then types follow-ups into its pane. Each turn it prints a reply
+# and does what Claude Code's Stop hook does for Loomux (agents/agents.go
+# markerHook): saves {"last_assistant_message": …} beside the marker and
+# touches the marker.
+case "$1" in
+--version) echo "2.1.99 (Claude Code)"; exit 0 ;;
+auth) echo '{"loggedIn": true}'; exit 0 ;;
+esac
+
+reply() {
+	# The reply quotes the prompt's last line (Loomux may put the earlier
+	# conversation before it), so a test can tell which turn it is.
+	last=$(printf '%s\n' "$1" | sed '/^[[:space:]]*$/d' | tail -n 1)
+	text="e2e agent reply: $last"
+	printf '%s\n' "$text"
+	if [ -n "$LOOMUX_MARKER_PATH" ]; then
+		mkdir -p "$(dirname "$LOOMUX_MARKER_PATH")"
+		esc=$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')
+		printf '{"last_assistant_message":"%s"}' "$esc" > "$LOOMUX_MARKER_PATH.reply.tmp"
+		mv -f "$LOOMUX_MARKER_PATH.reply.tmp" "$LOOMUX_MARKER_PATH.reply"
+		touch "$LOOMUX_MARKER_PATH"
+	fi
+}
+
+prompt=""
+for a in "$@"; do prompt="$a"; done
+case "$prompt" in -*) prompt="" ;; esac
+[ -n "$prompt" ] && reply "$prompt"
+while IFS= read -r line; do
+	[ -n "$line" ] && reply "$line"
+done
