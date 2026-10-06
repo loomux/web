@@ -76,12 +76,13 @@ There is no 404 route: an unknown path renders nothing inside the shell
   `state.from = location.pathname` when there is no token
   (`src/components/ProtectedRoute.tsx:8-10`).
 - Login (`src/routes/LoginPage.tsx`): `POST /api/v1/login {password}` →
-  `{token}`; stored, then **always** `navigate("/workspaces")`
-  (`LoginPage.tsx:25`). The `state.from` saved by the guard is only honoured
-  when the login page is opened while already holding a token
-  (`LoginPage.tsx:14-17`, fallback also `/workspaces`). So after a fresh login
-  the user lands on Workspaces, not the Dashboard and not the page they were
-  sent from (including a conversation link from a notification).
+  `{token}`; stored, then `navigate("/workspaces")` (`LoginPage.tsx:25`).
+  In practice the token's re-render runs first and its `<Navigate>` to
+  `state.from` wins (`LoginPage.tsx:14-17`), so the user does land on the
+  page they were sent from; checked in a real browser (e2e). Only its query
+  string was dropped (the guard saved the pathname alone), which no page
+  uses yet. Without a `from` (opening `/login` directly) login lands on
+  Workspaces, not the Dashboard.
 - 401 handling: every authenticated call goes through
   `useApiClient().guarded` (`src/lib/useApiClient.ts:13-26`); a 401 clears the
   token (`auth.tsx:49-52`) and the guard redirects to `/login`. The SSE stream
@@ -854,9 +855,9 @@ HTTP on a LAN these break.
 
 1. **Login lands on Workspaces.** After logging in from `/login` the app
    goes to `/workspaces`, not the Dashboard (`LoginPage.tsx:25`; the
-   already-logged-in fallback is also `/workspaces`, `:16`). It also drops
-   the page the user was redirected from, so a notification link opened while
-   logged out ends on Workspaces instead of the conversation.
+   already-logged-in fallback is also `/workspaces`, `:16`). A page the user
+   was redirected from (e.g. a notification's conversation link) is kept;
+   web#68 makes that explicit, keeps the query string, and adds an e2e test.
 2. **Reply before "finished"; stale workspace status.** An agent's reply can
    appear on the conversation page (the progress card shows the live pane) a
    moment before its turn is recorded as finished: `message_added` triggers a
