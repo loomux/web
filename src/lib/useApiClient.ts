@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { api, ApiError, type CredentialRequest, type TargetRequest } from "./api";
-import { useAuth } from "./auth";
+import { useAuth } from "./authContext";
 
 // Binds every token-requiring `api` call to the current session token and
 // routes a 401 through handleUnauthorized (clears the stale token, which
