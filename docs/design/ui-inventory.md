@@ -324,7 +324,7 @@ while an answer is being sent.
 | Send a message | `POST /api/v1/dispatch` (`dispatch`), headers `Prefer: respond-async`, `Idempotency-Key: <uuid>`; body `conversation_id`, `message`, `workspace_hint` (latest *agent* task's workspace, `:179`) | 202 → page follows the returned dispatch |
 | Approve / Deny an offer | same, message `"yes"`/`"no"` plus `confirmation_id` | from ConfirmationCard |
 | Answer an agent prompt | same, message `"approve"`, `"deny"`, an option number, or free text | from AttentionCard |
-| Retry a failed turn | same, resending the failed message's text (`:335`) | new idempotency key; no `confirmation_id` |
+| Retry a failed turn | same, resending the failed message's text (`:335`) | new idempotency key; resends the failed dispatch's `confirmation_id` if it answered an offer (web#66), so a closed offer is refused |
 | Cancel the turn | `POST /api/v1/dispatches/{id}/cancel` (`cancelDispatch`) | 202; turn later fails with class `cancelled` |
 | Show attach command | `GET /api/v1/tasks/{id}/attach-info` (`getAttachInfo`) | on click |
 | (load) | `GET /api/v1/conversations/{id}` (`getConversation`), `GET /api/v1/workspaces` | |
