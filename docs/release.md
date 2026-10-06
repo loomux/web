@@ -44,7 +44,10 @@ pushes and is the only job that can write the repository.
 
 CI's `audit` job runs `npm audit --audit-level=low` on every PR and main
 push: any known vulnerability, in a runtime or a dev dependency (the
-shipped bundle is built with the dev ones), fails it. On a finding:
+shipped bundle is built with the dev ones), fails it. It's a **required
+check** on `main` (with `build` and `changelog`, since 2026-10-06), so a
+new advisory blocks every merge until it's dealt with. The fix PR itself
+passes `audit`, so it can always merge. On a finding:
 
 - update the package (`npm audit fix`, or bump the dependency that pulls
   it in) and say so in the PR;
