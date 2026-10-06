@@ -218,5 +218,12 @@ jobs:
           printf '\nThe bundle is release `web-%s`.\n' "$(git rev-parse --short=7 HEAD)" >> notes.md
           pre=""
           if scripts/release.sh prerelease "${version}"; then pre="--prerelease"; fi
+          # The tag pushed while main's run for the same commit was still
+          # going: that run took it as the commit's version and released it
+          # with merge notes (v0.3.0). The milestone's own notes win.
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release edit "${GITHUB_REF_NAME}" ${pre} --title "Loomux web ${version}" --notes-file notes.md
+            exit 0
+          fi
           gh release create "${GITHUB_REF_NAME}" --verify-tag ${pre} --latest=false \
             --title "Loomux web ${version}" --notes-file notes.md
