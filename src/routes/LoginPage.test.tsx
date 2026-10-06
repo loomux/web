@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "../lib/auth";
+import { ProtectedRoute } from "../components/ProtectedRoute";
 import { LoginPage } from "./LoginPage";
 
 describe("LoginPage", () => {
@@ -53,5 +54,31 @@ describe("LoginPage", () => {
 
     expect(await screen.findByText("invalid password")).toBeInTheDocument();
     expect(localStorage.getItem("loomux.token")).toBeNull();
+  });
+
+  it("returns to the page that asked for a login, not /workspaces", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ token: "tok-1" }), { status: 200 }));
+
+    render(
+      <MemoryRouter initialEntries={["/conversations/abc123?x=1"]}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/conversations/:id" element={<p>conversation page</p>} />
+              <Route path="/workspaces" element={<p>workspaces page</p>} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    await userEvent.type(await screen.findByLabelText(/password/i), "hunter2");
+    await userEvent.click(screen.getByRole("button", { name: /log in/i }));
+
+    expect(await screen.findByText("conversation page")).toBeInTheDocument();
+    expect(screen.queryByText("workspaces page")).not.toBeInTheDocument();
   });
 });
