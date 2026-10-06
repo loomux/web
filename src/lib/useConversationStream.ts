@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { openConversationStream, type DispatchUpdateEvent, type MessageAddedEvent, type TaskUpdateEvent } from "./api";
-import { useAuth } from "./auth";
+import { useAuth } from "./authContext";
 
 interface StreamState {
   event: TaskUpdateEvent | null;
