@@ -3,7 +3,7 @@ import { Link, Outlet, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { VersionBanner } from "./components/VersionBanner";
-import { useAuth } from "./lib/auth";
+import { useAuth } from "./lib/authContext";
 
 // Lazy-loaded per route: keeps ConversationDetailPage's markdown/syntax-
 // highlighting dependencies (the bulk of the production bundle) out of the
