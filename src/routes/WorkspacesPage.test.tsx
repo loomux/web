@@ -41,6 +41,8 @@ function fakeServer(
     const url = String(input);
     const method = init?.method ?? "GET";
     if (url === "/api/v1/workspaces" && method === "GET") return jsonResponse({ workspaces });
+    if (url === "/api/v1/targets" && method === "GET")
+      return jsonResponse({ targets: [{ id: "devbox", name: "Dev Box", kind: "remote", host: "", user: "", ssh_key_ref: "" }] });
     const call = { method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined };
     calls.push(call);
     return respond(call) ?? new Response(null, { status: 204 });
@@ -94,6 +96,12 @@ describe("WorkspacesPage (LOOM-70)", () => {
     await waitFor(() =>
       expect(calls).toContainEqual({ method: "PATCH", url: "/api/v1/workspaces/w1", body: { status: "archived" } }),
     );
+  });
+
+  it("names each workspace's target, not its id", async () => {
+    fakeServer([ws("w1", "scratch", "idle")]);
+    renderPage();
+    expect(await within(await waitFor(() => rowFor("scratch"))).findByText("target: Dev Box")).toBeInTheDocument();
   });
 
   it("deletes only after a second, explicit confirmation", async () => {

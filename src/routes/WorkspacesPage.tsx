@@ -13,6 +13,9 @@ export function WorkspacesPage() {
     queryKey: ["workspaces"],
     queryFn: apiClient.listWorkspaces,
   });
+  // Target names for each row; the id stands in until (or unless) they load.
+  const { data: targetsData } = useQuery({ queryKey: ["targets"], queryFn: apiClient.listTargets });
+  const targetNames = new Map((targetsData?.targets ?? []).map((t) => [t.id, t.name]));
 
   if (isLoading) return <p className="p-4 text-neutral-500">Loading workspaces…</p>;
   if (error) return <p className="p-4 text-red-600">{(error as Error).message}</p>;
@@ -28,6 +31,7 @@ export function WorkspacesPage() {
           <WorkspaceRow
             key={ws.id}
             ws={ws}
+            targetName={targetNames.get(ws.target_id) ?? ws.target_id}
             onChanged={() => void queryClient.invalidateQueries({ queryKey: ["workspaces"] })}
           />
         ))}
@@ -39,7 +43,15 @@ export function WorkspacesPage() {
 // One workspace, with what can be done to it (LOOM-70): reopen a failed or
 // archived one, archive an idle or failed one, delete any not still
 // provisioning — after a second click, since it can't be undone.
-function WorkspaceRow({ ws, onChanged }: { ws: WorkspaceSummary; onChanged: () => void }) {
+function WorkspaceRow({
+  ws,
+  targetName,
+  onChanged,
+}: {
+  ws: WorkspaceSummary;
+  targetName: string;
+  onChanged: () => void;
+}) {
   const apiClient = useApiClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -70,7 +82,7 @@ function WorkspaceRow({ ws, onChanged }: { ws: WorkspaceSummary; onChanged: () =
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="font-medium">{ws.name}</p>
-          <p className="text-sm text-neutral-500">target: {ws.target_id}</p>
+          <p className="text-sm text-neutral-500">target: {targetName}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm rounded-full border border-neutral-300 px-2 py-0.5 dark:border-neutral-700">
