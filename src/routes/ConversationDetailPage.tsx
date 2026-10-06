@@ -27,24 +27,38 @@ interface DisplayMessage {
 // docs/design/web-client-design.md "Attach-info surfacing".
 const ATTACH_RELEVANT_STATUSES = new Set(["running", "needs-attention", "awaiting-input", "human-takeover"]);
 
-function useWorkspaceNameById() {
+// useWorkspaceNameById maps workspace ids to names. A workspace this
+// conversation just provisioned isn't in a list fetched before it existed,
+// so an id it doesn't know makes it fetch the list again, once per id,
+// instead of showing the id where the name belongs.
+function useWorkspaceNameById(referenced: (string | undefined)[]) {
   const apiClient = useApiClient();
-  const { data } = useQuery({
+  const { data, refetch, isFetching } = useQuery({
     queryKey: ["workspaces"],
     queryFn: apiClient.listWorkspaces,
   });
-  return useMemo(() => {
-    const map = new Map<string, string>();
-    data?.workspaces.forEach((ws) => map.set(ws.id, ws.name));
-    return map;
+  const map = useMemo(() => {
+    const m = new Map<string, string>();
+    data?.workspaces.forEach((ws) => m.set(ws.id, ws.name));
+    return m;
   }, [data]);
+  const tried = useRef(new Set<string>());
+  const referencedKey = referenced.filter(Boolean).join(",");
+  const loaded = !!data;
+  useEffect(() => {
+    if (!loaded || isFetching) return;
+    const missing = referencedKey.split(",").filter((id) => id && !map.has(id) && !tried.current.has(id));
+    if (missing.length === 0) return;
+    missing.forEach((id) => tried.current.add(id));
+    void refetch();
+  }, [referencedKey, map, loaded, isFetching, refetch]);
+  return map;
 }
 
 export function ConversationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const conversationId = id ?? null;
   const apiClient = useApiClient();
-  const workspaceNameById = useWorkspaceNameById();
 
   // Task history plus the persisted per-turn transcript (LOOM-31) — a
   // fresh conversation 404s here until its first dispatch, which is
@@ -67,6 +81,11 @@ export function ConversationDetailPage() {
       return (inFlight || followed) && !connected ? 3000 : false;
     },
   });
+
+  const workspaceNameById = useWorkspaceNameById([
+    ...(history?.tasks ?? []).map((t) => t.workspace_id),
+    liveTask?.workspace_id,
+  ]);
 
   // The turn in flight: the one followed, else any the server says is
   // running (a reload mid-turn), with the stream's latest word on it.
@@ -107,14 +126,12 @@ export function ConversationDetailPage() {
   // A task moving on (launched, waiting for you, done) changes the stage.
   useEffect(() => {
     if (liveTask && inFlight) void refetchHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveTask?.task_id, liveTask?.status, liveTask?.updated_at]);
 
   // A message the server logged on its own — an agent reporting after a
   // turn it ended early (LOOM-121) — shows up without a send.
   useEffect(() => {
     if (messageEvent) void refetchHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messageEvent?.message_id]);
 
   // The optimistic copy of a message until the server has it: it's stored

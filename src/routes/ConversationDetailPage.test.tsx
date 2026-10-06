@@ -135,6 +135,36 @@ describe("ConversationDetailPage", () => {
     expect(screen.queryByText(/ws-a/)).not.toBeInTheDocument();
   });
 
+  it("fetches the workspace list again for a workspace it doesn't know, once", async () => {
+    // The conversation just provisioned ws-new: the cached list predates it.
+    localStorage.setItem("loomux.token", "tok-1");
+    let listCalls = 0;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [
+            { id: "t1", workspace_id: "ws-new", kind: "agent", agent_type: "default", status: "running", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z" },
+          ],
+          messages: [],
+        });
+      }
+      if (url === "/api/v1/workspaces") {
+        listCalls++;
+        return jsonResponse({
+          workspaces: listCalls === 1 ? [] : [{ id: "ws-new", name: "e2e_new", target_id: "tgt-a", status: "active" }],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/e2e_new/)).toBeInTheDocument();
+    expect(listCalls).toBe(2);
+  });
+
   it("renders markdown in message content, with fenced code blocks distinct from surrounding prose", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const reply = [
