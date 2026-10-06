@@ -13,6 +13,45 @@ curated milestones.
 What's coming waits in [`changes/`](changes/), one file per pull
 request, until the next milestone folds it in here.
 
+## [0.3.0] - 2026-10-06
+
+The test-and-contract milestone: an end-to-end suite, one typed API
+client, and the UI inventory the redesign starts from, plus the fixes it
+turned up. loomux/server 0.3.0 pins this version.
+
+### Added
+
+- An end-to-end suite (Playwright, `npm run e2e`, CI job `e2e`) for login,
+  answers, commands, Approve/Deny offers, the workspace lifecycle and the
+  Credentials page, against the real server image with a stand-in router
+  model and agent CLI. No real credentials.
+- `docs/design/ui-inventory.md`: every screen, action, state and endpoint
+  of today's UI, the rough edges seen in use, and open questions: the
+  brief for the redesign.
+- A turn refused as `message_too_large` (server LOOM-111, coming in a
+  later server release) says so in plain words: over 32 KiB with its
+  context, nothing sent, put the long part in a file.
+
+### Changed
+
+- All server calls, the conversation event stream included, go through the
+  typed client in `src/lib/api.ts`; a test keeps them there and pins each
+  call's method, path and body.
+- oxlint reports no warnings, and `npm run lint` (CI's build check) fails
+  on any new one. The auth context and `useAuth` moved to
+  `src/lib/authContext.ts`.
+
+### Fixed
+
+- Retrying a failed Approve or Deny sends the offer's id again, so a retry
+  after the offer closed is refused instead of answering a newer offer
+  (with server 0.3.0's `confirmation_id` on dispatches).
+- The attach command names Loomux's own tmux server (the server's
+  `attach_command`, e.g. `tmux -L loomux attach -t …`, over `ssh -t` on a
+  remote target); a bare `tmux attach` didn't find the session.
+- Logging in from a link returns to it with its query string and hash,
+  not just the path.
+
 ## [0.2.0] - 2026-10-06
 
 The first MINOR after the base: everything merged since 0.1.0 (the 0.1.x
@@ -72,6 +111,7 @@ every merge to main is a patch release with its own notes.
 - After a server restart mid-turn, the page reconnects and shows how the
   turn ended instead of staying on "Running".
 
-[Unreleased]: https://github.com/loomux/web/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/loomux/web/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/loomux/web/releases/tag/v0.3.0
 [0.2.0]: https://github.com/loomux/web/releases/tag/v0.2.0
 [0.1.0]: https://github.com/loomux/web/releases/tag/v0.1.0
