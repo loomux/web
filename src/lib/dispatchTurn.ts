@@ -83,6 +83,12 @@ export function describeDispatchError(errorClass: string | undefined, error: str
         detail,
       };
     }
+    case "message_too_large":
+      return {
+        message: "The message is too long to send to an agent (over 32 KiB with its context). Nothing was sent.",
+        hint: "Put the long part in a file in the workspace and ask the agent to read it.",
+        detail,
+      };
     case "login_required":
       return {
         message: "The agent needs to be signed in on that machine.",

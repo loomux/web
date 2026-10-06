@@ -42,6 +42,7 @@ describe("describeDispatchError", () => {
       "target_unhealthy",
       "agent_rate_limited",
       "login_required",
+      "message_too_large",
       "wait_failed",
       "interrupted",
       "cancelled",
