@@ -134,7 +134,7 @@ export function CredentialsPage() {
             <input
               className={INPUT_CLASSES}
               type="password"
-              autoComplete="off"
+              autoComplete="new-password"
               value={form.value}
               onChange={(e) => setForm({ ...form, value: e.target.value })}
             />
@@ -248,7 +248,7 @@ export function CredentialsPage() {
                 <input
                   className={INPUT_CLASSES}
                   type="password"
-                  autoComplete="off"
+                  autoComplete="new-password"
                   placeholder="New value"
                   aria-label="New value"
                   value={rotating.value}

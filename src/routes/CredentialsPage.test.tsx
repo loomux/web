@@ -77,6 +77,8 @@ describe("CredentialsPage (LOOM-134)", () => {
     await user.type(within(form).getByLabelText(/Name/), "OPENAI_API_KEY");
     await user.type(within(form).getByLabelText("Value"), "sk-secret");
     expect(within(form).getByLabelText("Value")).toHaveAttribute("type", "password");
+    // Browsers ignore "off" on password fields and offer the saved login.
+    expect(within(form).getByLabelText("Value")).toHaveAttribute("autocomplete", "new-password");
     await user.click(within(form).getByRole("button", { name: "Save" }));
     const post = calls.find((c) => c.method === "POST");
     expect(JSON.parse(post!.body!)).toEqual({ name: "OPENAI_API_KEY", value: "sk-secret" });
