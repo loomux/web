@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApiClient } from "../lib/useApiClient";
 import type { AttachInfoResponse } from "../lib/api";
+import { attachCommand } from "../lib/attach";
 
 // Surfaces the ssh + tmux attach command for a task, on demand — the
 // client never opens an SSH connection itself, purely informational, per
@@ -38,7 +39,7 @@ export function AttachInfo({ taskId }: { taskId: string }) {
     );
   }
 
-  const command = `ssh ${info.target.user}@${info.target.host} tmux attach -t ${info.tmux_session}`;
+  const command = attachCommand(info);
 
   async function copy() {
     if (!navigator.clipboard) return;

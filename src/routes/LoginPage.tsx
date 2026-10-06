@@ -11,9 +11,13 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Where to land after logging in: the page that sent us here
+  // (ProtectedRoute's state.from, a path in this app), else /workspaces.
+  const from = (location.state as { from?: string } | null)?.from;
+  const next = from && from.startsWith("/") && !from.startsWith("//") ? from : "/workspaces";
+
   if (token) {
-    const from = (location.state as { from?: string } | null)?.from;
-    return <Navigate to={from ?? "/workspaces"} replace />;
+    return <Navigate to={next} replace />;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -22,7 +26,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await login(password);
-      navigate("/workspaces", { replace: true });
+      navigate(next, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed");
     } finally {
