@@ -3,6 +3,11 @@
 // that package exactly — see docs/design/web-client-design.md "API surface
 // consumed" for the source of truth this was written against.
 
+import { fetchEventSource } from "@microsoft/fetch-event-source";
+
+// The only module that talks to the server: screens and hooks go through
+// `api` (with useApiClient) and openConversationStream. A test
+// (apiBoundary.test.ts) keeps it that way.
 const API_BASE = "/api/v1";
 
 export class ApiError extends Error {
@@ -404,9 +409,61 @@ export const api = {
   rollbackWeb: (token: string) => request<WebVersionResponse>("/web/rollback", token, { method: "POST" }),
 };
 
-// streamUrl is exported for useConversationStream (lib/stream.ts) rather
-// than folded into `api` above, since fetchEventSource takes a URL string,
-// not a fetch call this module's `request` wrapper can drive.
-export function streamUrl(conversationId: string): string {
-  return `${API_BASE}/conversations/${conversationId}/stream`;
+// The conversation stream (GET /conversations/{id}/stream, SSE): what it
+// can say, as one union a caller switches on.
+export type StreamEvent =
+  | { type: "task_update"; data: TaskUpdateEvent }
+  | { type: "dispatch_update"; data: DispatchUpdateEvent }
+  | { type: "message_added"; data: MessageAddedEvent };
+
+export interface StreamHandlers {
+  onEvent: (event: StreamEvent) => void;
+  // The stream is up / down; it reconnects on its own after a drop.
+  onConnected: (connected: boolean) => void;
+  // The session is no longer valid: the stream stops for good.
+  onUnauthorized: () => void;
+}
+
+// openConversationStream follows a conversation's stream until the
+// returned function is called. Like every other call it sends the Bearer
+// token, which native EventSource can't (see docs/design/web-client-design.md
+// "Real-time updates"), so it uses fetchEventSource. A drop, or the server
+// ending the stream (a restart), is retried with backoff.
+export function openConversationStream(token: string, conversationId: string, handlers: StreamHandlers): () => void {
+  const controller = new AbortController();
+  void fetchEventSource(`${API_BASE}/conversations/${conversationId}/stream`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: controller.signal,
+    openWhenHidden: true,
+    async onopen(res) {
+      if (res.status === 401) {
+        handlers.onUnauthorized();
+        controller.abort();
+        return;
+      }
+      // While Loomux restarts, the proxy in front of it answers with an
+      // error page: a failed connection, retried via onerror.
+      if (!res.ok) throw new Error(`stream: HTTP ${res.status}`);
+      handlers.onConnected(true);
+    },
+    onmessage(msg) {
+      if (!msg.data) return;
+      if (msg.event === "task_update" || msg.event === "dispatch_update" || msg.event === "message_added") {
+        handlers.onEvent({ type: msg.event, data: JSON.parse(msg.data) } as StreamEvent);
+      }
+    },
+    onclose() {
+      handlers.onConnected(false);
+      // The server ending the stream (a restart, say) isn't the end of
+      // the conversation: throwing hands it to onerror, which retries.
+      throw new Error("stream: closed by server");
+    },
+    onerror(err) {
+      handlers.onConnected(false);
+      // Returning (rather than throwing) tells fetchEventSource to keep
+      // retrying with its own backoff instead of giving up permanently.
+      if (controller.signal.aborted) throw err;
+    },
+  });
+  return () => controller.abort();
 }
