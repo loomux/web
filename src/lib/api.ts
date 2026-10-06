@@ -197,6 +197,26 @@ export interface Target {
   updated_at: string;
 }
 
+// A credential in the vault (server LOOM-134): a secret injected into an
+// agent's environment when it launches. The server never returns a value.
+export interface Credential {
+  id: string;
+  // The environment variable it becomes.
+  name: string;
+  // Scope: absent means any workspace / any agent type.
+  workspace_id?: string;
+  agent_type?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CredentialRequest {
+  name: string;
+  value: string;
+  workspace_id?: string;
+  agent_type?: string;
+}
+
 // Body for POST/PUT /targets (LOOM-59's targetRequest). No `id`: the server
 // mints it on create and takes it from the path on update. PUT replaces the
 // record, so every field the server stores has to be sent back on an edit or
@@ -358,6 +378,18 @@ export const api = {
   // 204 No Content on success; 409 when a workspace still references it.
   deleteTarget: (token: string, id: string) =>
     request<void>(`/targets/${id}`, token, { method: "DELETE" }),
+
+  listCredentials: (token: string) => request<{ credentials: Credential[] }>("/credentials", token),
+
+  createCredential: (token: string, body: CredentialRequest) =>
+    request<Credential>("/credentials", token, { method: "POST", body: JSON.stringify(body) }),
+
+  // 204 No Content: the value is replaced, name and scope kept.
+  setCredentialValue: (token: string, id: string, value: string) =>
+    request<void>(`/credentials/${id}/value`, token, { method: "PUT", body: JSON.stringify({ value }) }),
+
+  deleteCredential: (token: string, id: string) =>
+    request<void>(`/credentials/${id}`, token, { method: "DELETE" }),
 
   getAttachInfo: (token: string, taskId: string) =>
     request<AttachInfoResponse>(`/tasks/${taskId}/attach-info`, token),
