@@ -258,6 +258,33 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     expect(server.posts[0].headers.get("Idempotency-Key")).toBeTruthy();
   });
 
+  it("retries a failed answer to an offer with that offer's id, so a closed offer is refused, not a newer one approved", async () => {
+    const user = userEvent.setup();
+    const server = fakeServer({
+      messages: [userMsg("m1", "yes", "d1")],
+      tasks: [],
+      dispatches: [
+        {
+          dispatch_id: "d1",
+          conversation_id: "abc123",
+          status: "failed",
+          error: "dispatch: run command: ssh: dial tcp 10.0.0.5:22: i/o timeout: target unreachable",
+          error_class: "target_unreachable",
+          confirmation_id: "conf-1",
+          created_at: T0,
+        },
+      ],
+    });
+    renderPage();
+
+    const alert = await screen.findByRole("alert");
+    await user.click(within(alert).getByRole("button", { name: /retry/i }));
+
+    await waitFor(() => expect(server.posts).toHaveLength(1));
+    expect(server.posts[0].body.message).toBe("yes");
+    expect(server.posts[0].body.confirmation_id).toBe("conf-1");
+  });
+
   it("on a 409 follows the turn already running and keeps the unsent message in the composer", async () => {
     const user = userEvent.setup();
     const server = fakeServer({ messages: [], tasks: [], dispatches: [] });
