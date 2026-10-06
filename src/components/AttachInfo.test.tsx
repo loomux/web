@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
+import { attachCommand } from "../lib/attach";
 import { AttachInfo } from "./AttachInfo";
 
 function renderComponent(taskId = "task-1") {
@@ -43,6 +44,8 @@ describe("AttachInfo", () => {
         return jsonResponse({
           task_id: "task-1",
           tmux_session: "session-1",
+          tmux_socket: "loomux",
+          attach_command: "tmux -L loomux attach -t session-1",
           target: { id: "tgt-1", name: "devbox", kind: "ssh", host: "10.0.0.5", user: "admin" },
         });
       }
@@ -53,11 +56,36 @@ describe("AttachInfo", () => {
     renderComponent();
 
     await user.click(screen.getByRole("button", { name: /show attach command/i }));
-    const command = await screen.findByText(/ssh admin@10\.0\.0\.5 tmux attach -t session-1/);
+    const command = await screen.findByText("ssh -t admin@10.0.0.5 tmux -L loomux attach -t session-1");
     expect(command).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^copy$/i }));
 
     expect(await screen.findByText(/copied/i)).toBeInTheDocument();
+  });
+
+  it("names Loomux's tmux socket, and runs it as-is on the local target", () => {
+    const base = {
+      task_id: "t",
+      tmux_session: "loomux-t",
+      tmux_socket: "loomux-prod",
+      attach_command: "tmux -L loomux-prod attach -t loomux-t",
+    };
+    expect(attachCommand({ ...base, target: { id: "a", name: "jet01", kind: "local", host: "", user: "" } })).toBe(
+      "tmux -L loomux-prod attach -t loomux-t",
+    );
+    expect(attachCommand({ ...base, target: { id: "b", name: "box", kind: "remote", host: "box", user: "" } })).toBe(
+      "ssh -t box tmux -L loomux-prod attach -t loomux-t",
+    );
+  });
+
+  it("falls back to a plain tmux attach for a server without attach_command", () => {
+    expect(
+      attachCommand({
+        task_id: "t",
+        tmux_session: "s",
+        target: { id: "b", name: "box", kind: "remote", host: "10.0.0.5", user: "admin" },
+      }),
+    ).toBe("ssh -t admin@10.0.0.5 tmux attach -t s");
   });
 });
