@@ -150,6 +150,9 @@ export interface Dispatch {
   // Raw server error text, and its stable class (registry.ErrorClass).
   error?: string;
   error_class?: string;
+  // The offer this message answered (an Approve or Deny), if any. A retry
+  // sends it again so the server refuses it once that offer has closed.
+  confirmation_id?: string;
   created_at: string;
   started_at?: string;
   finished_at?: string;

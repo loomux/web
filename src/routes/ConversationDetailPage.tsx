@@ -332,7 +332,7 @@ export function ConversationDetailPage() {
                 errorClass={m.failed.error_class}
                 error={m.failed.error}
                 retryDisabled={busy}
-                onRetry={() => void send(m.text)}
+                onRetry={() => void send(m.text, undefined, m.failed?.confirmation_id)}
               />
             )}
           </div>
