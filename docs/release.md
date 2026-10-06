@@ -67,5 +67,5 @@ conflict over `[Unreleased]`. CI checks them (`scripts/changelog.sh
 check`). A milestone (each MINOR; later 1.0.0, when API v1 is declared stable) runs
 `scripts/changelog.sh release 0.2.0 2026-10-20`, which writes them into
 `CHANGELOG.md` as that version's section, updates the links and deletes
-them; edit the section, merge, then tag. `scripts/changelog.sh
+them; edit the section, merge, then tag (best once main's run for the merge has finished; if the tag lands during it, that run releases the tag with merge notes and the tag's own run replaces them). `scripts/changelog.sh
 assemble` previews it.
