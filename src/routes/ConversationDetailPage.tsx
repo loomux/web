@@ -124,15 +124,17 @@ export function ConversationDetailPage() {
   }, [connected, refetchHistory]);
 
   // A task moving on (launched, waiting for you, done) changes the stage.
+  const liveTaskKey = liveTask ? `${liveTask.task_id}:${liveTask.status}:${liveTask.updated_at}` : "";
   useEffect(() => {
-    if (liveTask && inFlight) void refetchHistory();
-  }, [liveTask?.task_id, liveTask?.status, liveTask?.updated_at]);
+    if (liveTaskKey && inFlight) void refetchHistory();
+  }, [liveTaskKey, inFlight, refetchHistory]);
 
   // A message the server logged on its own — an agent reporting after a
   // turn it ended early (LOOM-121) — shows up without a send.
+  const messageEventId = messageEvent?.message_id;
   useEffect(() => {
-    if (messageEvent) void refetchHistory();
-  }, [messageEvent?.message_id]);
+    if (messageEventId) void refetchHistory();
+  }, [messageEventId, refetchHistory]);
 
   // The optimistic copy of a message until the server has it: it's stored
   // when the dispatch is accepted, so the refetch after that replaces it.
