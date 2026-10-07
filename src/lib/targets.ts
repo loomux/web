@@ -4,9 +4,10 @@ export type TargetKind = "local" | "remote";
 
 export const TARGET_KINDS: TargetKind[] = ["local", "remote"];
 
-// registry.Target.PermissionMode's values. "" is each agent-type's own
-// default (auto, today).
-export type PermissionMode = "" | "auto" | "accept-edits" | "manual";
+// registry.Target.PermissionMode's values, as the API spells them since
+// its v1 freeze (snake_case; pre-1.0 servers say "accept-edits"). "" is
+// each agent-type's own default (auto, today).
+export type PermissionMode = "" | "auto" | "accept_edits" | "manual";
 
 export const PERMISSION_MODES: { value: PermissionMode; label: string; description: string }[] = [
   {
@@ -21,7 +22,7 @@ export const PERMISSION_MODES: { value: PermissionMode; label: string; descripti
       "Routine edits and commands go ahead; anything the agent judges risky stops and asks you in the chat.",
   },
   {
-    value: "accept-edits",
+    value: "accept_edits",
     label: "Accept edits",
     description: "File edits in the workspace go ahead; every command waits for your approval in the chat.",
   },
@@ -34,6 +35,20 @@ export const PERMISSION_MODES: { value: PermissionMode; label: string; descripti
 
 function isPermissionMode(v: string | undefined): v is PermissionMode {
   return PERMISSION_MODES.some((m) => m.value === v);
+}
+
+// normalizePermissionMode reads either spelling: "accept_edits" (the
+// frozen API v1) or "accept-edits" (servers before it).
+export function normalizePermissionMode(v: string | undefined): string {
+  return (v ?? "").replaceAll("-", "_");
+}
+
+// wirePermissionMode is what a target request sends: the pre-1.0
+// "accept-edits", which every server takes — those before the freeze
+// only that, those after it both — so the form works whichever is
+// deployed. Switch to "accept_edits" once no pre-freeze server remains.
+function wirePermissionMode(v: PermissionMode): string {
+  return v === "accept_edits" ? "accept-edits" : v;
 }
 
 // registry.TargetPolicy.Purpose; "" is personal (a stored "personal" is
@@ -90,7 +105,9 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
     host: target.host,
     user: target.user,
     workspace_root: target.workspace_root ?? "",
-    permission_mode: isPermissionMode(target.permission_mode) ? target.permission_mode : "",
+    permission_mode: isPermissionMode(normalizePermissionMode(target.permission_mode))
+      ? (normalizePermissionMode(target.permission_mode) as PermissionMode)
+      : "",
     purpose: target.purpose === "work" ? "work" : "",
     allowed_agent_types: (target.allowed_agent_types ?? []).join(", "),
     allow_provision: target.allow_provision ?? true,
@@ -111,7 +128,7 @@ export function toTargetRequest(values: TargetFormValues): TargetRequest {
     host: local ? "" : values.host.trim(),
     user: local ? "" : values.user.trim(),
     workspace_root: values.workspace_root.trim(),
-    permission_mode: values.permission_mode,
+    permission_mode: wirePermissionMode(values.permission_mode),
     purpose: values.purpose,
     allowed_agent_types: values.allowed_agent_types
       .split(",")
@@ -156,8 +173,8 @@ export function validateTargetRequest(req: TargetRequest): string | null {
     return 'kind must be "local" or "remote"';
   }
 
-  if (!isPermissionMode(req.permission_mode ?? "")) {
-    return 'permission_mode must be empty, "auto", "accept-edits" or "manual"';
+  if (!isPermissionMode(normalizePermissionMode(req.permission_mode))) {
+    return 'permission_mode must be empty, "auto", "accept_edits" or "manual"';
   }
 
   const root = req.workspace_root ?? "";
