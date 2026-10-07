@@ -8,7 +8,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
 import type { DispatchUpdateEvent, MessageAddedEvent } from "../lib/api";
-import { ConversationDetailPage } from "./ConversationDetailPage";
+import { ConversationPage } from "./ConversationPage";
 
 // A stream the tests push events into.
 const stream = vi.hoisted(() => {
@@ -45,7 +45,7 @@ function renderPage() {
       <MemoryRouter initialEntries={["/conversations/abc123"]}>
         <AuthProvider>
           <Routes>
-            <Route path="/conversations/:id" element={<ConversationDetailPage />} />
+            <Route path="/conversations/:id" element={<ConversationPage />} />
           </Routes>
         </AuthProvider>
       </MemoryRouter>
@@ -111,7 +111,7 @@ function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: u
   };
 }
 
-describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
+describe("ConversationPage async dispatch (LOOM-81)", () => {
   const originalFetch = globalThis.fetch;
   beforeEach(() => {
     stream.reset();
@@ -143,8 +143,9 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
 
     const card = await screen.findByRole("status", { name: /turn in progress/i });
     await waitFor(() => expect(card).toHaveTextContent(/deciding where this goes/i));
-    expect(screen.getByPlaceholderText(/message the agent fleet/i)).toBeDisabled();
-    expect(screen.getAllByText("fix the build")).toHaveLength(1);
+    // The composer stays open for the next message; Send waits for the turn.
+    expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
+    expect(within(screen.getByRole("log", { name: "Messages" })).getAllByText("fix the build")).toHaveLength(1);
 
     // The agent starts on it.
     conv.tasks = [
@@ -177,7 +178,7 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
 
     expect(await screen.findByText("fixed it")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByPlaceholderText(/message the agent fleet/i)).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument());
   });
 
   it("shows an agent's late report when the stream says a message was added (LOOM-121)", async () => {
@@ -225,8 +226,8 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
 
     const card = await screen.findByRole("status", { name: /turn in progress/i });
     await waitFor(() => expect(card).toHaveTextContent(/claude-code is working in my-app/i));
-    expect(screen.getByRole("button", { name: /show attach command/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/message the agent fleet/i)).toBeDisabled();
+    expect(within(card).getByRole("button", { name: /show attach command/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
   });
 
   it("keeps a failed turn after a reload, with a plain-language error and a Retry that sends the same text again", async () => {
@@ -247,10 +248,9 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     });
     renderPage();
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/couldn't reach the machine/i);
-    expect(alert).toHaveTextContent(/reachable over ssh/i);
-    expect(screen.getByText("check disk on devbox")).toBeInTheDocument();
+    const failed = await screen.findByRole("region", { name: /couldn't reach the machine/i });
+    expect(failed).toHaveTextContent(/reachable over ssh/i);
+    expect(within(screen.getByRole("log", { name: "Messages" })).getByText("check disk on devbox")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry/i }));
     await waitFor(() => expect(server.posts).toHaveLength(1));
@@ -277,8 +277,8 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     });
     renderPage();
 
-    const alert = await screen.findByRole("alert");
-    await user.click(within(alert).getByRole("button", { name: /retry/i }));
+    const failed = await screen.findByRole("region", { name: /couldn't reach the machine/i });
+    await user.click(within(failed).getByRole("button", { name: /retry/i }));
 
     await waitFor(() => expect(server.posts).toHaveLength(1));
     expect(server.posts[0].body.message).toBe("yes");
@@ -341,9 +341,8 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
       stream.push({ dispatch_id: "d1", status: "failed", error_class: "cancelled", updated_at: T0 } satisfies DispatchUpdateEvent),
     );
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/you cancelled this turn/i);
-    expect(within(alert).getByRole("button", { name: /retry/i })).toBeEnabled();
+    const cancelled = await screen.findByRole("region", { name: /you cancelled this turn/i });
+    expect(within(cancelled).getByRole("button", { name: /retry/i })).toBeEnabled();
     expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument();
   });
 

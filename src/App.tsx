@@ -7,7 +7,7 @@ import { AppShell } from "./shell/AppShell";
 import { KeepQueryRedirect } from "./shell/KeepQueryRedirect";
 import { RouteTitle } from "./shell/RouteTitle";
 
-// Lazy-loaded per route: keeps ConversationDetailPage's markdown/syntax-
+// Lazy-loaded per route: keeps ConversationPage's markdown/syntax-
 // highlighting dependencies (the bulk of the production bundle) out of the
 // initial load for users who only ever see the dashboard or workspaces.
 const LoginPage = lazy(() => import("./routes/LoginPage").then((m) => ({ default: m.LoginPage })));
@@ -15,9 +15,7 @@ const InboxPage = lazy(() => import("./routes/InboxPage").then((m) => ({ default
 const ConversationsPage = lazy(() =>
   import("./routes/ConversationsPage").then((m) => ({ default: m.ConversationsPage })),
 );
-const ConversationDetailPage = lazy(() =>
-  import("./routes/ConversationDetailPage").then((m) => ({ default: m.ConversationDetailPage })),
-);
+const ConversationPage = lazy(() => import("./routes/ConversationPage").then((m) => ({ default: m.ConversationPage })));
 const MachinesPage = lazy(() => import("./routes/MachinesPage").then((m) => ({ default: m.MachinesPage })));
 const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import("./routes/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
@@ -47,7 +45,7 @@ export function App() {
                   rebuilt render their current page inside the new shell. */}
               <Route path="/" element={<InboxTitle><InboxPage /></InboxTitle>} />
               <Route path="/today" element={<RouteTitle title="Today"><ConversationsPage /></RouteTitle>} />
-              <Route path="/conversations/:id" element={<RouteTitle title="Conversation"><ConversationDetailPage /></RouteTitle>} />
+              <Route path="/conversations/:id" element={<ConversationPage />} />
               <Route path="/machines" element={<RouteTitle title="Machines"><MachinesPage /></RouteTitle>} />
               <Route path="/vault" element={<RouteTitle title="Vault"><CredentialsPage /></RouteTitle>} />
               <Route path="/settings" element={<RouteTitle title="Settings"><SettingsPage /></RouteTitle>} />

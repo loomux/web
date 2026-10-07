@@ -346,6 +346,15 @@ export interface ConversationEvent {
   detail?: string;
 }
 
+// A task's terminal while its turn runs. Not in /api/v1 yet: the proposed
+// additive endpoint (docs/design/redesign/build-plan.md §7). The client
+// probes for it and falls back to the last turn's capture without it.
+export interface TaskPane {
+  task_id: string;
+  lines: string[];
+  cursor: string;
+}
+
 export interface DeepHealth {
   status: string;
   components: Record<string, { status: string; error?: string; detail?: unknown }>;
@@ -589,6 +598,18 @@ export const api = {
 
   probeTarget: (token: string, targetId: string) =>
     request<TargetProbeResult>(`/targets/${encodeURIComponent(targetId)}/probe`, token, { method: "POST" }),
+
+  // null: this server has no live pane (404/405/501), or nothing changed
+  // since `since` (204).
+  getTaskPane: async (token: string, taskId: string, since?: string): Promise<TaskPane | null> => {
+    try {
+      const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+      return (await request<TaskPane | undefined>(`/tasks/${encodeURIComponent(taskId)}/pane${qs}`, token)) ?? null;
+    } catch (err) {
+      if (err instanceof ApiError && [404, 405, 501].includes(err.status)) return null;
+      throw err;
+    }
+  },
 
   listSessions: (token: string) => request<{ sessions: LoginSession[] }>("/sessions", token),
 

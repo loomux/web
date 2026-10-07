@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -68,6 +69,42 @@ const rehypePlugins: PluginList = [
 // than branching in JS on the presence of a `language-*` class — a fenced
 // block with no declared language (common for shell/log output) has no
 // such class but must still be styled as a block, not inline code.
+// A fenced block on the dark pane, with a Copy button. Copying reads the
+// rendered text, so it's exactly what's shown; where the Clipboard API is
+// missing (plain HTTP) it selects the text for a manual copy instead.
+function CodeBlock({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLPreElement>(null);
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    const pre = ref.current;
+    if (!pre) return;
+    try {
+      await navigator.clipboard.writeText(pre.innerText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+    }
+  }
+  return (
+    <div className="group relative my-2">
+      <pre ref={ref} className="overflow-x-auto rounded-control bg-pane px-3.5 py-3 pr-16 font-mono text-sm text-pane-ink">
+        {children}
+      </pre>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className="absolute top-1.5 right-1.5 min-h-8 rounded-md px-2 text-xs font-bold text-pane-dim hover:text-pane-ink focus-visible:text-pane-ink"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 const components: Components = {
   p: ({ children }) => <p className="whitespace-pre-wrap first:mt-0 last:mb-0 my-2">{children}</p>,
   ul: ({ children }) => <ul className="list-disc pl-5 my-2 space-y-1">{children}</ul>,
@@ -78,7 +115,7 @@ const components: Components = {
       href={href}
       target="_blank"
       rel="noreferrer noopener"
-      className="text-blue-600 underline underline-offset-2 hover:no-underline dark:text-blue-400"
+      className="font-bold text-accent underline underline-offset-2 hover:no-underline"
     >
       {children}
     </a>
@@ -96,11 +133,14 @@ const components: Components = {
   // `node` is react-markdown's internal hast AST node — it must not be
   // forwarded to the DOM element (it stringifies to `[object Object]`).
   code: ({ node: _node, ...props }) => <code {...props} />,
-  pre: ({ children }) => (
-    <pre className="my-2 overflow-x-auto rounded bg-black/85 px-3 py-2 text-neutral-100 dark:bg-black/60">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+  h1: ({ children }) => <h3 className="mt-4 mb-2 text-lg font-extrabold first:mt-0">{children}</h3>,
+  h2: ({ children }) => <h3 className="mt-4 mb-2 text-lg font-extrabold first:mt-0">{children}</h3>,
+  h3: ({ children }) => <h4 className="mt-3 mb-1.5 font-extrabold first:mt-0">{children}</h4>,
+  h4: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  h5: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  h6: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  hr: () => <hr className="my-3 border-line" />,
   // Markdown images render as `<img>` and fetch their `src` — an assistant
   // reply could embed one purely as a tracking pixel. There's no product
   // need for inline images in agent chat output, so they're dropped.
@@ -115,11 +155,11 @@ const components: Components = {
 // would let `_x_`/`# x`/bare URLs surprise-format or spoof UI.
 export function MessageContent({ role, text }: { role: "user" | "assistant"; text: string }) {
   if (role === "user") {
-    return <p className="whitespace-pre-wrap text-sm leading-relaxed">{text}</p>;
+    return <p className="whitespace-pre-wrap leading-relaxed">{text}</p>;
   }
 
   return (
-    <div className="markdown-content text-sm leading-relaxed">
+    <div className="markdown-content leading-relaxed">
       <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
         {text}
       </ReactMarkdown>

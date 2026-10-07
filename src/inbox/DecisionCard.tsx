@@ -56,11 +56,22 @@ export function DecisionCard({
   workspaceName,
   onAnswered,
   onSnooze,
+  answerWith,
+  disabled = false,
+  showSource = true,
 }: {
   decision: Decision;
   workspaceName: (id: string | undefined) => string | undefined;
-  onAnswered: (d: Decision, outcome: Answered) => void;
+  onAnswered?: (d: Decision, outcome: Answered) => void;
   onSnooze?: (d: Decision) => void;
+  // Inside a conversation the page sends answers itself, so it can follow
+  // the turn they start; elsewhere the card sends them (useAnswer).
+  answerWith?: (a: Answer) => void;
+  // A turn is in flight where this card lives: answers would be refused.
+  disabled?: boolean;
+  // "From <conversation>" and the Open conversation link, which a card
+  // already inside that conversation leaves out.
+  showSource?: boolean;
 }) {
   const answer = useAnswer();
   const [reply, setReply] = useState("");
@@ -75,10 +86,12 @@ export function DecisionCard({
   );
 
   function send(message: string, outcome: string, extra: Partial<Answer> = {}) {
-    answer.mutate(
-      { conversationId: d.conversationId, message, workspaceHint: d.workspaceHint, ...extra },
-      { onSuccess: () => onAnswered(d, { label: outcome }) },
-    );
+    const a = { conversationId: d.conversationId, message, workspaceHint: d.workspaceHint, ...extra };
+    if (answerWith) {
+      answerWith(a);
+      return;
+    }
+    answer.mutate(a, { onSuccess: () => onAnswered?.(d, { label: outcome }) });
   }
 
   function submitReply(e: FormEvent) {
@@ -111,7 +124,7 @@ export function DecisionCard({
     .map((o, i) => ({ ...o, n: i + 1 }))
     .filter((o) => !/^type something/i.test(o.label));
   const canReply = d.kind === "awaiting" || (d.kind === "prompt" && attention && attention.kind !== "trust");
-  const busy = answer.isPending;
+  const busy = answer.isPending || disabled;
 
   return (
     <section
@@ -156,15 +169,17 @@ export function DecisionCard({
         )}
         {failure && <p className="text-ink-2">{failure.hint}</p>}
 
-        <p className="text-sm text-ink-2">
-          {workspace && (
-            <>
-              In <b className="text-ink">{workspace}</b>
-              {d.confirmation?.agent_type ? `, ${d.confirmation.agent_type}` : ""}.{" "}
-            </>
-          )}
-          From {conversationLink}.
-        </p>
+        {(workspace || showSource) && (
+          <p className="text-sm text-ink-2">
+            {workspace && (
+              <>
+                In <b className="text-ink">{workspace}</b>
+                {d.confirmation?.agent_type ? `, ${d.confirmation.agent_type}` : ""}.{" "}
+              </>
+            )}
+            {showSource && <>From {conversationLink}.</>}
+          </p>
+        )}
 
         {failure?.detail && (
           <details className="text-sm text-ink-2">
@@ -211,7 +226,7 @@ export function DecisionCard({
           </div>
         )}
 
-        {attention && attention.kind !== "trust" && attention.kind !== "permission" && options.length > 0 && (
+        {attention && attention.kind !== "trust" && options.length > 0 && (
           <ul className="flex flex-col gap-2">
             {options.map((o) => (
               <li key={o.n}>
@@ -266,16 +281,20 @@ export function DecisionCard({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-sm">
-          <Link to={`/conversations/${d.conversationId}`} className="min-h-9 content-center font-bold text-accent">
-            Open conversation
-          </Link>
-          {onSnooze && d.kind !== "offer" && (
-            <button type="button" onClick={() => onSnooze(d)} className="min-h-9 font-bold text-ink-2 hover:text-ink">
-              Snooze until tomorrow
-            </button>
-          )}
-        </div>
+        {(showSource || (onSnooze && d.kind !== "offer")) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-sm">
+            {showSource && (
+              <Link to={`/conversations/${d.conversationId}`} className="min-h-9 content-center font-bold text-accent">
+                Open conversation
+              </Link>
+            )}
+            {onSnooze && d.kind !== "offer" && (
+              <button type="button" onClick={() => onSnooze(d)} className="min-h-9 font-bold text-ink-2 hover:text-ink">
+                Snooze until tomorrow
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

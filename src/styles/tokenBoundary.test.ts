@@ -39,17 +39,11 @@ const definitions = new Set([
 // Screens the redesign hasn't rebuilt yet (build-plan §6). Each PR that
 // replaces one removes it here; the list only shrinks.
 const legacy = new Set([
-  "../components/AttachInfo.tsx",
-  "../components/AttentionCard.tsx",
-  "../components/ConfirmationCard.tsx",
-  "../components/DispatchCards.tsx",
-  "../components/MessageContent.tsx",
   "../components/RouteErrorBoundary.tsx",
   "../components/VersionBanner.tsx",
   "../components/WebClientUpdate.tsx",
   "../lib/conversations.ts",
   "../lib/targets.ts",
-  "../routes/ConversationDetailPage.tsx",
   "../routes/ConversationsPage.tsx",
   "../routes/CredentialsPage.tsx",
   "../routes/LoginPage.tsx",
