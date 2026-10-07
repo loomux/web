@@ -270,7 +270,7 @@ export function ConversationDetailPage() {
     : null;
 
   return (
-    <div className="flex flex-col h-[calc(100svh-3rem)]">
+    <div className="flex flex-col h-[calc(100svh-var(--shell-bottom,0px))]">
       <div className="border-b border-neutral-200 px-4 py-2 dark:border-neutral-800">
         <p className="text-sm text-neutral-500">
           Conversation {conversationId}

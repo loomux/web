@@ -1,0 +1,1855 @@
+<title>Loomux Shuttle + Weave</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&display=swap">
+<style>
+/* Shuttle + Weave: Loomux as a messenger for your agents, with the day drawn as a loom.
+   Phone: one column + bottom bar (Inbox, Today, Machines, More). Desktop: rail | queue or thread | context.
+   Today = the read-back view: the weave (workspaces as warp lanes grouped by machine, conversations as weft,
+   turns/offers/prompts as stitches) above All conversations. Inbox gains a day strip that opens Today.
+   The one bold thing: the needs-you answer cards (marigold band ending in a woven hatch). */
+:root{
+  --ground:#E9EEF3; --surface:#FFFFFF; --surface-2:#F4F7FA; --sunken:#DFE6ED;
+  --ink:#14202C; --ink-2:#465668; --ink-3:#6A7A8C; --line:#D2DBE4;
+  --accent:#0B7A85; --accent-hover:#08646D; --accent-ink:#FFFFFF; --accent-soft:#DCEFF0;
+  --mari:#EFA10C; --mari-2:#F8C75A; --mari-soft:#FFF3D8; --mari-ink:#5A3A00; --mari-on:#281A00;
+  --bad:#BC372D; --bad-soft:#FBE7E4; --good:#2B7849; --good-soft:#E1F1E7;
+  --pane:#0E1A26; --pane-ink:#C8DDE5; --pane-dim:#6D899A; --pane-hi:#F8C75A;
+  --proto:#6A4ED6; --proto-soft:#EEEAFD; --chrome:#DAE2EA; --chrome-ink:#24303C; --device:#1B2531;
+  --focus:#0B7A85; --scrim:rgba(14,22,32,.42);
+  --lane-1:#0B7A85; --lane-2:#5B67B8; --lane-3:#8B5A9C; --lane-4:#4D7C3A;
+  --shadow:0 1px 2px rgba(20,32,44,.06),0 10px 28px rgba(20,32,44,.09);
+  --f-ui:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Atkinson Hyperlegible Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0C1426; --surface:#132036; --surface-2:#17263E; --sunken:#0A1120;
+  --ink:#E4EBF5; --ink-2:#A2B1C5; --ink-3:#7C8CA2; --line:#24344F;
+  --accent:#43BAC5; --accent-hover:#62CBD4; --accent-ink:#03272B; --accent-soft:#0F313A;
+  --mari:#F5B23A; --mari-2:#FFD27C; --mari-soft:#32260C; --mari-ink:#FFE1A6; --mari-on:#281A00;
+  --bad:#FF8075; --bad-soft:#3A1815; --good:#6CCF95; --good-soft:#102F1E;
+  --pane:#060B15; --pane-ink:#BED4DD; --pane-dim:#5C7284; --pane-hi:#FFD27C;
+  --proto:#A897FF; --proto-soft:#221C45; --chrome:#08101E; --chrome-ink:#D5DEEA; --device:#02060D;
+  --focus:#62CBD4; --scrim:rgba(0,0,0,.55);
+  --lane-1:#43BAC5; --lane-2:#98A3F0; --lane-3:#CB97DC; --lane-4:#8FC97A;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --ground:#0C1426; --surface:#132036; --surface-2:#17263E; --sunken:#0A1120;
+  --ink:#E4EBF5; --ink-2:#A2B1C5; --ink-3:#7C8CA2; --line:#24344F;
+  --accent:#43BAC5; --accent-hover:#62CBD4; --accent-ink:#03272B; --accent-soft:#0F313A;
+  --mari:#F5B23A; --mari-2:#FFD27C; --mari-soft:#32260C; --mari-ink:#FFE1A6; --mari-on:#281A00;
+  --bad:#FF8075; --bad-soft:#3A1815; --good:#6CCF95; --good-soft:#102F1E;
+  --pane:#060B15; --pane-ink:#BED4DD; --pane-dim:#5C7284; --pane-hi:#FFD27C;
+  --proto:#A897FF; --proto-soft:#221C45; --chrome:#08101E; --chrome-ink:#D5DEEA; --device:#02060D;
+  --focus:#62CBD4; --scrim:rgba(0,0,0,.55);
+  --lane-1:#43BAC5; --lane-2:#98A3F0; --lane-3:#CB97DC; --lane-4:#8FC97A;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--chrome);color:var(--chrome-ink);font-family:var(--f-ui);font-size:15px;line-height:1.45;padding:0 16px 32px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- prototype toolbar (not part of the design) ---------- */
+.proto{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 0;background:var(--chrome);border-bottom:1px solid var(--line);margin-bottom:20px}
+.proto-name{font-weight:800;font-size:15px;margin-right:auto;display:flex;gap:8px;align-items:center}
+.proto-name small{font-weight:400;color:var(--ink-3)}
+.pgroup{display:flex;align-items:center;gap:6px;min-width:0}
+.pgroup>span{font-size:12px;color:var(--ink-3)}
+.pseg{display:flex;background:var(--sunken);border-radius:9px;padding:2px;overflow-x:auto;max-width:100%}
+.pseg button{border:0;background:none;padding:5px 10px;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap;color:var(--ink-2)}
+.pseg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.note{border:1.5px dashed var(--proto);background:var(--proto-soft);color:var(--proto);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.4}
+.note b{font-weight:700}
+
+/* ---------- stage ---------- */
+.stage{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.desk-slot{flex:1 1 640px;min-width:0}
+.phone-slot{flex:0 0 auto;max-width:100%}
+.slot-cap{font-size:12px;color:var(--ink-3);margin:0 0 8px}
+.desk-vp,.phone-vp{position:relative;overflow:hidden}
+.desk{width:1280px;height:820px;transform-origin:top left;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);display:flex;flex-direction:column;background:var(--ground)}
+.winbar{height:32px;flex:none;display:flex;align-items:center;gap:7px;padding:0 12px;background:var(--sunken);border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+.winbar i{width:11px;height:11px;border-radius:50%;background:var(--line);display:block}
+.winbar span{margin-left:14px;background:var(--surface);padding:2px 12px;border-radius:6px}
+.phone{width:410px;height:864px;transform-origin:top left;border:10px solid var(--device);border-radius:46px;overflow:hidden;box-shadow:var(--shadow);background:var(--ground)}
+
+/* ---------- app ---------- */
+.app{background:var(--ground);color:var(--ink);font-family:var(--f-ui);position:relative;overflow:hidden;display:flex;flex-direction:column;height:100%;min-height:0}
+.desk .app{flex:1}
+.app h1,.app h2,.app h3{text-wrap:balance;margin:0}
+.app p{margin:0}
+.muted{color:var(--ink-2)} .faint{color:var(--ink-3)}
+.mono{font-family:var(--f-mono)}
+.tnum{font-variant-numeric:tabular-nums}
+.sb{height:28px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12.5px;font-weight:700;color:var(--ink)}
+.scroll{overflow-y:auto;min-height:0;flex:1;overscroll-behavior:contain}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;border:1.5px solid transparent;padding:0 16px;min-height:40px;font-weight:700;font-size:14.5px;cursor:pointer;background:var(--surface-2);color:var(--ink);white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--line)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:18px;height:18px;flex:none}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{background:var(--accent-hover);border-color:transparent}
+.btn-approve{background:var(--accent);color:var(--accent-ink)}
+.btn-approve:hover{background:var(--accent-hover);border-color:transparent}
+.btn-deny{background:transparent;border-color:var(--ink-3);color:var(--ink)}
+.btn-deny:hover{border-color:var(--ink)}
+.btn-danger{background:var(--bad);color:var(--surface)}
+.btn-quiet{background:transparent;color:var(--accent);padding:0 8px}
+.btn-quiet:hover{border-color:transparent;text-decoration:underline}
+.btn-sm{min-height:32px;font-size:13.5px;padding:0 12px;border-radius:9px}
+.is-p .btn{min-height:44px}
+.is-p .btn-sm{min-height:44px}
+.iconbtn{width:44px;height:44px;border-radius:12px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.iconbtn svg{width:22px;height:22px}
+.badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--mari);color:var(--mari-on);font-size:12.5px;font-weight:800}
+
+/* status shapes */
+.st{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;white-space:nowrap}
+.st svg{width:14px;height:14px;flex:none}
+.st-approval,.st-asking,.st-waiting{color:var(--mari-ink)}
+.st-approval svg,.st-asking svg,.st-waiting svg{color:var(--mari)}
+.st-working{color:var(--accent)}
+.st-done{color:var(--good)}
+.st-failed{color:var(--bad)}
+.st-idle,.st-archived{color:var(--ink-2)}
+.st-active{color:var(--accent)}
+.st-broken{color:var(--bad)}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ---------- answer cards: the bold thing ---------- */
+.ask{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--line)}
+.ask-band{display:flex;align-items:center;gap:8px;padding:9px 84px 9px 16px;min-height:40px;font-weight:800;font-size:14px;color:var(--mari-on);
+  background:linear-gradient(90deg,var(--mari) 0,var(--mari) calc(100% - 76px),transparent calc(100% - 76px)),repeating-linear-gradient(135deg,var(--mari) 0 7px,var(--mari-2) 7px 14px);position:relative}
+.ask-band svg{width:16px;height:16px}
+.ask-band .right{margin-left:auto;font-weight:700;font-size:13px}
+.ask-band.bad{background:var(--bad-soft);color:var(--bad);padding-right:16px}
+.ask-body{padding:16px 18px 18px;display:grid;gap:12px}
+.ask h3{font-size:19px;line-height:1.25;font-weight:800}
+.ask .ctx{font-size:13.5px;color:var(--ink-2)}
+.ask .ctx a,.linkish{color:var(--accent);font-weight:700;cursor:pointer;background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px}
+.cmd{background:var(--pane);color:var(--pane-ink);font-family:var(--f-mono);font-size:13.5px;border-radius:10px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;margin:0;line-height:1.5}
+.cmd .p{color:var(--pane-dim);user-select:none}
+.ask-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.is-p .ask-actions .btn{min-height:52px;font-size:16px}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;border:1.5px solid var(--line);background:var(--surface-2);border-radius:12px;padding:10px 14px;min-height:48px;cursor:pointer;font-weight:700}
+.opt:hover{border-color:var(--accent)}
+.opt b{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);flex:none;font-size:13px}
+.opt small{display:block;font-weight:400;color:var(--ink-2)}
+.replyrow{display:flex;gap:8px}
+.replyrow input{flex:1;min-width:0}
+.resolved{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:14px}
+.resolved svg{width:18px;height:18px;flex:none;margin-top:1px}
+.resolved.ok svg{color:var(--good)} .resolved.no svg{color:var(--ink-3)}
+details.raw summary{cursor:pointer;font-size:13.5px;color:var(--ink-2);font-weight:700}
+details.raw pre{margin:8px 0 0}
+
+/* inputs */
+.field{display:grid;gap:6px}
+.field>label,.flabel{font-size:13.5px;font-weight:700}
+.field small{color:var(--ink-3);font-size:12.5px}
+.inp{width:100%;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;min-height:42px}
+.inp:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.is-p .inp{min-height:46px;font-size:16px}
+.err{color:var(--bad);font-size:13.5px;font-weight:700;display:flex;gap:6px;align-items:flex-start}
+.err svg{width:16px;height:16px;flex:none;margin-top:2px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+
+/* lists */
+.sec-h{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;margin:4px 2px 0}
+.sec-h .faint{font-weight:500}
+.rows{background:var(--surface);border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.row{display:flex;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);min-height:56px;cursor:pointer;background:none;width:100%;text-align:left;border-left:0;border-right:0;border-bottom:0}
+.row:first-child{border-top:0}
+.row:hover{background:var(--surface-2)}
+.row .main{flex:1;min-width:0}
+.row .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .s{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .end{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.fold{display:flex;align-items:center;gap:8px;border:0;background:none;padding:6px 2px;font-weight:800;font-size:15px;cursor:pointer;color:var(--ink);min-height:44px}
+.fold svg{width:18px;height:18px;transition:transform .15s}
+.fold[aria-expanded="true"] svg{transform:rotate(90deg)}
+
+/* glyphs */
+.gl{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;font-weight:800;font-size:13px}
+.gl svg{width:20px;height:20px}
+.gl-router{background:var(--ink);color:var(--ground)}
+.gl-cc{background:var(--accent-soft);color:var(--accent)}
+.gl-cmd{background:var(--sunken);color:var(--ink-2)}
+.gl-sm{width:26px;height:26px;border-radius:8px;font-size:11px}
+.gl-sm svg{width:15px;height:15px}
+
+/* phone chrome */
+.p-head{display:flex;align-items:center;gap:8px;padding:6px 12px 10px 18px;flex:none}
+.p-head h1{font-size:26px;font-weight:800;letter-spacing:-.01em;flex:1}
+.p-head .sub{font-size:13px;color:var(--ink-2)}
+.p-body{padding:4px 14px 20px;display:grid;gap:14px;align-content:start}
+.tabs{flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px 6px 14px}
+.tab{border:0;background:none;display:grid;justify-items:center;gap:2px;padding:6px 0;min-height:52px;font-size:12px;font-weight:700;color:var(--ink-3);cursor:pointer;position:relative}
+.tab svg{width:24px;height:24px}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab[aria-current="page"] .tpill{background:var(--accent-soft)}
+.tpill{display:grid;place-items:center;width:56px;height:30px;border-radius:15px}
+.tab .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:20px;height:20px;font-size:11.5px}
+.sheet-wrap{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end}
+.scrim{position:absolute;inset:0;background:var(--scrim);border:0}
+.sheet{position:relative;background:var(--surface);border-radius:22px 22px 0 0;padding:10px 16px 24px;max-height:88%;overflow-y:auto;display:grid;gap:14px;animation:up .2s ease-out}
+.sheet.full{max-height:100%;height:100%;border-radius:0;padding-top:0}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);justify-self:center}
+.sheet h2{font-size:20px;font-weight:800}
+@keyframes up{from{transform:translateY(30px);opacity:.6}}
+.menu{display:grid}
+.menu button{display:flex;gap:14px;align-items:center;border:0;background:none;padding:0 4px;min-height:52px;font-weight:700;font-size:16px;cursor:pointer;border-top:1px solid var(--line);text-align:left}
+.menu button:first-child{border-top:0}
+.menu svg{width:22px;height:22px;color:var(--ink-2)}
+.toast{position:absolute;left:50%;bottom:88px;transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:30;white-space:nowrap;box-shadow:var(--shadow)}
+.is-d .toast{bottom:28px}
+
+/* desktop chrome */
+.d-shell{display:grid;grid-template-columns:216px 1fr;height:100%;min-height:0}
+.rail{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;gap:4px;min-height:0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;padding:0 8px 14px}
+.brand .gl{width:30px;height:30px}
+.nav{display:flex;align-items:center;gap:12px;border:0;background:none;border-radius:10px;padding:0 10px;min-height:40px;font-weight:700;cursor:pointer;color:var(--ink-2);text-align:left;width:100%}
+.nav svg{width:20px;height:20px;flex:none}
+.nav:hover{background:var(--surface-2);color:var(--ink)}
+.nav[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.nav .badge{margin-left:auto}
+.rail .recent{margin-top:14px;display:grid;gap:2px;overflow:hidden}
+.rail .recent h2{font-size:12.5px;font-weight:700;color:var(--ink-3);padding:0 10px 4px}
+.rail .recent button{display:flex;gap:8px;align-items:center;border:0;background:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:13px;text-align:left;color:var(--ink-2);min-width:0}
+.rail .recent button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail .recent button:hover{background:var(--surface-2);color:var(--ink)}
+.rail .recent svg{width:12px;height:12px;flex:none}
+.rail .grow{flex:1}
+.d-main{display:grid;min-height:0;min-width:0}
+.col{min-height:0;min-width:0;display:flex;flex-direction:column}
+.col-head{padding:22px 28px 14px;display:flex;align-items:center;gap:12px;flex:none}
+.col-head h1{font-size:24px;font-weight:800;flex:1}
+.col-body{padding:0 28px 28px;display:grid;gap:16px;align-content:start}
+.side{background:var(--surface-2);border-left:1px solid var(--line)}
+
+/* thread */
+.thread{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-content:start;padding:18px 16px 24px}
+.thread>*{min-width:0}
+.is-d .thread{padding:22px 32px 28px}
+.msg{display:flex;gap:10px;align-items:flex-start;max-width:100%}
+.msg .who{font-size:12.5px;color:var(--ink-3);margin-bottom:4px;display:flex;gap:8px}
+.msg .who b{color:var(--ink-2)}
+.msg .body{min-width:0;flex:1}
+.bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 14px;font-size:15px;line-height:1.55;min-width:0}
+.bubble p+p,.bubble p+pre,.bubble pre+p{margin-top:8px}
+.bubble code{font-family:var(--f-mono);font-size:.9em;background:var(--sunken);padding:1px 5px;border-radius:5px}
+.bubble pre{background:var(--pane);color:var(--pane-ink);border-radius:10px;padding:10px 12px;overflow-x:auto;font-family:var(--f-mono);font-size:13px;margin:0;line-height:1.5}
+.bubble pre code{background:none;padding:0;color:inherit}
+.tok-k{color:#8FD3F2}.tok-s{color:#F8C75A}.tok-n{color:#B7E3A1}
+.msg.me{justify-content:flex-end}
+.msg.me .bubble{background:var(--accent);color:var(--accent-ink);border-color:transparent;border-radius:16px 4px 16px 16px;max-width:82%}
+.msg.me .body{flex:0 1 auto;display:grid;justify-items:end;max-width:86%}
+.msg.me.queued .bubble{background:transparent;color:var(--ink);border:1.5px dashed var(--accent)}
+.sys{font-size:13px;color:var(--ink-2);display:flex;gap:8px;align-items:center;padding-left:44px}
+.sys svg{width:15px;height:15px;color:var(--ink-3)}
+.cmdres .bubble{padding:0;overflow:hidden}
+.cmdres .cap{padding:9px 14px;font-size:13px;color:var(--ink-2);display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line)}
+.cmdres .cap .exit{margin-left:auto;font-family:var(--f-mono);font-weight:700;color:var(--good)}
+.cmdres pre{border-radius:0}
+.turn{background:var(--surface);border:1.5px solid var(--accent);border-radius:16px;padding:14px 16px;display:grid;gap:12px}
+.turn-top{display:flex;align-items:center;gap:10px;font-weight:800}
+.turn-top .el{margin-left:auto;font-weight:700;color:var(--ink-2)}
+.stages{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.stages li{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink-3)}
+.stages li i{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink-3);flex:none}
+.stages li.done{color:var(--ink-2)} .stages li.done i{background:var(--ink-3);border-color:var(--ink-3)}
+.stages li.now{color:var(--ink);font-weight:700} .stages li.now i{border-color:var(--accent);background:var(--accent)}
+.turn-actions{display:flex;flex-wrap:wrap;gap:8px}
+.attach{display:grid;gap:6px}
+.attach code{display:block;background:var(--pane);color:var(--pane-ink);font-family:var(--f-mono);font-size:12.5px;padding:10px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-all;user-select:all}
+.attach .row2{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+.pane{background:var(--pane);color:var(--pane-ink);font-family:var(--f-mono);font-size:12.5px;line-height:1.55;border-radius:12px;padding:10px 12px;overflow:hidden;display:grid;gap:0;align-content:end}
+.pane div{white-space:pre-wrap;word-break:break-word}
+.pane .dim{color:var(--pane-dim)} .pane .hi{color:var(--pane-hi)}
+.pane-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--good)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.errcard{border:1.5px solid var(--bad);background:var(--bad-soft);border-radius:14px;padding:12px 14px;display:grid;gap:8px;font-size:14px}
+.errcard b{color:var(--bad)}
+.composer{flex:none;border-top:1px solid var(--line);background:var(--surface);padding:10px 12px 14px;display:grid;gap:6px}
+.is-d .composer{padding:14px 32px 18px}
+.comp-row{display:flex;gap:8px;align-items:flex-end}
+.comp-row textarea{flex:1;min-width:0;resize:none;border:1.5px solid var(--line);background:var(--surface-2);border-radius:14px;padding:11px 14px;line-height:1.4;max-height:150px;font-size:15px}
+.is-p .comp-row textarea{font-size:16px}
+.comp-row textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.comp-hint{font-size:12.5px;color:var(--ink-3);display:flex;gap:6px;align-items:center}
+.comp-hint.busy{color:var(--accent);font-weight:700}
+.comp-hint svg{width:15px;height:15px;flex:none}
+.t-head{flex:none;display:flex;align-items:center;gap:8px;padding:4px 8px 10px;border-bottom:1px solid var(--line)}
+.t-head .ttl{flex:1;min-width:0}
+.t-head h1{font-size:16.5px;font-weight:800;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.t-head .sub{font-size:13px;color:var(--ink-2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.is-d .t-head{padding:18px 32px 14px}
+.is-d .t-head h1{font-size:20px}
+.ctxsec{display:grid;gap:10px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.ctxsec h2{font-size:14px;font-weight:800}
+.task{display:grid;gap:6px;padding:10px 0;border-top:1px solid var(--line)}
+.task:first-of-type{border-top:0}
+.task .top{display:flex;gap:10px;align-items:center}
+.task .top b{flex:1;font-size:14px}
+.task .acts{display:flex;gap:4px;margin-left:36px}
+.empty{display:grid;gap:12px;justify-items:start;padding:32px 6px}
+.empty h2{font-size:22px;font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer;min-height:36px;text-align:left}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink);font-weight:700}
+.is-p .chip{min-height:40px}
+
+/* machines */
+.tcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.thead{display:flex;gap:12px;align-items:center;padding:14px;border:0;background:none;width:100%;text-align:left;cursor:pointer;min-height:64px}
+.thead .main{flex:1;min-width:0}
+.thead b{font-size:17px}
+.thead .s{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thead>svg{width:20px;height:20px;color:var(--ink-3);transition:transform .15s;flex:none}
+.thead[aria-expanded="true"]>svg{transform:rotate(90deg)}
+.tbody{padding:0 14px 16px;display:grid;gap:18px}
+.sect{display:grid;gap:10px}
+.sect>h3{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;font-size:14px}
+.facts div{display:grid}
+.facts span{font-size:12.5px;color:var(--ink-3)}
+.facts b{font-variant-numeric:tabular-nums}
+.is-d .facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+.plain{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px}
+.plain li{display:flex;gap:8px;align-items:flex-start}
+.plain svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--ink-3)}
+.plain li.yes svg{color:var(--good)} .plain li.no svg{color:var(--bad)}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;background:var(--sunken);border-radius:12px;padding:4px}
+.is-d .seg{grid-template-columns:repeat(4,minmax(0,1fr))}
+.seg button{border:0;background:none;border-radius:9px;padding:8px 6px;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--ink-2);min-height:44px;line-height:1.2}
+.seg button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.relay-why{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.keybox{border:1.5px solid var(--mari);background:var(--mari-soft);border-radius:14px;padding:14px;display:grid;gap:12px}
+.keybox.ok{border-color:var(--line);background:var(--surface-2)}
+.keybox h4{margin:0;font-size:15px;font-weight:800;display:flex;gap:8px;align-items:center;color:var(--mari-ink)}
+.keybox.ok h4{color:var(--good)}
+.keybox h4 svg{width:18px;height:18px}
+.keybox p{font-size:13.5px}
+.keys{display:grid;gap:8px}
+.key{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.key:has(input:checked){border-color:var(--accent)}
+.key input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+.key .fp{font-family:var(--f-mono);font-size:12.5px;word-break:break-all;color:var(--ink-2)}
+.ws{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.ws:first-child{border-top:0}
+.ws .main{flex:1 1 160px;min-width:0}
+.ws .main b{display:block}
+.ws .acts{display:flex;gap:6px;flex-wrap:wrap}
+.confirm{flex-basis:100%;background:var(--bad-soft);border-radius:10px;padding:10px 12px;display:grid;gap:8px;font-size:14px}
+.confirm .acts{display:flex;gap:8px;flex-wrap:wrap}
+.tlist .row .t{font-size:15px}
+.tlist .row[aria-current="true"]{background:var(--accent-soft)}
+.form{display:grid;gap:14px}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form fieldset{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:10px;margin:0}
+.form legend{font-weight:800;font-size:14px;padding:0 6px}
+.form .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* vault */
+.cred{display:grid;gap:8px;padding:14px;border-top:1px solid var(--line)}
+.cred:first-child{border-top:0}
+.cred .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.cred .name{font-family:var(--f-mono);font-weight:700;font-size:15px;word-break:break-all}
+.scope{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--sunken);color:var(--ink-2)}
+.scope.all{background:var(--accent-soft);color:var(--accent)}
+.cred .acts{display:flex;gap:6px;flex-wrap:wrap}
+.lock{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+.lock svg{width:14px;height:14px}
+
+/* login */
+.login{flex:1;display:grid;place-items:center;padding:24px;position:relative;overflow:hidden}
+.login .mark{position:absolute;right:-120px;bottom:-140px;width:520px;opacity:.07;color:var(--ink);pointer-events:none}
+.login-card{width:100%;max-width:380px;display:grid;gap:18px;position:relative}
+.login-card h1{font-size:30px;font-weight:800;display:flex;gap:12px;align-items:center}
+.login-card .gl{width:44px;height:44px;border-radius:14px}
+.login-card .gl svg{width:26px;height:26px}
+.back-to{font-size:14px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.back-to b{color:var(--ink)}
+.is-d .login-card{background:var(--surface);padding:32px;border-radius:22px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.dev{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.dev:first-child{border-top:0}
+.dev .main{flex:1;min-width:0}
+.dev .main b{display:block}
+.modal-wrap{position:absolute;inset:0;z-index:20;display:grid;place-items:center}
+.modal{position:relative;background:var(--surface);border-radius:18px;padding:22px;width:480px;max-height:90%;overflow:auto;display:grid;gap:14px;box-shadow:var(--shadow)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- the weave (ported from direction C into Shuttle's palette) ---------- */
+.today-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.today-head h1{flex:0 0 auto}
+.today-head .sum{flex:1 1 220px;color:var(--ink-2);font-size:14px;min-width:0}
+.daypick{display:inline-flex;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+.daypick button{border:0;background:none;border-radius:9px;min-height:34px;padding:0 10px;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
+.daypick button svg{width:16px;height:16px}
+.daypick button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+.daypick button[disabled]{opacity:.35;cursor:default}
+.daypick .date{padding:0 10px;font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+.is-p .daypick button{min-height:40px}
+.weave-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px 12px;display:grid;gap:8px;position:relative}
+.weave-card h2{font-size:15px;font-weight:800;display:flex;gap:10px;align-items:baseline}
+.weave-card h2 small{font-weight:500;color:var(--ink-3);font-size:12.5px}
+.weave-wrap{position:relative;overflow:hidden}
+.wv{display:block;overflow:visible;max-width:100%}
+.wv text{font-family:var(--f-ui)}
+.wv .h{font-size:11.5px;fill:var(--ink-3)}
+.wv .m{font-size:13px;font-weight:800;fill:var(--ink)}
+.wv .w{font-size:12.5px;fill:var(--ink-2)}
+.wv .w.dim{fill:var(--ink-3)}
+.wv .band{fill:var(--surface-2)}
+.wv .band.dim{opacity:.55}
+.wv .warp{stroke:var(--line);stroke-width:1}
+.wv .warp.hr{stroke:var(--ink-3);stroke-opacity:.45}
+.wv .weft{fill:none;stroke:var(--ink-3);stroke-width:2;stroke-linecap:round;stroke-opacity:.8}
+.wv .wait{fill:none;stroke:var(--mari);stroke-width:2;stroke-dasharray:3 4;stroke-linecap:round}
+.wv .span{stroke:var(--accent);stroke-width:8;stroke-linecap:round}
+.wv .thread{cursor:pointer}
+.wv .thread:hover .weft,.wv .thread.hl .weft{stroke:var(--accent);stroke-opacity:1;stroke-width:3}
+.wv .thread.hl .span{stroke:var(--accent-hover)}
+.wv .nowline{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:3 3}
+.wv .nowlbl{font-size:11.5px;font-weight:800;fill:var(--ink)}
+.wv .edge{font-size:11px;fill:var(--mari-ink);font-weight:700}
+.wv .st-g{cursor:pointer}
+.wv .st-g:focus{outline:none}
+.wv .halo{fill:none;stroke:var(--focus);stroke-width:2.5;opacity:0}
+.wv .st-g:focus-visible .halo,.wv .st-g:hover .halo{opacity:1}
+.wv .k-need{fill:var(--mari);stroke:var(--surface);stroke-width:1.5}
+.wv .k-need-o{fill:var(--surface);stroke:var(--mari);stroke-width:2.2}
+.wv .k-ring{fill:none;stroke:var(--mari);stroke-width:1.5;opacity:0;transform-box:fill-box;transform-origin:center}
+.wv .pulse1 .k-ring{animation:knot 1.8s ease-out .6s 1 both}
+@keyframes knot{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(2.3)}}
+.wv .k-x{stroke:var(--bad);stroke-width:3;stroke-linecap:round}
+.wv .k-xbg{fill:var(--surface)}
+.wv .k-xdone{stroke:var(--ink-3);stroke-width:2.4;stroke-linecap:round}
+.wv .k-done{fill:var(--ink-3)}
+.wv .k-cmd{fill:var(--surface);stroke:var(--ink-2);stroke-width:1.6}
+.wv .k-ans{fill:var(--surface);stroke:var(--ink-3);stroke-width:1.8}
+.wv .k-route{fill:var(--ink-3)}
+.wv .k-prov{stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
+.wv .k-hit{fill:transparent}
+.wv .shut{fill:var(--accent);stroke:var(--surface);stroke-width:1.2}
+.wv .shut-hole{fill:var(--surface)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{width:22px;height:14px;flex:none}
+.wtip{position:absolute;z-index:5;pointer-events:none;background:var(--ink);color:var(--ground);font-size:12.5px;font-weight:700;line-height:1.35;padding:7px 10px;border-radius:9px;max-width:300px;box-shadow:var(--shadow);transform:translate(-50%,calc(-100% - 12px))}
+.wtip small{display:block;font-weight:400;opacity:.8}
+/* desktop inbox day strip */
+.daystrip{display:flex;align-items:center;gap:14px;padding:10px 28px 10px;border-bottom:1px solid var(--line);background:var(--surface);flex:none;position:relative}
+.daystrip .ds-lbl{display:grid;gap:2px;flex:none;width:96px}
+.daystrip .ds-lbl b{font-size:14px;font-weight:800}
+.daystrip .ds-lbl span{font-size:12px;color:var(--ink-3)}
+.daystrip .ds-svg{flex:1;min-width:0}
+.daystrip .ds-open{flex:none}
+.daystrip .note{position:absolute;right:28px;top:calc(100% + 8px);white-space:nowrap;z-index:3}
+.ds .ml{font-size:11px;fill:var(--ink-3);font-weight:700}
+.ds .row{fill:var(--surface-2)}
+.ds .span{stroke:var(--accent);stroke-width:6;stroke-linecap:round}
+.ds .wait{stroke:var(--mari);stroke-width:1.6;stroke-dasharray:2 3}
+.ds .nowline{stroke:var(--ink);stroke-width:1;stroke-dasharray:2 2}
+.ds .k-need{fill:var(--mari);stroke:var(--surface);stroke-width:1.2}
+.ds .k-x{stroke:var(--bad);stroke-width:2.6;stroke-linecap:round}
+.ds .knotbtn{cursor:pointer}
+.ds .knotbtn:focus{outline:none}
+.ds .knotbtn:focus-visible .halo,.ds .knotbtn:hover .halo{opacity:1}
+.ds .halo{fill:none;stroke:var(--focus);stroke-width:2;opacity:0}
+.ds .sel .halo{opacity:1;stroke:var(--accent)}
+/* phone inbox mini strip */
+.pstrip{display:grid;gap:4px;border:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 12px 7px;cursor:pointer;text-align:left;width:100%}
+.pstrip .top{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);font-weight:700}
+.pstrip .top b{color:var(--ink);font-weight:800}
+.pstrip svg{display:block;width:100%;height:24px}
+.pstrip .note{margin-top:4px}
+/* phone vertical timeline */
+.vt{display:grid;gap:0;position:relative}
+.vt-now{display:grid;grid-template-columns:50px 1fr;align-items:center;font-size:12.5px;font-weight:800;margin-bottom:6px}
+.vt-now i{display:block;border-top:1.5px dashed var(--ink)}
+.vt-row{display:grid;grid-template-columns:50px 22px minmax(0,1fr);gap:0;align-items:stretch;border:0;background:none;padding:0;text-align:left;cursor:pointer;width:100%;color:inherit}
+.vt-row time{font-size:12.5px;color:var(--ink-3);padding-top:14px;font-variant-numeric:tabular-nums}
+.vt-row .ln{position:relative;display:flex;justify-content:center}
+.vt-row .ln::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:var(--line)}
+.vt-row .ln svg{position:relative;width:16px;height:16px;margin-top:15px;background:var(--ground);border-radius:4px}
+.vt-card{margin:5px 0;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:grid;gap:5px;min-width:0}
+.vt-card.need{border-color:var(--mari);box-shadow:inset 4px 0 0 var(--mari)}
+.vt-card .t{font-weight:700;font-size:14.5px;line-height:1.3}
+.vt-card .what{font-size:13px;color:var(--ink-2)}
+.lanechip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2);background:var(--surface-2);border-radius:999px;padding:2px 9px 2px 4px;justify-self:start;max-width:100%}
+.lanechip i{width:14px;height:4px;border-radius:2px;background:var(--lc,var(--ink-3));flex:none}
+.lanechip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vt-steps{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--ink-3)}
+.vt-steps span{display:inline-flex;gap:4px;align-items:center}
+.vt-steps svg{width:12px;height:12px}
+/* all conversations */
+.searchrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.searchrow .inp{flex:1 1 220px;min-width:0}
+.convrow .pv{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.convrow .meta2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:3px;font-size:12.5px;color:var(--ink-3)}
+/* conversation read-back: margin rail */
+.tgroup{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;scroll-margin-top:12px;border-radius:14px}
+.is-d .tgroup{grid-template-columns:138px minmax(0,1fr);gap:18px}
+.tgroup .tg-body{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}
+.tgroup.flash{animation:flash 1.6s ease-out 1}
+@keyframes flash{0%{background:var(--accent-soft);box-shadow:0 0 0 8px var(--accent-soft)}100%{background:transparent;box-shadow:0 0 0 8px transparent}}
+.mrail{list-style:none;margin:0;padding:2px 0 0;display:grid;gap:0;align-content:start;align-self:start;position:sticky;top:8px}
+.mrail li{position:relative;padding:0 0 10px 20px;font-size:12.5px;line-height:1.3;color:var(--ink-2)}
+.mrail li::before{content:"";position:absolute;left:6px;top:14px;bottom:-2px;width:2px;background:var(--line)}
+.mrail li:last-child::before{display:none}
+.mrail li svg{position:absolute;left:0;top:1px;width:14px;height:14px}
+.mrail li time{display:block;color:var(--ink-3);font-size:11.5px;font-variant-numeric:tabular-nums}
+.mrail li.need{color:var(--mari-ink);font-weight:700}
+.mrail li.bad{color:var(--bad);font-weight:700}
+.mrail button{all:unset;cursor:pointer;display:block;border-radius:4px}
+.mrail button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.istep{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:12.5px;color:var(--ink-3);padding-left:4px}
+.istep span{display:inline-flex;gap:5px;align-items:center}
+.istep svg{width:12px;height:12px;flex:none}
+.istep .need{color:var(--mari-ink);font-weight:700}
+.istep .bad{color:var(--bad);font-weight:700}
+details.steps{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+details.steps summary{cursor:pointer;font-weight:800;font-size:14px;min-height:28px;display:flex;align-items:center}
+details.steps ol{list-style:none;margin:8px 0 2px;padding:0;display:grid;gap:2px}
+details.steps li button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;min-height:40px;font-size:14px;width:100%}
+details.steps li svg{width:14px;height:14px;flex:none}
+details.steps li time{color:var(--ink-3);font-size:12.5px;width:40px;flex:none;font-variant-numeric:tabular-nums}
+.jump{position:relative}
+.jump-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:15;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;width:300px;display:grid}
+.jump-pop button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:9px;font-size:13.5px}
+.jump-pop button:hover,.jump-pop button:focus-visible{background:var(--surface-2);outline:none}
+.jump-pop svg{width:14px;height:14px;flex:none}
+.jump-pop time{color:var(--ink-3);font-size:12.5px;width:40px;flex:none;font-variant-numeric:tabular-nums}
+.d-col{display:flex;flex-direction:column;min-height:0}
+.indent{display:grid;gap:8px;min-width:0}
+.is-d .indent{padding-left:44px}
+</style>
+
+<div class="proto" role="toolbar" aria-label="Prototype controls">
+  <div class="proto-name">Loomux redesign <small>Shuttle with the Weave timeline</small></div>
+  <div class="pgroup"><span>Screen</span><div class="pseg">
+    <button data-tool="screen:inbox">Inbox</button><button data-tool="screen:today">Today</button><button data-tool="screen:conversation">Conversation</button><button data-tool="screen:machines">Machines</button><button data-tool="screen:vault">Vault</button><button data-tool="screen:login">Login</button></div></div>
+  <div class="pgroup"><span>Thread</span><div class="pseg"><button data-tool="conv:ratelimit">Agent asking</button><button data-tool="conv:restart">Offer waiting</button></div></div>
+  <div class="pgroup"><span>Frame</span><div class="pseg"><button data-tool="frame:phone">Phone</button><button data-tool="frame:desktop">Desktop</button><button data-tool="frame:both">Both</button></div></div>
+  <div class="pgroup"><span>Theme</span><div class="pseg"><button data-tool="theme:system">System</button><button data-tool="theme:light">Light</button><button data-tool="theme:dark">Dark</button></div></div>
+</div>
+<main id="stage" class="stage" aria-label="Mockup"></main>
+<script>
+// ---------- helpers ----------
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const NOW = Date.now();
+function fmtElapsed(ms){ const s=Math.max(0,Math.floor(ms/1000)); if(s<60) return s+"s"; const m=Math.floor(s/60); if(m<60) return m+"m "+String(s%60).padStart(2,"0")+"s"; return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; }
+function fmtCount(ms){ const s=Math.max(0,Math.ceil(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+
+const P = {
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  diamond:'<path d="M12 2.5l9.5 9.5-9.5 9.5L2.5 12z" fill="currentColor"/>',
+  diamondo:'<path d="M12 3.8l8.2 8.2-8.2 8.2L3.8 12z" fill="none" stroke="currentColor" stroke-width="2.2"/>',
+  dot:'<circle cx="12" cy="12" r="6.5" fill="currentColor"/>',
+  ring:'<circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/>',
+  tri:'<path d="M12 3l10 17.5H2z" fill="currentColor"/><path d="M12 9.5v5M12 17.3v.2" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round"/>',
+  okc:'<circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7.5 12.3l3 3 6-6.3" fill="none" stroke="var(--surface)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  square:'<rect x="5" y="5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>',
+  chevl:'<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  chevr:'<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  plus:'<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  inbox:'<path d="M3.5 13.5l2.6-7.2A2 2 0 0 1 8 5h8a2 2 0 0 1 1.9 1.3l2.6 7.2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z M3.5 13.5h5l1.2 2.5h4.6l1.2-2.5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  chat:'<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4.2A2.5 2.5 0 0 1 4 14.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  server:'<rect x="3.5" y="4" width="17" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3.5" y="13" width="17" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="7.5" cy="16.5" r="1.2" fill="currentColor"/>',
+  key:'<circle cx="8" cy="15" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11.3 11.7L20 3m-3.5 3.5l2.5 2.5m-5-0.2l2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  gear:'<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M5.5 18.5l2.1-2.1M16.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  more:'<circle cx="5" cy="12" r="1.9" fill="currentColor"/><circle cx="12" cy="12" r="1.9" fill="currentColor"/><circle cx="19" cy="12" r="1.9" fill="currentColor"/>',
+  out:'<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  term:'<rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10l3 2.5L7 15M12.5 15.5H17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  copy:'<rect x="8.5" y="8.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  retry:'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  shield:'<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  info:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5M12 7.6v.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  lock:'<rect x="5" y="10.5" width="14" height="10" rx="2.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  send:'<path d="M4 12l16-7.5-6 16-2.6-6.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  shuttle:'<path d="M1.8 12c3.4-4.4 7-6.2 10.2-6.2S18.8 7.6 22.2 12c-3.4 4.4-7 6.2-10.2 6.2S5.2 16.4 1.8 12z" fill="currentColor"/><rect x="8.3" y="10.6" width="7.4" height="2.8" rx="1.4" fill="var(--sh-hole,#fff)"/>',
+};
+const ic = (n, cls="") => `<svg viewBox="0 0 24 24" aria-hidden="true" class="${cls}">${P[n]}</svg>`;
+
+const ST = {
+  approval:{label:"Wants approval", ic:"diamond"},
+  asking:{label:"Asking you", ic:"diamond"},
+  waiting:{label:"Waiting for your reply", ic:"diamondo"},
+  working:{label:"Working", ic:"dot", cls:"pulse"},
+  done:{label:"Done", ic:"check"},
+  failed:{label:"Failed", ic:"tri"},
+  idle:{label:"Idle", ic:"ring"},
+  active:{label:"Agent attached", ic:"dot"},
+  archived:{label:"Archived", ic:"square"},
+  broken:{label:"Broken", ic:"tri"},
+  provisioning:{label:"Setting up", ic:"ring"},
+};
+const st = (k, label) => `<span class="st st-${k}">${ic(ST[k].ic, ST[k].cls||"")}${esc(label ?? ST[k].label)}</span>`;
+const glyph = (who, sm) => {
+  const c = sm ? " gl-sm" : "";
+  if (who === "router") return `<span class="gl gl-router${c}" style="--sh-hole:var(--ink)" title="Loomux">${ic("shuttle")}</span>`;
+  if (who === "cc") return `<span class="gl gl-cc${c}" title="claude-code">CC</span>`;
+  return `<span class="gl gl-cmd${c}" title="Command">${ic("term")}</span>`;
+};
+
+// ---------- fake data (invented; .example hosts, made-up fingerprints) ----------
+// One clock for the whole mockup: the fake day starts at 14:32 and runs in real time.
+const NOW_M0 = 14*60 + 32;
+const nowM = () => NOW_M0 + (Date.now() - NOW) / 60000;
+const hhmm = m => { m = Math.floor(m); return String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0"); };
+const ago = m => { const d = Math.max(0, Math.round(nowM() - m)); return d < 1 ? "now" : d < 60 ? d + " min" : Math.floor(d/60) + " h"; };
+
+const MACHINE_NAME = {atlas:"atlas", kestrel:"kestrel", local:"this host"};
+// Warp: one lane per workspace, grouped under its machine. "router" holds turns Loomux answered itself.
+const LANES = [
+  {id:"router", m:"", name:"Answered directly"},
+  {id:"ledger-api", m:"atlas"}, {id:"ml-notebook", m:"atlas", dim:true},
+  {id:"infra-terraform", m:"kestrel"}, {id:"payments-sandbox", m:"kestrel", dim:true},
+  {id:"blog-rewrite", m:"local"},
+];
+const laneOf = id => LANES.find(l => l.id === id);
+
+const CONVS = {
+  restart:{title:"Restart the staging ledger deploy", ws:"infra-terraform", m:"kestrel", day:"today",
+    preview:"Restart the staging ledger deploy so it picks up the new rate limits.",
+    attach:"ssh -p 2222 ci@kestrel.corp.example -t tmux -L loomux attach -t loomux-infra-terraform-2c91"},
+  ratelimit:{title:"Add rate limiting to the ledger-api /transfers endpoint", ws:"ledger-api", m:"atlas", day:"today",
+    preview:"In ledger-api on atlas, have claude-code add rate limiting to the /transfers endpoint. 20 requests a minute per API key.",
+    attach:"ssh -p 22 dev@atlas.lab.example -t tmux -L loomux attach -t loomux-ledger-api-7f3a"},
+  changelog:{title:"Draft the October changelog post", ws:"blog-rewrite", m:"local", day:"today",
+    preview:"In blog-rewrite, have claude-code draft the October changelog post from the merged pull requests.",
+    attach:"tmux -L loomux attach -t loomux-blog-rewrite-91d0"},
+  tf:{title:"Bump terraform providers", ws:"infra-terraform", m:"kestrel", day:"today",
+    preview:"Bump the aws and kubernetes providers to their latest minor versions and run a plan.",
+    attach:"ssh -p 2222 ci@kestrel.corp.example -t tmux -L loomux attach -t loomux-infra-terraform-5e07"},
+  backup:{title:"Why is the nightly backup job slow?", ws:"", m:"", day:"today",
+    preview:"Why is the nightly backup job slow? It used to take 20 minutes."},
+  nb:{title:"Clean up old notebook outputs", ws:"ml-notebook", m:"atlas", day:"yesterday",
+    preview:"Clear the outputs from the old notebooks in ml-notebook.",
+    attach:"ssh -p 22 dev@atlas.lab.example -t tmux -L loomux attach -t loomux-ml-notebook-0b44"},
+  cold:{title:"Profile the ledger-api cold start", ws:"ledger-api", m:"atlas", day:"yesterday",
+    preview:"Why does ledger-api take 9 seconds to answer its first request after a deploy?"},
+  certs:{title:"Rotate the staging TLS certificate", ws:"infra-terraform", m:"kestrel", day:"yesterday",
+    preview:"Rotate the staging TLS certificate before it expires on Friday."},
+  tmux35:{title:"What changed in tmux 3.5?", ws:"", m:"", day:"yesterday",
+    preview:"What changed in tmux 3.5 that matters for Loomux?"},
+};
+const where = id => { const c = CONVS[id]; return c.ws ? `${c.ws} on ${MACHINE_NAME[c.m]}` : "Answered by Loomux"; };
+function convStatus(id){
+  const i = S.inbox, cs = S.cs[id];
+  if(cs && cs.turn) return "working";
+  if(id === "restart") return i.offer.state === "pending" ? "approval" : "done";
+  if(id === "ratelimit") return i.prompt.state === "pending" ? "asking" : "done";
+  if(id === "tf") return i.failed.state === "failed" ? "failed" : "working";
+  if(id === "changelog") return "working";
+  if(id === "nb") return "waiting";
+  return "done";
+}
+function convTime(id){
+  const i = S.inbox;
+  return {restart: i.offer.at || 870, ratelimit: i.prompt.at || 866, changelog: nowM(), tf: i.failed.at || 700, backup:622,
+    nb:"Yesterday", cold:"Yesterday", certs:"Yesterday", tmux35:"Yesterday"}[id];
+}
+
+// Stitch glyphs, shared by the weave legend, the margin rail, the phone timeline and inline markers.
+const SI = {
+  route:'<path d="M2 4c6 0 6 8 12 8" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round"/>',
+  prov:'<path d="M8 2.5v11M2.5 8h11" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round"/>',
+  turn:'<rect x="1" y="5.5" width="14" height="5" rx="2.5" fill="var(--accent)"/>',
+  cmd:'<rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="var(--surface)" stroke="var(--ink-2)" stroke-width="1.6"/>',
+  ans:'<path d="M8 2.3l5.7 5.7L8 13.7 2.3 8z" fill="var(--surface)" stroke="var(--ink-3)" stroke-width="1.8"/>',
+  need:'<path d="M8 1.5l6.5 6.5L8 14.5 1.5 8z" fill="var(--mari)"/>',
+  needo:'<path d="M8 2.3l5.7 5.7L8 13.7 2.3 8z" fill="var(--surface)" stroke="var(--mari)" stroke-width="2.2"/>',
+  fail:'<path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="var(--bad)" stroke-width="2.6" stroke-linecap="round"/>',
+  failr:'<path d="M4 4l8 8M12 4l-8 8" stroke="var(--ink-3)" stroke-width="2.2" stroke-linecap="round"/>',
+  done:'<rect x="4" y="4" width="8" height="8" rx="1.5" fill="var(--ink-3)"/>',
+  work:'<path d="M0.8 8c2.3-3 4.7-4.2 7.2-4.2S12.9 5 15.2 8c-2.3 3-4.7 4.2-7.2 4.2S3.1 11 .8 8z" fill="var(--accent)"/><rect x="5.6" y="7" width="4.8" height="2" rx="1" fill="var(--surface)"/>',
+};
+const si = k => `<svg viewBox="0 0 16 16" aria-hidden="true">${SI[k]}</svg>`;
+const stepCls = k => k === "need" || k === "needo" ? "need" : k === "fail" ? "bad" : "";
+
+// ---------- the day model: built from the same state the inbox and threads read ----------
+// A thread: {conv, path:[[t,lane]...], end, spans:[[a,b,lane]], marks:[{t,lane,k,label,anchor}], wait:{from,lane}, edge}
+function todayThreads(){
+  const i = S.inbox, now = nowM(), T = [];
+  // Add rate limiting: crosses to kestrel for the staging migration, then back.
+  {
+    const p = i.prompt, cs = S.cs.ratelimit;
+    const th = {conv:"ratelimit", path:[[782,"ledger-api"],[820,"infra-terraform"],[826,"ledger-api"]], spans:[[783,795,"ledger-api"],[800.5,801.5,"ledger-api"],[822.4,823.6,"infra-terraform"],[838,842,"ledger-api"],[860,866,"ledger-api"]],
+      marks:[
+        {t:782, lane:"ledger-api", k:"route", label:"Routed to atlas", anchor:"g1"},
+        {t:783, lane:"ledger-api", k:"prov", label:"Set up ledger-api", anchor:"g1"},
+        {t:795, lane:"ledger-api", k:"done", label:"claude-code replied after a 12m 04s turn", anchor:"g1"},
+        {t:801, lane:"ledger-api", k:"cmd", label:"Command on atlas: npm test, exit 0", anchor:"g2"},
+        {t:820, lane:"ledger-api", k:"route", label:"Routed to kestrel for the staging database", anchor:"g3"},
+        {t:822, lane:"infra-terraform", k:"ans", label:"Offer approved: psql migration on kestrel", anchor:"g3"},
+        {t:823.6, lane:"infra-terraform", k:"cmd", label:"Command on kestrel: psql, exit 0", anchor:"g3"},
+        {t:830, lane:"ledger-api", k:"failr", label:"Failed: couldn't reach atlas. Retried at 13:58", anchor:"g4"},
+        {t:842, lane:"ledger-api", k:"done", label:"claude-code replied after a 4m 12s turn", anchor:"g5"},
+      ], end:866};
+    if(p.state === "pending"){ th.marks.push({t:866, lane:"ledger-api", k:"need", label:"claude-code is asking you: edit src/middleware/ratelimit.ts?", anchor:"g6", need:"ratelimit"}); th.wait = {from:866, lane:"ledger-api"}; th.end = now; }
+    else {
+      th.marks.push({t:866, lane:"ledger-api", k:"ans", label:`You answered ${p.answer}`, anchor:"g6"});
+      const b = cs.turn ? now : (p.doneAt || p.at); th.spans.push([p.at, b, "ledger-api"]); th.end = b;
+      if(cs.turn) th.running = "ledger-api"; else th.marks.push({t:b, lane:"ledger-api", k:"done", label:"claude-code replied", anchor:"x-end"});
+    }
+    T.push(th);
+  }
+  // Restart the staging deploy: an offer on kestrel.
+  {
+    const o = i.offer, cs = S.cs.restart;
+    const th = {conv:"restart", dy:7, path:[[869,"infra-terraform"]], spans:[], marks:[{t:869, lane:"infra-terraform", k:"route", label:"Routed to kestrel", anchor:"g1"}], end:870};
+    if(o.state === "pending"){ th.marks.push({t:870, lane:"infra-terraform", k:"need", label:"Loomux wants approval: kubectl rollout restart on kestrel", anchor:"g1", need:"restart"}); th.wait = {from:870, lane:"infra-terraform"}; th.end = now; }
+    else {
+      const lbl = {approved:"Offer approved", denied:"Offer denied: nothing was run", expired:"Offer expired: nothing was run"}[o.state];
+      th.marks.push({t:870, lane:"infra-terraform", k:"ans", label:lbl, anchor:"g1"});
+      if(o.state === "approved"){ const b = cs.turn ? now : (o.doneAt || o.at); th.spans.push([o.at, b, "infra-terraform"]); th.end = b;
+        if(cs.turn) th.running = "infra-terraform"; else th.marks.push({t:b, lane:"infra-terraform", k:"cmd", label:"Command on kestrel: kubectl, exit 0", anchor:"x-end"}); }
+      else th.end = o.at || 870;
+    }
+    T.push(th);
+  }
+  // Bump terraform providers: failed on a usage limit.
+  {
+    const f = i.failed;
+    const th = {conv:"tf", dy:-7, path:[[662,"infra-terraform"]], spans:[[663,700,"infra-terraform"]], marks:[{t:662, lane:"infra-terraform", k:"route", label:"Routed to kestrel", anchor:"g1"}], end:700};
+    if(f.state === "failed"){ th.marks.push({t:700, lane:"infra-terraform", k:"fail", label:"Failed: claude-code hit its usage limit", anchor:"g1", need:"tf"}); th.wait = {from:700, lane:"infra-terraform"}; th.end = now; }
+    else { th.marks.push({t:700, lane:"infra-terraform", k:"failr", label:"Failed: usage limit. Retried", anchor:"g1"}); th.spans.push([f.at, now, "infra-terraform"]); th.running = "infra-terraform"; th.end = now; }
+    T.push(th);
+  }
+  T.push({conv:"changelog", path:[[857,"blog-rewrite"]], spans:[[858,now,"blog-rewrite"]], running:"blog-rewrite", end:now,
+    marks:[{t:857, lane:"blog-rewrite", k:"route", label:"Routed to this host", anchor:"g1"}]});
+  T.push({conv:"backup", path:[[620,"router"]], spans:[[620,622,"router"]], end:622,
+    marks:[{t:622, lane:"router", k:"done", label:"Loomux answered directly", anchor:"g1"}]});
+  // Still waiting from yesterday: the thread enters at the left edge.
+  T.push({conv:"nb", path:[[480,"ml-notebook"]], spans:[], end:now, edge:"since yesterday 16:25", wait:{from:480, lane:"ml-notebook"}, marks:[]});
+  return T;
+}
+function yesterdayThreads(){
+  return [
+    {conv:"tmux35", path:[[700,"router"]], spans:[[700,702,"router"]], end:702, marks:[{t:702, lane:"router", k:"done", label:"Loomux answered directly", anchor:"g1"}]},
+    {conv:"certs", path:[[600,"infra-terraform"]], spans:[[601,640,"infra-terraform"]], end:640, marks:[{t:600, lane:"infra-terraform", k:"route", label:"Routed to kestrel", anchor:"g1"},{t:640, lane:"infra-terraform", k:"done", label:"claude-code replied after a 39m turn", anchor:"g1"}]},
+    {conv:"cold", path:[[900,"ledger-api"]], spans:[[901,938,"ledger-api"],[944,945,"ledger-api"]], end:950, marks:[{t:900, lane:"ledger-api", k:"route", label:"Routed to atlas", anchor:"g1"},{t:938, lane:"ledger-api", k:"done", label:"claude-code replied", anchor:"g1"},{t:944.5, lane:"ledger-api", k:"cmd", label:"Command on atlas: hyperfine, exit 0", anchor:"g1"},{t:950, lane:"ledger-api", k:"done", label:"Finished", anchor:"g1"}]},
+    {conv:"nb", path:[[970,"ml-notebook"]], spans:[[971,985,"ml-notebook"]], end:1200, wait:{from:985, lane:"ml-notebook"},
+      marks:[{t:970, lane:"ml-notebook", k:"route", label:"Routed to atlas", anchor:"g1"},{t:985, lane:"ml-notebook", k:"needo", label:"claude-code is waiting for your reply", anchor:"g1", need:"nb"}]},
+  ];
+}
+
+// ---------- panes (invented output) ----------
+const PANE_LAST = {
+  ratelimit:[["dim","⏺ Update(src/middleware/ratelimit.ts)"],["","  ⎿  Updated with 3 additions"],["hi","⏺ I'll read the limit from the environment so each deploy can set it."],["dim","Edit file: src/middleware/ratelimit.ts"],["","Do you want to make this edit?"],["hi","❯ 1. Yes"],["","  2. Yes, and don't ask again this session"],["","  3. No, and tell Claude what to do"]],
+  restart:[["dim","(no agent pane: Loomux is waiting for your yes before it runs anything)"]],
+  tf:[["dim","⏺ Bash(terraform init -upgrade)"],["","  ⎿  Upgrading hashicorp/aws to 5.71.0…"],["bad","  5-hour limit reached ∙ resets 5pm"],["dim","> "]],
+  changelog:[["dim","⏺ Read(posts/2026-10-changelog.md)"],["","## Added"],["","- Approve offers from the notification"],["","## Fixed"],["hi","✻ Writing the summary for the attach command fix…"]],
+};
+const PANE_LIVE = {
+  prompt:[["dim","⏺ Update(src/middleware/ratelimit.ts)"],["","  ⎿  const limit = Number(process.env.LEDGER_RATE_LIMIT ?? 20);"],["","  ⎿  Updated with 4 additions and 1 removal"],["dim","⏺ Bash(npm test -- transfers)"],["","  ⎿  PASS  test/transfers.ratelimit.test.ts (16 tests)"],["","  ⎿  PASS  test/transfers.test.ts (31 tests)"],["","     Tests: 47 passed, 47 total"],["hi","⏺ The limit now comes from LEDGER_RATE_LIMIT, defaulting to 20."],["hi","✻ Writing the summary…"]],
+  cmd:[["dim","$ kubectl -n staging rollout restart deploy/ledger-api"],["","deployment.apps/ledger-api restarted"],["dim","$ kubectl -n staging rollout status deploy/ledger-api"],["","Waiting for deployment \"ledger-api\" rollout to finish: 1 of 3 updated replicas are available..."],["","Waiting for deployment \"ledger-api\" rollout to finish: 2 of 3 updated replicas are available..."],["hi","deployment \"ledger-api\" successfully rolled out"]],
+};
+
+const newCS = () => ({extra:[], turn:null, queued:null, showAttach:false});
+const S = {
+  screen:"inbox", frame:"both", theme:"system",
+  ui:{p:{sheet:null}, d:{sheet:null}},
+  sel:"restart",
+  filter:"all", search:"", day:"today",
+  inbox:{
+    offer:{state:"pending", exp:NOW + 4*60e3 - 8e3},
+    prompt:{state:"pending", answer:""},
+    failed:{state:"failed"},
+    older:{open:false, snoozed:false},
+  },
+  convId:"ratelimit",
+  cs:{ratelimit:newCS(), restart:newCS(), tf:newCS(), changelog:newCS(), backup:newCS(), nb:newCS(), cold:newCS(), certs:newCS(), tmux35:newCS()},
+  jump:null, jumpOpen:false,
+  pane:[],
+  drafts:{compose:"", reply:"", vName:"", vWs:"", vAgent:""},
+  target:"kestrel", open:{kestrel:true},
+  targets:[
+    {id:"kestrel", name:"kestrel", kind:"remote", user:"ci", host:"kestrel.corp.example", port:2222, root:"/srv/loomux", purpose:"work", relay:"", perm:"manual", agents:["claude-code"], provision:true, shell:false, confirm:true, pinned:null,
+      health:{reachable:true, ms:64, tmux:"3.4", disk:"88 GB", at:"6 min ago"}},
+    {id:"atlas", name:"atlas", kind:"remote", user:"dev", host:"atlas.lab.example", port:22, root:"", purpose:"personal", relay:"", perm:"accept-edits", agents:[], provision:true, shell:true, confirm:false,
+      pinned:{type:"ED25519", fp:"SHA256:q3Vt9kR2bWm5Xc8Ld1Ns7Hy4Gf0Je6Pa2Tu9Zo3Ri5"},
+      health:{reachable:true, ms:38, tmux:"3.5a", disk:"212 GB", at:"2 min ago"}},
+    {id:"local", name:"this host", kind:"local", user:"", host:"", port:0, root:"", purpose:"personal", relay:"", perm:"", agents:[], provision:true, shell:true, confirm:false, pinned:null,
+      health:{reachable:true, ms:1, tmux:"3.5a", disk:"61 GB", at:"1 min ago"}},
+  ],
+  workspaces:[
+    {id:"w1", name:"ledger-api", target:"atlas", st:"active"},
+    {id:"w2", name:"infra-terraform", target:"kestrel", st:"idle"},
+    {id:"w3", name:"blog-rewrite", target:"local", st:"active"},
+    {id:"w4", name:"ml-notebook", target:"atlas", st:"archived"},
+    {id:"w5", name:"payments-sandbox", target:"kestrel", st:"broken", reason:"The workspace root is not writable."},
+  ],
+  scan:{}, test:{}, wsConfirm:null, tConfirm:null, form:null, formErr:"",
+  creds:[
+    {id:"c1", name:"GITHUB_TOKEN", ws:"", agent:"", upd:"8 days ago"},
+    {id:"c2", name:"ANTHROPIC_API_KEY", ws:"", agent:"claude-code", upd:"21 days ago"},
+    {id:"c3", name:"NPM_TOKEN", ws:"blog-rewrite", agent:"", upd:"3 days ago"},
+    {id:"c4", name:"KUBECONFIG_STAGING", ws:"infra-terraform", agent:"claude-code", upd:"yesterday"},
+  ],
+  vaultAdd:false, vaultErr:"", replacing:null, deleting:null,
+  devices:[
+    {id:"s1", name:"Firefox on Linux", sub:"This browser, active now", cur:true},
+    {id:"s2", name:"Pixel 9, installed app", sub:"Last used 12 min ago"},
+    {id:"s3", name:"Chrome on an old laptop", sub:"Last used 19 days ago"},
+  ],
+  login:{err:"", busy:false, back:"Restart the staging ledger deploy"},
+  toast:null,
+};
+Object.defineProperty(S, "conv", {get(){ return S.cs[S.convId]; }});
+let toastTimer = null;
+function toast(msg){ S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 2600); }
+function needsCount(){
+  const i = S.inbox;
+  return (i.offer.state==="pending") + (i.prompt.state==="pending") + (i.failed.state==="failed") + (!i.older.snoozed ? 1 : 0);
+}
+function runningList(){
+  const r = [];
+  if(S.cs.restart.turn) r.push({id:"restart", title:CONVS.restart.title, stage:"Running a command in infra-terraform…", since:S.cs.restart.turn.since});
+  if(S.cs.ratelimit.turn) r.push({id:"ratelimit", title:CONVS.ratelimit.title, stage:"claude-code is working in ledger-api", since:S.cs.ratelimit.turn.since});
+  if(S.inbox.failed.state === "retrying") r.push({id:"tf", title:CONVS.tf.title, stage:"claude-code is working in infra-terraform", since:S.inbox.failed.since});
+  r.push({id:"changelog", title:CONVS.changelog.title, stage:"claude-code is working in blog-rewrite", since:NOW - 15*60e3 - 12e3});
+  return r;
+}
+
+// ---------- the turn engine: one per conversation ----------
+const STAGES = {
+  prompt:["Queued","Deciding where this goes…","claude-code is working in ledger-api"],
+  cmd:["Queued","Deciding where this goes…","Running a command in infra-terraform…"],
+  plain:["Queued","Deciding where this goes…","Loomux is answering…"],
+};
+let turnSeq = 0;
+const paneTimers = {};
+function startTurn(cid, kind){
+  const cs = S.cs[cid], id = ++turnSeq;
+  cs.turn = {id, kind, stage:0, since:Date.now(), pane:[]};
+  render();
+  const live = () => cs.turn && cs.turn.id === id;
+  setTimeout(() => { if(live()){ cs.turn.stage = 1; render(); } }, 900);
+  setTimeout(() => {
+    if(!live()) return;
+    cs.turn.stage = 2; render();
+    const lines = PANE_LIVE[kind];
+    if(lines){
+      let n = 0; clearInterval(paneTimers[cid]);
+      paneTimers[cid] = setInterval(() => {
+        if(!live()){ clearInterval(paneTimers[cid]); return; }
+        cs.turn.pane.push(lines[n++]); paintPane();
+        if(n >= lines.length){ clearInterval(paneTimers[cid]); setTimeout(() => live() && finishTurn(cid), 1400); }
+      }, 1100);
+    } else setTimeout(() => live() && finishTurn(cid), 2600);
+  }, 2400);
+}
+function finishTurn(cid){
+  const cs = S.cs[cid], t = cs.turn; cs.turn = null; clearInterval(paneTimers[cid]);
+  const at = nowM();
+  if(t.kind === "prompt"){
+    S.inbox.prompt.doneAt = at;
+    cs.extra.push({who:"cc", t:at, html:`<p>The limit now comes from <code>LEDGER_RATE_LIMIT</code> and defaults to 20 a minute. A key over it still gets a 429 with <code>Retry-After</code>.</p><p>All 47 transfer tests pass.</p>`, steps:[{k:"turn", label:"Agent turn", t:S.inbox.prompt.at},{k:"done", label:"claude-code replied", t:at}]});
+  } else if(t.kind === "cmd"){
+    S.inbox.offer.doneAt = at;
+    cs.extra.push({who:"cmd", t:at, cmd:"kubectl -n staging rollout restart deploy/ledger-api", out:`deployment.apps/ledger-api restarted\ndeployment "ledger-api" successfully rolled out`, steps:[{k:"cmd", label:"Command on kestrel, exit 0", t:at}]});
+  } else {
+    cs.extra.push({who:"router", t:at, html:`<p>This is a mockup, so nothing went to the fleet. In the real client the answer to your message lands here.</p>`, steps:[{k:"done", label:"Loomux answered", t:at}]});
+  }
+  if(cs.queued){ const q = cs.queued; cs.queued = null; cs.extra.push({who:"me", t:nowM(), text:q}); render(); startTurn(cid, "plain"); return; }
+  render();
+}
+function cancelTurn(cid){
+  const cs = S.cs[cid]; if(!cs.turn) return;
+  const kind = cs.turn.kind; cs.turn = null; clearInterval(paneTimers[cid]);
+  cs.extra.push({err:true, kind, t:nowM(), steps:[{k:"failr", label:"You cancelled the turn", t:nowM()}]});
+  render();
+}
+function paintPane(){ document.querySelectorAll("[data-pane]").forEach(el => { el.innerHTML = paneLines(el.dataset.pane); }); }
+function paneLines(cid){
+  const cs = S.cs[cid];
+  const lines = cs && cs.turn ? cs.turn.pane : (PANE_LAST[cid] || [["dim","No pane yet."]]);
+  if(!lines.length) return `<div class="dim">Waiting for the agent's first output…</div>`;
+  return lines.slice(-12).map(([c,t]) => `<div class="${c==="bad"?"hi":c}">${esc(t)}</div>`).join("");
+}
+
+// One answer path for each needs-you item, used by the inbox card, the thread and the weave.
+function answerOffer(v){
+  const o = S.inbox.offer; if(o.state !== "pending") return;
+  o.state = v; o.at = nowM();
+  const cs = S.cs.restart;
+  cs.extra.push({who:"me", t:o.at, text: v === "approved" ? "yes" : "no", steps:[{k:"ans", label: v === "approved" ? "Offer approved" : "Offer denied", t:o.at}]});
+  if(v === "approved") startTurn("restart", "cmd");
+  else cs.extra.push({who:"router", t:o.at, html:"<p>Okay, nothing was run. Ask again whenever you want the restart.</p>"});
+}
+function answerPrompt(v){
+  const p = S.inbox.prompt; if(p.state !== "pending") return;
+  p.state = "answered"; p.answer = v; p.at = nowM();
+  S.cs.ratelimit.extra.push({who:"me", t:p.at, text:v, steps:[{k:"ans", label:"You answered", t:p.at}]});
+  startTurn("ratelimit", "prompt");
+}
+
+// ---------- needs-you answer cards (inbox and thread share them) ----------
+function offerCard(dev, inThread){
+  const o = S.inbox.offer, running = !!S.cs.restart.turn;
+  if(o.state === "approved") return `<div class="resolved ok" role="status">${ic("check")}<div><b>Approved at ${hhmm(o.at)}.</b> ${running ? "Loomux is running it on kestrel now." : "It ran on kestrel."} ${inThread ? "" : `<span class="muted">${esc(CONVS.restart.title)}</span>`}</div></div>`;
+  if(o.state === "denied") return `<div class="resolved no" role="status">${ic("x")}<div><b>Denied: nothing was run.</b> ${inThread ? "" : `<span class="muted">${esc(CONVS.restart.title)}</span>`}</div></div>`;
+  if(o.state === "expired") return `<div class="resolved no" role="status">${ic("x")}<div><b>Expired: nothing was run.</b> Send the request again if you still want it.</div></div>`;
+  return `<section class="ask" aria-label="Confirmation">
+    <div class="ask-band">${ic("diamond")}Wants approval<span class="right tnum">expires in <span data-until="${o.exp}">${fmtCount(o.exp-Date.now())}</span></span></div>
+    <div class="ask-body">
+      <h3>Run this command on kestrel?</h3>
+      <pre class="cmd"><span class="p">$ </span>kubectl -n staging rollout restart deploy/ledger-api</pre>
+      <p class="ctx">Workspace infra-terraform, claude-code. kestrel is a work machine and asks before new work.${inThread ? "" : ` In <button class="linkish" data-act="open" data-arg="restart">${esc(CONVS.restart.title)}</button>, ${ago(870)} ago.`}</p>
+      <div class="ask-actions">
+        <button class="btn btn-approve" data-act="offer" data-arg="approved">${ic("check")}Approve</button>
+        <button class="btn btn-deny" data-act="offer" data-arg="denied">${ic("x")}Deny</button>
+      </div>
+    </div></section>`;
+}
+function promptCard(dev, inThread){
+  const p = S.inbox.prompt;
+  if(p.state !== "pending") return `<div class="resolved ok" role="status">${ic("check")}<div><b>Answered at ${hhmm(p.at)}: ${esc(p.answer)}.</b> ${S.cs.ratelimit.turn ? "claude-code is working again in ledger-api." : "claude-code carried on in ledger-api."}</div></div>`;
+  const opt = (n, t, d) => `<button class="opt" data-act="prompt" data-arg="${n}. ${esc(t)}"><b>${n}</b><span>${esc(t)}${d ? `<small>${esc(d)}</small>` : ""}</span></button>`;
+  return `<section class="ask" aria-label="Agent needs attention">
+    <div class="ask-band">${ic("diamond")}Asking you<span class="right">${ago(866)}</span></div>
+    <div class="ask-body">
+      <h3>claude-code wants to edit a file</h3>
+      <pre class="cmd">src/middleware/ratelimit.ts
+<span class="p">-</span> const limit = 20;
+<span class="p">+</span> const limit = Number(process.env.LEDGER_RATE_LIMIT ?? 20);</pre>
+      <p class="ctx">Do you want to make this edit?${inThread ? "" : ` ledger-api on atlas, in <button class="linkish" data-act="open" data-arg="ratelimit">${esc(CONVS.ratelimit.title)}</button>.`}</p>
+      <div class="opts">
+        ${opt(1,"Yes")}
+        ${opt(2,"Yes, and don't ask again this session")}
+        ${opt(3,"No","Tell claude-code what to do instead below")}
+      </div>
+      <form class="replyrow" data-form="i-reply">
+        <label class="vh" for="${dev}-${inThread?"t":"i"}-reply">Reply to the agent</label>
+        <input class="inp" id="${dev}-${inThread?"t":"i"}-reply" data-model="reply" value="${esc(S.drafts.reply)}" placeholder="Or tell it what to do instead…" autocomplete="off">
+        <button class="btn" type="submit">Reply</button>
+      </form>
+    </div></section>`;
+}
+function failedCard(inThread){
+  const f = S.inbox.failed;
+  if(f.state === "retrying") return `<div class="resolved ok" role="status">${ic("retry")}<div><b>Sent again at ${hhmm(f.at)}.</b> ${inThread ? "" : esc(CONVS.tf.title) + " is"} running on kestrel.</div></div>`;
+  return `<section class="ask" aria-label="Failed turn">
+    <div class="ask-band bad">${ic("tri")}Failed<span class="right">${ago(700)} ago</span></div>
+    <div class="ask-body">
+      <h3>claude-code hit its usage limit</h3>
+      <p>It resets at 5pm. Retry after that, or ask for the work on another agent.</p>
+      <details class="raw"><summary>Details</summary><pre class="cmd">agent_rate_limited: claude-code reported "5-hour limit reached | resets 5pm (Europe/Istanbul)"</pre></details>
+      ${inThread ? "" : `<p class="ctx">infra-terraform on kestrel, in <button class="linkish" data-act="open" data-arg="tf">${esc(CONVS.tf.title)}</button>.</p>`}
+      <div class="ask-actions"><button class="btn btn-primary" data-act="i-retry">${ic("retry")}Retry</button>${inThread ? "" : `<button class="btn btn-deny" data-act="open" data-arg="tf">Open conversation</button>`}</div>
+    </div></section>`;
+}
+function olderFold(){
+  const o = S.inbox.older;
+  if(o.snoozed) return `<p class="faint" style="font-size:13.5px;padding:0 2px">Snoozed until tomorrow: ${esc(CONVS.nb.title)}. <button class="linkish" data-act="unsnooze">Undo</button></p>`;
+  return `<div><button class="fold" data-act="older" aria-expanded="${o.open}">${ic("chevr")}Older, still waiting <span class="faint">1</span></button>
+    ${o.open ? `<div class="rows"><div class="row" style="cursor:default">${ic("diamondo","")}<div class="main"><div class="t">${esc(CONVS.nb.title)}</div><div class="s">claude-code is waiting for your reply in ml-notebook, since yesterday 16:25</div></div></div>
+      <div style="display:flex;gap:8px;padding:0 14px 14px 14px"><button class="btn btn-sm" data-act="open" data-arg="nb">Open</button><button class="btn btn-sm btn-deny" data-act="snooze">Snooze for a day</button></div></div>
+      <p class="faint" style="font-size:12.5px;margin-top:6px">Waiting items move here after a day. Snoozing only hides it on this device; the task still waits.</p>` : ""}</div>`;
+}
+function runningRows(){
+  return `<div class="rows">${runningList().map(x => `<button class="row" data-act="open" data-arg="${x.id}">${st("working","")}<div class="main"><div class="t">${esc(x.title)}</div><div class="s">${esc(x.stage)}</div></div><span class="end tnum" data-since="${x.since}">${fmtElapsed(Date.now()-x.since)}</span></button>`).join("")}</div>`;
+}
+function doneRows(){
+  return `<div class="rows"><button class="row" data-act="open" data-arg="backup">${st("done","")}<div class="main"><div class="t">${esc(CONVS.backup.title)}</div><div class="s">Answered by Loomux</div></div><span class="end">10:22</span></button></div>`;
+}
+
+// ---------- conversation: groups of messages, each with the stitches of its turn ----------
+const meMsg = (t, text) => `<div class="msg me"><div class="body"><div class="who">${t}</div><div class="bubble">${esc(text)}</div></div></div>`;
+const aiMsg = (who, t, html) => `<div class="msg">${glyph(who)}<div class="body"><div class="who"><b>${who==="cc"?"claude-code":"Loomux"}</b>${t}</div><div class="bubble">${html}</div></div></div>`;
+const cmdMsg = (t, where, cmd, out) => `<div class="msg cmdres">${glyph("cmd")}<div class="body"><div class="who"><b>Command on ${where}</b>${t}</div><div class="bubble"><div class="cap mono">${esc(cmd)}<span class="exit">exit 0</span></div><pre>${esc(out)}</pre></div></div></div>`;
+const step = (k, label, t) => ({k, label, t});
+
+function baseGroups(cid, dev){
+  const i = S.inbox;
+  if(cid === "ratelimit") return [
+    {id:"g1", t:782, steps:[step("route","Routed to atlas",782), step("prov","Set up ledger-api",783), step("turn","Agent turn, 12m 04s",783)], body:
+      meMsg("13:02","In ledger-api on atlas, have claude-code add rate limiting to the /transfers endpoint. 20 requests a minute per API key.") +
+      aiMsg("cc","13:15",`<p>Added a token-bucket limiter in <code>src/middleware/ratelimit.ts</code> and put it in front of the transfers route. A key over the limit gets a 429 with a <code>Retry-After</code> header.</p>
+    <pre><code><span class="tok-k">router</span>.post(<span class="tok-s">"/transfers"</span>,
+  rateLimit({ perKey: <span class="tok-n">20</span>, windowMs: <span class="tok-n">60_000</span> }),
+  createTransfer);</code></pre>
+    <p>The counters live in Postgres so the limit holds across all three API pods. That needs a new table: <code>migrations/0042_rate_limits.sql</code>.</p>`)},
+    {id:"g2", t:800, steps:[step("cmd","Command on atlas, exit 0",801)], body:
+      meMsg("13:20","Run the transfer tests") + cmdMsg("13:21","atlas","npm test -- transfers","PASS  test/transfers.ratelimit.test.ts (14 tests)\nPASS  test/transfers.test.ts (31 tests)\nTests: 45 passed, 45 total")},
+    {id:"g3", t:820, steps:[step("route","Routed to kestrel",820), step("ans","Offer approved",822), step("cmd","Command on kestrel, exit 0",823)], body:
+      meMsg("13:40","Apply the migration to staging") +
+      aiMsg("router","13:40",`<p>The staging database is only reachable from kestrel, so this runs in infra-terraform there. kestrel asks before new work.</p>`) +
+      `<div class="indent"><div class="resolved ok" role="status">${ic("check")}<div><b>Approved at 13:41.</b> <span class="mono" style="font-size:13px">psql "$LEDGER_STAGING_URL" -f migrations/0042_rate_limits.sql</span> on kestrel.</div></div></div>` +
+      cmdMsg("13:43","kestrel",'psql "$LEDGER_STAGING_URL" -f migrations/0042_rate_limits.sql',"BEGIN\nCREATE TABLE\nCREATE INDEX\nCOMMIT")},
+    {id:"g4", t:830, steps:[step("failr","Failed: couldn't reach atlas",830)], body:
+      meMsg("13:50","Add a load test for the limiter") +
+      `<div class="errcard" role="status"><div><b>Couldn't reach the machine: atlas didn't answer over SSH.</b> You retried it at 13:58.</div><details class="raw"><summary>Details</summary><pre class="cmd">target_unreachable: ssh: connect to host atlas.lab.example port 22: Connection timed out</pre></details></div>`},
+    {id:"g5", t:838, steps:[step("turn","Agent turn, 4m 12s",838), step("done","claude-code replied",842)], body:
+      `<div class="sys">${ic("retry")}You retried "Add a load test for the limiter".</div>` +
+      aiMsg("cc","14:02",`<p>Added <code>loadtest/transfers.js</code> (k6). At 25 requests a second from one key, 80% get a 429 after the first 20, as expected. Other keys are unaffected.</p>`)},
+    {id:"g6", t:860, steps:[step("turn","Agent turn, 6m",860), i.prompt.state === "pending" ? step("need","Asking you",866) : step("ans","You answered",i.prompt.at)], body:
+      meMsg("14:20","Make the limit configurable per environment, not hard-coded") +
+      aiMsg("router","14:26",`<p>claude-code stopped at a question in its terminal. Answer it here, or attach and answer it there.</p>`) +
+      `<div class="indent">${promptCard(dev, true)}</div>`},
+  ];
+  if(cid === "restart") return [
+    {id:"g1", t:869, steps:[step("route","Routed to kestrel",869), i.offer.state === "pending" ? step("need","Wants approval",870) : step("ans", i.offer.state === "approved" ? "Offer approved" : i.offer.state === "denied" ? "Offer denied" : "Offer expired", i.offer.at || 870)], body:
+      meMsg("14:29", CONVS.restart.preview) +
+      aiMsg("router","14:30",`<p>kestrel asks before new work, and this restarts a deployment. I'd like a yes first.</p>`) +
+      `<div class="indent">${offerCard(dev, true)}${i.offer.state === "pending" ? `<p class="note"><b>Prototype:</b> Approve to watch the turn run: stages, timer, Cancel, attach and the pane. The inbox card, this card and the weave's knot are one object.</p>` : ""}</div>`},
+  ];
+  if(cid === "tf") return [
+    {id:"g1", t:662, steps:[step("route","Routed to kestrel",662), step("turn","Agent turn, 37m",663), i.failed.state === "failed" ? step("fail","Failed: usage limit",700) : step("failr","Failed, then retried",700)], body:
+      meMsg("11:02", CONVS.tf.preview) + aiMsg("cc","11:38",`<p>Updated the lock file for aws 5.71 and kubernetes 2.33. Starting the plan…</p>`) +
+      `<div class="indent">${failedCard(true)}</div>`},
+  ];
+  if(cid === "changelog") return [
+    {id:"g1", t:857, steps:[step("route","Routed to this host",857), step("work","Working now",858)], body:
+      meMsg("14:17", CONVS.changelog.preview) +
+      `<section class="turn" role="status" aria-label="Turn in progress"><div class="turn-top">${st("working","Working")}<span class="el tnum" data-since="${NOW - 15*60e3 - 12e3}">${fmtElapsed(15*60e3+12e3)}</span></div>
+        <ol class="stages"><li class="done"><i></i>Queued</li><li class="done"><i></i>Deciding where this goes…</li><li class="now"><i></i>claude-code is working in blog-rewrite</li></ol>
+        <div class="turn-actions"><button class="btn btn-sm btn-deny" data-act="toast" data-arg="In the real client this cancels the turn">${ic("x")}Cancel</button></div></section>`},
+  ];
+  if(cid === "backup") return [
+    {id:"g1", t:620, steps:[step("done","Loomux answered directly",622)], body:
+      meMsg("10:20", CONVS.backup.preview) + aiMsg("router","10:22",`<p>Since 29 September the job also dumps the new <code>audit_events</code> table, which is 41 GB and growing. That table is most of the extra time. Excluding it, or dumping it weekly, brings the job back near 20 minutes.</p>`)},
+  ];
+  if(cid === "nb") return [
+    {id:"g1", t:970, steps:[step("route","Routed to atlas",970), step("needo","Waiting for your reply",985)], body:
+      meMsg("Yesterday 16:10", CONVS.nb.preview) + aiMsg("cc","Yesterday 16:25",`<p>There are 38 notebooks with saved outputs, 2.1 GB in all. Clear outputs older than 30 days, or all of them?</p>`)},
+  ];
+  const c = CONVS[cid];
+  return [{id:"g1", t:600, steps:[step("done","Finished",600)], body: meMsg("Yesterday", c.preview) + aiMsg(c.ws ? "cc" : "router","Yesterday",`<p>Done. The full answer is in this conversation's history.</p>`)}];
+}
+function groupsFor(cid, dev){
+  const cs = S.cs[cid], G = baseGroups(cid, dev);
+  cs.extra.forEach((x, n) => {
+    const t = hhmm(x.t || nowM());
+    let body;
+    if(x.err) body = `<div class="errcard" role="alert"><div><b>You cancelled this turn.</b> The agent's session is kept; attach to see where it stopped.</div><details class="raw"><summary>Details</summary><pre class="cmd">cancelled: dispatch cancelled by the user</pre></details><div><button class="btn btn-sm btn-primary" data-act="c-retry" data-arg="${x.kind}" ${cs.turn?"disabled":""}>${ic("retry")}Retry</button></div></div>`;
+    else if(x.who === "me") body = meMsg(t, x.text);
+    else if(x.who === "cmd") body = cmdMsg(t, "kestrel", x.cmd, x.out);
+    else body = aiMsg(x.who, t, x.html);
+    G.push({id:"x"+n, t:x.t, steps:x.steps || [], body});
+  });
+  if(cs.turn) G.push({id:"x-turn", t:nowM(), steps:[step("work","Working now",(cs.turn.since-NOW)/60000+NOW_M0)], body:turnCard(dev, cid)});
+  if(cs.queued) G.push({id:"x-q", t:nowM(), steps:[], body:`<div class="msg me queued"><div class="body"><div class="who">Sends when this turn finishes</div><div class="bubble">${esc(cs.queued)}</div><button class="linkish" style="font-size:13px" data-act="unqueue">Edit</button></div></div>`});
+  return G;
+}
+const stepLi = (cid, g, s) => `<li class="${stepCls(s.k)}">${si(s.k)}<button data-act="jump" data-arg="${cid}|${g.id}"><time>${hhmm(s.t)}</time>${esc(s.label)}</button></li>`;
+const istep = s => `<span class="${stepCls(s.k)}">${si(s.k)}${esc(s.label)}</span>`;
+function threadHTML(dev){
+  const cid = S.convId;
+  if(cid === "new") return `<div class="empty"><h2>Start a conversation</h2><p class="muted">Say what you want done and where. Loomux picks the machine and the agent, and asks you first when it should.</p>
+    <div class="chips">${["In ledger-api, have claude-code fix the failing transfer test","How much disk is free on atlas?","Clone the docs site onto this host"].map(t => `<button class="chip" data-act="example" data-arg="${esc(t)}">${esc(t)}</button>`).join("")}</div></div>`;
+  const G = groupsFor(cid, dev);
+  const all = G.flatMap(g => g.steps.map(s => ({g, s})));
+  let h = "";
+  if(dev === "p" && all.length) h += `<details class="steps"><summary>Turn steps <span class="faint" style="font-weight:500;margin-left:6px">${all.length}</span></summary><ol>${all.map(({g,s}) => `<li><button data-act="jump" data-arg="${cid}|${g.id}"><time>${hhmm(s.t)}</time>${si(s.k)}<span class="${stepCls(s.k)}">${esc(s.label)}</span></button></li>`).join("")}</ol></details>`;
+  h += G.map(g => {
+    const rail = dev === "d" ? `<ol class="mrail" aria-label="Steps of this turn">${g.steps.map(s => stepLi(cid, g, s)).join("")}</ol>` : "";
+    const inl = dev === "p" && g.steps.length ? `<div class="istep">${g.steps.map(istep).join("")}</div>` : "";
+    return `<div class="tgroup" data-anchor="${cid}-${g.id}">${rail}<div class="tg-body">${inl}${g.body}</div></div>`;
+  }).join("");
+  return h;
+}
+function attachBlock(dev){
+  const a = CONVS[S.convId] && CONVS[S.convId].attach;
+  if(!a) return `<p class="faint" style="font-size:13px">Loomux answered this one itself, so there's no agent session to attach to.</p>`;
+  return `<div class="attach"><code id="${dev}-attach">${esc(a)}</code><div class="row2"><button class="btn btn-sm" data-act="copy" data-arg="${dev}-attach">${ic("copy")}Copy</button><span>Paste into a terminal to watch or take over. Loomux runs its own tmux server, hence <span class="mono">-L loomux</span>.</span></div></div>`;
+}
+function turnCard(dev, cid){
+  const t = S.cs[cid].turn, stg = STAGES[t.kind];
+  const list = stg.map((s,i) => `<li class="${i<t.stage?"done":i===t.stage?"now":""}"><i></i>${esc(s)}</li>`).join("");
+  const sa = S.cs[cid].showAttach;
+  return `<section class="turn" role="status" aria-label="Turn in progress">
+    <div class="turn-top">${st("working","Working")}<span class="el tnum" data-since="${t.since}">${fmtElapsed(Date.now()-t.since)}</span></div>
+    <ol class="stages">${list}</ol>
+    ${dev==="p" && t.stage===2 && PANE_LIVE[t.kind] ? `<div class="pane-h">Pane <span class="live"><i class="pulse"></i>live</span></div><div class="pane" data-pane="${cid}" style="max-height:150px">${paneLines(cid)}</div><p class="note"><b>Live pane</b> needs an additive server endpoint; v1 today shows the last turn's capture.</p>` : ""}
+    <div class="turn-actions"><button class="btn btn-sm btn-deny" data-act="cancel">${ic("x")}Cancel</button><button class="btn btn-sm" data-act="toggle-attach" aria-expanded="${sa}">${ic("term")}${sa?"Hide attach command":"Attach command"}</button></div>
+    ${sa ? attachBlock(dev+"t") : ""}
+  </section>`;
+}
+function composer(dev){
+  const busy = !!(S.conv && S.conv.turn);
+  const hint = busy ? `<p class="comp-hint busy">${ic("info")}A turn is running. Keep writing; Send holds your message until the turn finishes.</p>`
+    : `<p class="comp-hint">${dev==="d" ? "Ctrl+Enter to send. Enter makes a new line." : "Return makes a new line. Tap Send when you're done."}</p>`;
+  const rows = Math.min(6, Math.max(1, (S.drafts.compose.match(/\n/g)||[]).length + 1));
+  return `<form class="composer" data-form="send">
+    <label class="vh" for="${dev}-compose">Message</label>
+    <div class="comp-row"><textarea id="${dev}-compose" rows="${rows}" data-model="compose" data-grow placeholder="Message the agent fleet…" enterkeyhint="enter">${esc(S.drafts.compose)}</textarea>
+    <button class="btn btn-primary" type="submit" ${S.drafts.compose.trim()?"":"disabled"}>${ic("send")}Send</button></div>${hint}</form>`;
+}
+function convHead(){
+  const cid = S.convId;
+  if(cid === "new") return {title:"New conversation", sub:`<span>Loomux picks where it runs</span>`};
+  const c = CONVS[cid], s = convStatus(cid);
+  return {title:c.title, sub:`${c.ws ? `<span>workspace: ${esc(c.ws)}</span><span class="faint">on ${esc(MACHINE_NAME[c.m])}</span>` : `<span>Answered by Loomux</span>`}${st(s)}`};
+}
+function jumpMenu(){
+  const cid = S.convId; if(cid === "new") return "";
+  const all = groupsFor(cid, "d").flatMap(g => g.steps.map(s => ({g, s})));
+  return `<div class="jump"><button class="btn btn-sm" data-act="jump-toggle" aria-expanded="${S.jumpOpen}">Jump to</button>${S.jumpOpen ? `<div class="jump-pop" role="menu">${all.map(({g,s}) => `<button role="menuitem" data-act="jump" data-arg="${cid}|${g.id}"><time>${hhmm(s.t)}</time>${si(s.k)}<span class="${stepCls(s.k)}">${esc(s.label)}</span></button>`).join("")}</div>` : ""}</div>`;
+}
+const TASKS = {
+  ratelimit:[["cc","claude-code in ledger-api","Started 13:03, 5 turns"],["cmd","Command in ledger-api","13:21, npm test -- transfers, exit 0"],["cmd","Command in infra-terraform on kestrel","13:43, psql migration, exit 0"]],
+  restart:[["cmd","Command in infra-terraform","Waits for your yes before it runs"]],
+  tf:[["cc","claude-code in infra-terraform","Started 11:03, 1 turn"]],
+  changelog:[["cc","claude-code in blog-rewrite","Started 14:17, 1 turn"]],
+  nb:[["cc","claude-code in ml-notebook","Started yesterday 16:10"]],
+  cold:[["cc","claude-code in ledger-api","Yesterday, 2 turns"]], certs:[["cc","claude-code in infra-terraform","Yesterday, 1 turn"]],
+};
+function contextHTML(dev){
+  const cid = S.convId, cs = S.cs[cid], running = !!(cs && cs.turn);
+  const tasks = (TASKS[cid] || []).map(([g, n, sub], k) => `<div class="task"><div class="top">${glyph(g,1)}<b>${esc(n)}</b>${k===0 && running ? st("working") : cid==="restart" ? (S.inbox.offer.state==="pending" ? st("approval","Waits for you") : S.inbox.offer.state==="approved" ? st("done","exit 0") : st("idle","Not run")) : g==="cmd" ? st("done","exit 0") : st("active","Attached")}</div><p class="faint" style="font-size:12.5px;margin-left:36px">${esc(sub)}</p><div class="acts">${g==="cc"?`<button class="btn btn-sm btn-quiet" data-act="toggle-attach">Attach command</button>`:""}<button class="btn btn-sm btn-quiet" data-act="toast" data-arg="Transcript opens here: each turn's message, final answer and pane">Transcript</button></div></div>`).join("");
+  return `
+  <div class="ctxsec"><h2>Pane</h2>
+    <div class="pane-h">${running ? `${cs.turn.kind==="cmd" ? "Command in infra-terraform" : "claude-code in ledger-api"} <span class="live"><i class="pulse"></i>live</span>` : `<span class="faint" style="font-weight:500">Captured at the end of the last turn</span>`}</div>
+    <div class="pane" data-pane="${cid}" style="height:${dev==="d"?"210px":"200px"}">${paneLines(cid)}</div>
+    <p class="note"><b>Live pane</b> needs an additive server endpoint; v1 today shows the last turn's capture.</p>
+  </div>
+  ${tasks ? `<div class="ctxsec"><h2>Tasks in this conversation</h2>${tasks}</div>` : ""}
+  <div class="ctxsec"><h2>Attach</h2>${attachBlock(dev+"c")}</div>`;
+}
+// ---------- machines ----------
+const tgt = id => S.targets.find(t => t.id === id);
+const relayEff = t => t.relay || (t.purpose === "work" ? "none" : "full");
+const RELAY = {
+  full:"The router's models see the agent's output, your messages and the running summary.",
+  last_message:"The router's models see only the agent's final message, never its screen.",
+  none:"Nothing from this machine reaches the router's models. Replies arrive as the agent wrote them, and notifications only say there's news.",
+};
+function dest(t){ return t.kind === "local" ? "This host" : `${t.user}@${t.host}${t.port && t.port !== 22 ? ":"+t.port : ""}`; }
+function policyList(t){
+  const li = (ok, txt) => `<li class="${ok?"yes":"no"}">${ic(ok?"check":"x")}<span>${esc(txt)}</span></li>`;
+  const perm = {"":"Each agent uses its own default for edits.", auto:"Agents act without asking (Auto).", "accept-edits":"Agents may edit files without asking (Accept edits).", manual:"Agents ask before every edit (Manual)."}[t.perm];
+  return `<ul class="plain">
+    <li>${ic("info")}<span>${t.purpose==="work" ? "Work machine: agents run under your work logins." : "Personal machine."}</span></li>
+    ${li(t.provision, t.provision ? "New workspaces may be created here." : "No new workspaces here.")}
+    ${li(t.shell, t.shell ? "Plain shell commands may run here." : "Plain shell commands are off.")}
+    ${li(true, t.agents.length ? "Only " + t.agents.join(", ") + " may run here." : "Any agent type may run here.")}
+    <li>${ic("info")}<span>${t.confirm ? "Asks you before starting new work." : "Starts work without asking."}</span></li>
+    <li>${ic("info")}<span>${perm}</span></li></ul>`;
+}
+function relayCtl(t){
+  const def = t.purpose === "work" ? "Default (Nothing, for work)" : "Default (Everything)";
+  const opts = [["",def],["full","Everything"],["last_message","Final answer only"],["none","Nothing"]];
+  return `<div class="seg" role="radiogroup" aria-label="What the router's models may see">${opts.map(([v,l]) => `<button role="radio" aria-checked="${t.relay===v}" data-act="relay" data-arg="${t.id}|${v}">${esc(l)}</button>`).join("")}</div>
+  <p class="relay-why">${RELAY[relayEff(t)]}</p>`;
+}
+function hostKey(t){
+  if(t.kind === "local") return "";
+  if(t.pinned) return `<div class="keybox ok"><h4>${ic("shield")}Host key pinned</h4><p class="muted">Loomux checks this machine against this key alone.</p><div class="key" style="cursor:default"><div><b>${t.pinned.type}</b><div class="fp">${t.pinned.fp}</div></div></div><div><button class="btn btn-sm btn-deny" data-act="unpin" data-arg="${t.id}">Unpin</button></div></div>`;
+  const sc = S.scan[t.id];
+  if(!sc) return `<div class="keybox"><h4>${ic("diamond")}Host key not pinned</h4><p>Loomux trusts whatever key your SSH config accepts for this machine. Scan it, compare the fingerprint with the one the machine reports itself, then pin it.</p><div><button class="btn btn-primary btn-sm" data-act="scan" data-arg="${t.id}">${ic("key")}Scan host key</button></div></div>`;
+  if(sc.busy) return `<div class="keybox"><h4>${ic("diamond")}Scanning ${esc(t.host)}…</h4><p class="muted">Reading the keys the machine offers. Nothing is trusted yet.</p></div>`;
+  if(sc.expired) return `<div class="keybox"><h4>${ic("diamond")}Scan expired</h4><p>A pin must come from a scan under 10 minutes old.</p><div><button class="btn btn-primary btn-sm" data-act="scan" data-arg="${t.id}">${ic("key")}Scan again</button></div></div>`;
+  const sel = sc.keys.find(k => k.type === sc.sel);
+  return `<div class="keybox"><h4>${ic("diamond")}Pick the key to pin</h4>
+    <p>Compare with the machine's own output: <span class="mono">ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</span></p>
+    <div class="keys" role="radiogroup" aria-label="Scanned host keys">${sc.keys.map(k => `<label class="key"><input type="radio" name="${t.id}-key" ${sc.sel===k.type?"checked":""} data-act="pick-key" data-arg="${t.id}|${k.type}"><div><b>${k.type}</b><div class="fp">${k.fp}</div></div></label>`).join("")}</div>
+    <label class="check"><input type="checkbox" ${sc.ok?"checked":""} data-act="key-ok" data-arg="${t.id}">I compared this fingerprint with the one the machine reports.</label>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary btn-sm" data-act="pin" data-arg="${t.id}" ${sel && sc.ok ? "" : "disabled"}>${ic("shield")}Pin ${sel ? sel.type : ""} key</button><span class="faint tnum" style="font-size:13px">Scan expires in <span data-until="${sc.exp}">${fmtCount(sc.exp-Date.now())}</span></span></div></div>`;
+}
+function healthBlock(t){
+  const h = t.health, tr = S.test[t.id];
+  const res = tr === "busy" ? `<span class="faint">Testing…</span>` : tr ? `<span class="st st-done">${ic("check")}Reachable, tmux ${t.id==="kestrel"?"3.5a":h.tmux}, ${t.id==="kestrel"?41:h.ms} ms</span>` : "";
+  return `<div class="facts"><div><span>Status</span><b>${h.reachable ? "Reachable" : "Unreachable"}</b></div><div><span>Latency</span><b>${h.ms} ms</b></div><div><span>tmux</span><b>${h.tmux}</b></div><div><span>Disk free</span><b>${h.disk}</b></div></div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-sm" data-act="test" data-arg="${t.id}" ${tr==="busy"?"disabled":""}>Test connection</button>${res}<span class="faint" style="font-size:12.5px">Checked ${h.at}</span></div>`;
+}
+function wsRows(t){
+  const ws = S.workspaces.filter(w => w.target === t.id);
+  if(!ws.length) return `<p class="faint">No workspaces yet. Ask for work on ${esc(t.name)} in a conversation and Loomux sets one up.</p>`;
+  return `<div>${ws.map(w => {
+    const acts = [];
+    if(w.st === "archived" || w.st === "broken") acts.push(`<button class="btn btn-sm" data-act="ws" data-arg="${w.id}|reopen">Reopen</button>`);
+    if(w.st === "idle" || w.st === "broken") acts.push(`<button class="btn btn-sm" data-act="ws" data-arg="${w.id}|archive">Archive</button>`);
+    if(w.st !== "provisioning") acts.push(`<button class="btn btn-sm btn-deny" data-act="ws" data-arg="${w.id}|delete">Delete</button>`);
+    const conf = S.wsConfirm === w.id ? `<div class="confirm" role="alert"><p>Delete ${esc(w.name)} and its tasks? The conversation history stays, and its files on the machine are kept.</p><div class="acts"><button class="btn btn-sm btn-danger" data-act="ws" data-arg="${w.id}|yes">Yes, delete</button><button class="btn btn-sm" data-act="ws" data-arg="${w.id}|keep">Keep</button></div></div>` : "";
+    return `<div class="ws"><div class="main"><b>${esc(w.name)}</b><span style="font-size:13px" class="muted">target: ${esc(t.name)}</span>${w.reason ? `<p class="faint" style="font-size:13px">${esc(w.reason)}</p>` : ""}</div>${st(w.st)}<div class="acts">${acts.join("")}</div>${conf}</div>`;
+  }).join("")}</div>`;
+}
+function targetDetail(t, dev){
+  const tc = S.tConfirm === t.id;
+  return `
+    <div class="sect"><h3>Connection</h3>${healthBlock(t)}</div>
+    ${t.kind !== "local" ? `<div class="sect"><h3>Host key</h3>${hostKey(t)}</div>` : ""}
+    <div class="sect"><h3>What Loomux may do here</h3>${policyList(t)}</div>
+    <div class="sect"><h3>What the router's models may see</h3>${relayCtl(t)}</div>
+    <div class="sect"><h3>Workspaces</h3>${wsRows(t)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" data-act="edit-target" data-arg="${t.id}">Edit target</button><button class="btn btn-sm btn-deny" data-act="del-target" data-arg="${t.id}">Delete target</button></div>
+    ${tc ? `<div class="confirm" role="alert"><p>${S.workspaces.some(w=>w.target===t.id) ? `Workspaces still use ${esc(t.name)}, so Loomux will refuse to delete it. Delete or move those first.` : `Delete ${esc(t.name)}?`}</p><div class="acts"><button class="btn btn-sm" data-act="del-target-keep">Keep</button></div></div>` : ""}`;
+}
+function targetForm(dev){
+  const f = S.form.v, isNew = S.form.mode === "new";
+  const fld = (k, label, attrs="", hint="") => `<div class="field"><label for="${dev}-f-${k}">${label}</label><input class="inp" id="${dev}-f-${k}" data-fmodel="${k}" value="${esc(f[k])}" ${attrs}>${hint?`<small>${hint}</small>`:""}</div>`;
+  const chk = (k, label) => `<label class="check"><input type="checkbox" data-fmodel="${k}" ${f[k]?"checked":""}>${label}</label>`;
+  return `<form class="form" data-form="target" aria-label="${isNew ? "Register target" : "Edit " + esc(f.name)}">
+    <h2 style="font-size:20px;font-weight:800">${isNew ? "Register a machine" : "Edit " + esc(f.name)}</h2>
+    ${fld("name","Name",'autocomplete="off"')}
+    <div class="field"><label for="${dev}-f-kind">Kind</label><select class="inp" id="${dev}-f-kind" data-fmodel="kind" data-rerender><option value="remote" ${f.kind==="remote"?"selected":""}>Remote, over SSH</option><option value="local" ${f.kind==="local"?"selected":""}>This host</option></select></div>
+    ${f.kind === "remote" ? `<div class="two">${fld("host","Host",'autocomplete="off" placeholder="build-01.lab.example"')}${fld("user","User",'autocomplete="off"')}</div>${fld("port","SSH port",'inputmode="numeric"',"Leave at 0 to use your SSH config's port.")}` : ""}
+    ${fld("root","Workspace root (optional)",'placeholder="/home/agent/loomux-workspaces"',"An absolute path. Empty means ~/loomux-workspaces.")}
+    <div class="field"><label for="${dev}-f-perm">How much agents may do without asking</label><select class="inp" id="${dev}-f-perm" data-fmodel="perm"><option value="">Each agent's default</option><option value="auto" ${f.perm==="auto"?"selected":""}>Auto: act without asking</option><option value="accept-edits" ${f.perm==="accept-edits"?"selected":""}>Accept edits: edit files, ask for the rest</option><option value="manual" ${f.perm==="manual"?"selected":""}>Manual: ask before every edit</option></select></div>
+    <fieldset><legend>Policy</legend>
+      <div class="field"><label for="${dev}-f-purpose">Purpose</label><select class="inp" id="${dev}-f-purpose" data-fmodel="purpose"><option value="personal">Personal</option><option value="work" ${f.purpose==="work"?"selected":""}>Work: agents run under your work logins</option></select></div>
+      ${fld("agents","Allowed agent types (optional)",'placeholder="all agent types"',"Comma-separated, e.g. claude-code, codex.")}
+      ${chk("provision","Allow new workspaces here")}${chk("shell","Allow plain shell commands here")}${chk("confirm","Ask me before starting new work here")}
+    </fieldset>
+    ${S.formErr ? `<p class="err" role="alert">${ic("tri")}${esc(S.formErr)}</p>` : ""}
+    <div class="acts"><button class="btn btn-primary" type="submit">${isNew ? "Register" : "Save changes"}</button><button class="btn" type="button" data-act="form-cancel">Cancel</button></div>
+  </form>`;
+}
+function tStatus(t){
+  if(t.kind !== "local" && !t.pinned) return st("approval","Pin host key");
+  return st("done","Healthy");
+}
+
+// ---------- vault ----------
+function scopeChips(c){
+  if(!c.ws && !c.agent) return `<span class="scope all">Every workspace and agent</span>`;
+  return (c.ws ? `<span class="scope">Workspace ${esc(c.ws)}</span>` : "") + (c.agent ? `<span class="scope">Agent ${esc(c.agent)}</span>` : "");
+}
+function vaultHTML(dev){
+  const add = S.vaultAdd ? `<form class="form tcard" style="padding:16px" data-form="v-add" aria-label="Add credential">
+      <h2 style="font-size:18px;font-weight:800">Add credential</h2>
+      <div class="field"><label for="${dev}-v-name">Name (environment variable)</label><input class="inp mono" id="${dev}-v-name" data-model="vName" value="${esc(S.drafts.vName)}" placeholder="GITHUB_TOKEN" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label for="${dev}-v-val">Value</label><input class="inp" id="${dev}-v-val" type="password" autocomplete="new-password"><small>You won't see it again after saving. You can replace it later.</small></div>
+      <div class="two" style="display:grid;grid-template-columns:${dev==="p"?"1fr":"1fr 1fr"};gap:12px">
+        <div class="field"><label for="${dev}-v-ws">Only for workspace (optional)</label><select class="inp" id="${dev}-v-ws" data-model="vWs"><option value="">Any workspace</option>${S.workspaces.map(w => `<option ${S.drafts.vWs===w.name?"selected":""}>${esc(w.name)}</option>`).join("")}</select></div>
+        <div class="field"><label for="${dev}-v-agent">Only for agent type (optional)</label><input class="inp" id="${dev}-v-agent" data-model="vAgent" value="${esc(S.drafts.vAgent)}" placeholder="claude-code" autocomplete="off"></div>
+      </div>
+      ${S.vaultErr ? `<p class="err" role="alert">${ic("tri")}${esc(S.vaultErr)}</p>` : ""}
+      <div class="acts"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" data-act="v-cancel">Cancel</button></div></form>`
+    : `<div><button class="btn btn-primary" data-act="v-add">${ic("plus")}Add credential</button></div>`;
+  const rows = S.creds.map(c => {
+    let extra = "";
+    if(S.replacing === c.id) extra = `<form class="replyrow" data-form="v-replace" data-arg="${c.id}" aria-label="New value for ${esc(c.name)}"><label class="vh" for="${dev}-nv-${c.id}">New value</label><input class="inp" type="password" id="${dev}-nv-${c.id}" autocomplete="new-password" placeholder="New value"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" data-act="v-rcancel">Cancel</button></form>`;
+    else if(S.deleting === c.id) extra = `<div class="confirm" role="alert"><p>Agents that start after this won't get ${esc(c.name)}.</p><div class="acts"><button class="btn btn-sm btn-danger" data-act="v-del-yes" data-arg="${c.id}">Delete ${esc(c.name)}</button><button class="btn btn-sm" data-act="v-dcancel">Keep</button></div></div>`;
+    return `<div class="cred"><div class="top"><span class="name">${esc(c.name)}</span><span class="lock">${ic("lock")}Value hidden</span></div><div class="chips">${scopeChips(c)}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="faint" style="font-size:13px;flex:1">Updated ${esc(c.upd)}</span><div class="acts"><button class="btn btn-sm" data-act="v-replace" data-arg="${c.id}">Replace value</button><button class="btn btn-sm btn-deny" data-act="v-del" data-arg="${c.id}">Delete</button></div></div>${extra}</div>`;
+  }).join("");
+  return `<p class="muted" style="max-width:62ch">Secrets your agents get as environment variables when they start. Values are write-only: you can replace or delete one, never read it back.</p>${add}
+    <div class="rows" style="cursor:default">${rows || `<p style="padding:16px" class="muted">No credentials yet.</p>`}</div>`;
+}
+
+// ---------- settings / login ----------
+function settingsHTML(){
+  return `<div class="sect"><h3>Devices signed in</h3><div>${S.devices.map(d => `<div class="dev"><div class="main"><b>${esc(d.name)}</b><span class="faint" style="font-size:13px">${esc(d.sub)}</span></div>${d.cur ? `<span class="faint" style="font-size:13px">This device</span>` : `<button class="btn btn-sm btn-deny" data-act="dev-out" data-arg="${d.id}">Log out</button>`}</div>`).join("")}</div></div>
+  <div class="sect"><h3>Web client</h3><p class="muted" style="font-size:14px">Running v0.4.0, installed from the server image. Up to date.</p></div>
+  <div class="sect"><h3>Theme</h3><p class="muted" style="font-size:14px">Follows your device. Change it in the prototype bar above.</p></div>
+  <div><button class="btn btn-deny" data-act="logout">${ic("out")}Log out</button></div>`;
+}
+function loginHTML(dev){
+  const L = S.login;
+  return `<div class="login">${dev==="d" ? `<svg class="mark" viewBox="0 0 24 24" aria-hidden="true" style="--sh-hole:var(--ground)">${P.shuttle}</svg>` : ""}
+    <form class="login-card" data-form="login">
+      <h1><span class="gl gl-router" style="--sh-hole:var(--ink)">${ic("shuttle")}</span>Loomux</h1>
+      ${L.back ? `<p class="back-to">You'll go back to: <b>${esc(L.back)}</b></p>` : ""}
+      <div class="field"><label for="${dev}-pw">Password</label><input class="inp" id="${dev}-pw" type="password" autocomplete="current-password"></div>
+      ${L.err ? `<p class="err" role="alert">${ic("tri")}${esc(L.err)}</p>` : ""}
+      <button class="btn btn-primary" type="submit" ${L.busy?"disabled":""}>${L.busy ? "Logging in…" : "Log in"}</button>
+      <p class="note"><b>Prototype:</b> the password is <span class="mono">loom</span>. Anything else shows the error.</p>
+    </form></div>`;
+}
+
+// ---------- the weave ----------
+const NEED_ITEM = {restart:"restart", ratelimit:"ratelimit", tf:"tf", nb:"nb"};
+function dayAxis(day){ return day === "today" ? [480, Math.max(900, Math.ceil((nowM()+12)/30)*30)] : [480, 1200]; }
+function markShape(m, x, y, pulse){
+  const k = m.k;
+  if(k === "need") return `<g class="${pulse?"pulse1":""}"><circle class="k-ring" cx="${x}" cy="${y}" r="10"/><path class="k-need" d="M${x} ${y-8}l8 8-8 8-8-8z"/></g>`;
+  if(k === "needo") return `<path class="k-need-o" d="M${x} ${y-7}l7 7-7 7-7-7z"/>`;
+  if(k === "fail") return `<circle class="k-xbg" cx="${x}" cy="${y}" r="8"/><path class="k-x" d="M${x-5} ${y-5}l10 10M${x+5} ${y-5}l-10 10"/>`;
+  if(k === "failr") return `<circle class="k-xbg" cx="${x}" cy="${y}" r="6"/><path class="k-xdone" d="M${x-3.5} ${y-3.5}l7 7M${x+3.5} ${y-3.5}l-7 7"/>`;
+  if(k === "done") return `<rect class="k-done" x="${x-4.5}" y="${y-4.5}" width="9" height="9" rx="2"/>`;
+  if(k === "cmd") return `<rect class="k-cmd" x="${x-4.5}" y="${y-4.5}" width="9" height="9" rx="2"/>`;
+  if(k === "ans") return `<path class="k-ans" d="M${x} ${y-6}l6 6-6 6-6-6z"/>`;
+  if(k === "prov") return `<path class="k-prov" d="M${x} ${y-5}v10M${x-5} ${y}h10"/>`;
+  return `<circle class="k-route" cx="${x}" cy="${y}" r="3.5"/>`;
+}
+function weaveSVG(W, day){
+  const labelW = 188, top = 34, laneH = 34, gap = 12, right = 22;
+  const [start, end] = dayAxis(day), now = nowM(), isToday = day === "today";
+  const X = t => labelW + (Math.max(start, Math.min(end, t)) - start) / (end - start) * (W - labelW - right);
+  const L = {}; let y = top, prev = null;
+  LANES.forEach((l, i) => { if(i > 0 && l.m !== prev) y += gap; prev = l.m; L[l.id] = {...l, top:y, y:y + laneH/2, first: i === 0 || LANES[i-1].m !== l.m}; y += laneH; });
+  const H = y + 6;
+  const threads = isToday ? todayThreads() : yesterdayThreads();
+  let s = `<svg class="wv" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="group" aria-label="${isToday ? "Today" : "Yesterday"} from 08:00 to ${isToday ? "now" : "20:00"}: one lane per workspace, grouped by machine. Marigold diamonds are waiting on you. Use Tab to reach a stitch and the arrow keys to move along a lane.">`;
+  Object.values(L).forEach(l => {
+    s += `<rect class="band${l.dim ? " dim" : ""}" x="${labelW - 10}" y="${l.top + 3}" width="${W - labelW + 10 - right + 12}" height="${laneH - 6}" rx="7"/>`;
+    if(l.first && l.m) s += `<text class="m" x="0" y="${l.y + 4}">${esc(MACHINE_NAME[l.m])}</text>`;
+    s += `<text class="w${l.dim ? " dim" : ""}" x="${l.id === "router" ? 0 : 76}" y="${l.y + 4}">${esc(l.name || l.id)}</text>`;
+  });
+  for(let m = start; m <= end; m += 15){
+    const x = X(m).toFixed(1);
+    s += `<line class="warp${m % 60 === 0 ? " hr" : ""}" x1="${x}" x2="${x}" y1="${top - 4}" y2="${H - 4}"/>`;
+    if(m % 60 === 0) s += `<text class="h" x="${x}" y="14" text-anchor="middle">${hhmm(m)}</text>`;
+  }
+  const ly = (th, lane) => L[lane].y + (lane === "router" ? 0 : (th.dy || 0));
+  threads.forEach(th => {
+    const p = th.path, endT = Math.min(th.end, isToday ? now : end);
+    let d, x0 = X(p[0][0]);
+    if(th.edge || p[0][1] === "router") d = `M${x0.toFixed(1)} ${ly(th, p[0][1])}`;
+    else { const ry = L.router.y; x0 = X(p[0][0] - 8); const x1 = X(p[0][0]), xm = (x0 + x1)/2; d = `M${x0.toFixed(1)} ${ry} C${xm.toFixed(1)} ${ry} ${xm.toFixed(1)} ${ly(th,p[0][1])} ${x1.toFixed(1)} ${ly(th,p[0][1])}`; }
+    for(let k = 1; k < p.length; k++){
+      const [t, lane] = p[k], ya = ly(th, p[k-1][1]), yb = ly(th, lane), xa = X(t - 2), xb = X(t + 3), xm = (xa + xb)/2;
+      d += ` H${xa.toFixed(1)} C${xm.toFixed(1)} ${ya} ${xm.toFixed(1)} ${yb} ${xb.toFixed(1)} ${yb}`;
+    }
+    d += ` H${X(endT).toFixed(1)}`;
+    s += `<g class="thread${S.hl === th.conv ? " hl" : ""}" data-act="open" data-arg="${th.conv}"><title>${esc(CONVS[th.conv].title)}</title><path class="weft" d="${d}"/>`;
+    th.spans.forEach(([a, b, lane]) => { const xa = X(a), xb = Math.max(xa + 1, X(Math.min(b, isToday ? now : end))); s += `<line class="span" x1="${xa.toFixed(1)}" x2="${xb.toFixed(1)}" y1="${ly(th,lane)}" y2="${ly(th,lane)}"/>`; });
+    s += `</g>`;
+    if(th.wait){ const yy = ly(th, th.wait.lane); s += `<line class="wait" x1="${X(th.wait.from).toFixed(1)}" x2="${X(isToday ? now : end).toFixed(1)}" y1="${yy}" y2="${yy}"/>`; }
+    if(th.edge){ s += `<text class="edge" x="${X(start) + 4}" y="${ly(th, th.wait.lane) - 8}">Waiting for your reply ${esc(th.edge)}</text>`; }
+  });
+  threads.forEach(th => {
+    th.marks.forEach(m => {
+      const x = +X(m.t).toFixed(1), yy = ly(th, m.lane);
+      const waiting = (m.k === "need" || m.k === "fail" || m.k === "needo") && isToday ? `, waiting ${ago(m.t)}` : "";
+      const tip = `${hhmm(m.t)} ${m.label}${waiting}`;
+      s += `<g class="st-g" tabindex="0" role="button" data-act="stitch" data-arg="${th.conv}|${m.anchor}" data-lane="${LANES.findIndex(l => l.id === m.lane)}" data-t="${m.t}" data-tip="${esc(tip)}" data-sub="${esc(CONVS[th.conv].title)}" aria-label="${esc(tip)}. ${esc(CONVS[th.conv].title)}. Open the conversation at this turn.">
+        <circle class="k-hit" cx="${x}" cy="${yy}" r="11"/><circle class="halo" cx="${x}" cy="${yy}" r="11"/>${markShape(m, x, yy, S.pulse)}</g>`;
+    });
+    if(th.running && isToday){ const x = X(now), yy = ly(th, th.running);
+      s += `<g class="st-g" tabindex="0" role="button" data-act="open" data-arg="${th.conv}" data-lane="${LANES.findIndex(l => l.id === th.running)}" data-t="${now}" data-tip="${esc("Working now in " + th.running)}" data-sub="${esc(CONVS[th.conv].title)}" aria-label="Working now: ${esc(CONVS[th.conv].title)}"><circle class="halo" cx="${x}" cy="${yy}" r="12"/><path class="shut" d="M${x-13} ${yy}c4-5 8.5-7 13-7s9 2 13 7c-4 5-8.5 7-13 7s-9-2-13-7z"/><rect class="shut-hole" x="${x-4.5}" y="${yy-1.6}" width="9" height="3.2" rx="1.6"/></g>`; }
+  });
+  if(isToday){ const xn = X(now).toFixed(1); s += `<line class="nowline" x1="${xn}" x2="${xn}" y1="${top - 12}" y2="${H - 2}"/><text class="nowlbl" x="${xn}" y="28" text-anchor="middle">now ${hhmm(now)}</text>`; }
+  return s + `</svg>`;
+}
+function legend(){
+  const sw = inner => `<svg viewBox="0 0 22 14" aria-hidden="true">${inner}</svg>`;
+  return `<div class="legend" aria-label="Legend">
+    <span>${sw('<path d="M11 0.5l6.5 6.5L11 13.5 4.5 7z" fill="var(--mari)"/>')}Waiting on you</span>
+    <span>${sw('<path d="M2 7h18" stroke="var(--mari)" stroke-width="2" stroke-dasharray="3 3"/>')}How long it has waited</span>
+    <span>${sw('<path d="M6.5 2.5l9 9M15.5 2.5l-9 9" stroke="var(--bad)" stroke-width="3" stroke-linecap="round"/>')}Failed</span>
+    <span>${sw('<path d="M3 7h16" stroke="var(--accent)" stroke-width="7" stroke-linecap="round"/>')}Agent or command working</span>
+    <span>${sw('<path d="M1 7h20" stroke="var(--ink-3)" stroke-width="2"/>')}Conversation between turns</span>
+    <span>${sw('<path d="M2 7c3-4 6-5.5 9-5.5s6 1.5 9 5.5c-3 4-6 5.5-9 5.5S5 11 2 7z" fill="var(--accent)"/><rect x="8" y="6" width="6" height="2" rx="1" fill="var(--surface)"/>')}Working now</span>
+    <span>${sw('<rect x="6.5" y="2.5" width="9" height="9" rx="2" fill="var(--ink-3)"/>')}Replied</span>
+    <span>${sw('<rect x="6.5" y="2.5" width="9" height="9" rx="2" fill="var(--surface)" stroke="var(--ink-2)" stroke-width="1.6"/>')}Command</span>
+    <span>${sw('<path d="M11 1.5l5.5 5.5L11 12.5 5.5 7z" fill="var(--surface)" stroke="var(--ink-3)" stroke-width="1.8"/>')}Answered</span></div>`;
+}
+
+// Desktop inbox: the day compressed to one row per machine.
+function dayStripSVG(W){
+  const [start, end] = dayAxis("today"), now = nowM(), lab = 64, rowH = 14, gapY = 4;
+  const X = t => lab + (Math.max(start, Math.min(end, t)) - start) / (end - start) * (W - lab - 8);
+  const rows = ["atlas","kestrel","local"], T = todayThreads();
+  let s = `<svg class="ds" viewBox="0 0 ${W} 60" width="100%" height="60" role="group" aria-label="Today on each machine. Diamonds are waiting on you; select one to show it in the inbox.">`;
+  rows.forEach((m, r) => {
+    const y = r * (rowH + gapY), cy = y + rowH/2;
+    s += `<text class="ml" x="0" y="${cy + 4}">${esc(MACHINE_NAME[m])}</text><rect class="row" x="${lab - 4}" y="${y}" width="${W - lab - 2}" height="${rowH}" rx="7"/>`;
+    T.forEach(th => {
+      th.spans.forEach(([a, b, lane]) => { if(laneOf(lane).m === m) s += `<line class="span" x1="${X(a).toFixed(1)}" x2="${Math.max(X(a)+1, X(Math.min(b, now))).toFixed(1)}" y1="${cy}" y2="${cy}"/>`; });
+      if(th.wait && laneOf(th.wait.lane).m === m && !th.edge) s += `<line class="wait" x1="${X(th.wait.from).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="${cy}" y2="${cy}"/>`;
+    });
+    T.forEach(th => th.marks.filter(k => k.need && laneOf(k.lane).m === m).forEach(k => {
+      const x = X(k.t).toFixed(1), item = NEED_ITEM[k.need], tip = `${hhmm(k.t)} ${k.label}, waiting ${ago(k.t)}`;
+      s += `<g class="knotbtn${S.sel === item ? " sel" : ""}" tabindex="0" role="button" data-act="dsknot" data-arg="${item}" data-tip="${esc(tip)}" data-sub="${esc(CONVS[th.conv].title)}" aria-label="${esc(tip)}. Show it in the inbox."><circle class="halo" cx="${x}" cy="${cy}" r="9"/>${k.k === "fail" ? `<path class="k-x" d="M${x-4.5} ${cy-4.5}l9 9M${+x+4.5} ${cy-4.5}l-9 9"/>` : `<path class="k-need" d="M${x} ${cy-7}l7 7-7 7-7-7z"/>`}</g>`;
+    }));
+  });
+  const xn = X(now).toFixed(1);
+  s += `<line class="nowline" x1="${xn}" x2="${xn}" y1="0" y2="${3*(rowH+gapY)-gapY}"/>`;
+  for(let m = start; m <= end; m += 120) s += `<text class="ml" x="${X(m).toFixed(1)}" y="58" text-anchor="middle" style="font-weight:400">${hhmm(m)}</text>`;
+  return s + `</svg>`;
+}
+function dayStrip(){
+  const n = needsCount();
+  return `<div class="daystrip weave-wrap"><div class="ds-lbl"><b>Today</b><span>${n} waiting, ${runningList().length} working</span></div>
+    <div class="ds-svg">${dayStripSVG(760)}</div>
+    <button class="btn btn-sm ds-open" data-act="nav" data-arg="today">${ic("chevr")}Open Today</button>
+    <p class="note"><b>New in the merge:</b> day strip, opens Today</p></div>`;
+}
+// Phone inbox: the whole fleet in one 24 px row.
+function phoneStrip(){
+  const [start, end] = dayAxis("today"), now = nowM(), W = 330;
+  const X = t => 6 + (Math.max(start, Math.min(end, t)) - start) / (end - start) * (W - 12);
+  const T = todayThreads();
+  let s = `<svg viewBox="0 0 ${W} 24" preserveAspectRatio="none" aria-hidden="false" role="group" aria-label="Today across the fleet">`;
+  s += `<rect x="0" y="8" width="${W}" height="8" rx="4" fill="var(--surface-2)"/>`;
+  T.forEach(th => th.spans.forEach(([a, b]) => { s += `<line x1="${X(a).toFixed(1)}" x2="${Math.max(X(a)+1.5, X(Math.min(b, now))).toFixed(1)}" y1="12" y2="12" stroke="var(--accent)" stroke-width="5" stroke-linecap="round"/>`; }));
+  T.forEach(th => th.marks.filter(k => k.need).forEach(k => {
+    const x = X(k.t).toFixed(1), item = NEED_ITEM[k.need];
+    s += `<g data-act="dsknot" data-arg="${item}" tabindex="0" role="button" aria-label="${esc(k.label)}" style="cursor:pointer"><rect x="${x-9}" y="0" width="18" height="24" fill="transparent"/>${k.k === "fail" ? `<path d="M${x-4} ${8}l8 8M${+x+4} ${8}l-8 8" stroke="var(--bad)" stroke-width="2.6" stroke-linecap="round"/>` : `<path d="M${x} 5l7 7-7 7-7-7z" fill="var(--mari)" stroke="var(--surface)" stroke-width="1.2"/>`}</g>`;
+  }));
+  s += `<line x1="${X(now).toFixed(1)}" x2="${X(now).toFixed(1)}" y1="2" y2="22" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 2"/>`;
+  return `<div class="pstrip" role="link" tabindex="0" data-act="nav" data-arg="today" aria-label="Open Today">
+    <div class="top"><b>Today</b><span>08:00</span><span>now ${hhmm(now)}</span></div>${s}</svg>
+    <p class="note"><b>New in the merge:</b> day strip. Tap it to open Today; tap a diamond to jump to its card.</p></div>`;
+}
+
+// Phone Today: the same day as a vertical timeline, newest first.
+const LANE_COLOR = {"ledger-api":"var(--lane-1)", "infra-terraform":"var(--lane-2)", "blog-rewrite":"var(--lane-3)", "ml-notebook":"var(--lane-4)", router:"var(--ink-3)"};
+function vTimeline(day){
+  const isToday = day === "today", T = isToday ? todayThreads() : yesterdayThreads();
+  const clusters = [];
+  T.forEach(th => {
+    const by = {};
+    th.marks.forEach(m => { const key = m.anchor === "x-end" ? "g-late" : m.anchor; (by[key] = by[key] || []).push(m); });
+    Object.values(by).forEach(ms => clusters.push({conv:th.conv, ms, t:Math.max(...ms.map(m => m.t)), lane:ms[ms.length-1].lane, anchor:ms[0].anchor}));
+    if(th.running && isToday) clusters.push({conv:th.conv, ms:[{k:"work", label:`Working now in ${th.running}`, t:nowM()}], t:nowM(), lane:th.running, anchor:"x-turn", work:true});
+    if(th.edge && isToday) clusters.push({conv:th.conv, ms:[{k:"needo", label:`Waiting for your reply ${th.edge}`, t:480, need:"nb"}], t:479, lane:th.wait.lane, anchor:"g1", edge:true});
+  });
+  clusters.sort((a, b) => b.t - a.t);
+  const pri = ["need","fail","needo","work","failr","ans","cmd","done","prov","route"];
+  return `<div class="vt">${isToday ? `<div class="vt-now"><span class="tnum">${hhmm(nowM())}</span><i></i></div>` : ""}${clusters.map(c => {
+    const top = pri.find(k => c.ms.some(m => m.k === k)) || "route", need = c.ms.some(m => m.need && (m.k === "need" || m.k === "fail" || m.k === "needo"));
+    const ln = laneOf(c.lane), last = c.ms[c.ms.length-1];
+    return `<button class="vt-row" data-act="stitch" data-arg="${c.conv}|${c.anchor}"><time>${c.edge ? "Yest." : hhmm(c.t)}</time><span class="ln">${si(top)}</span>
+      <span class="vt-card${need ? " need" : ""}"><span class="t">${esc(CONVS[c.conv].title)}</span><span class="what">${esc(last.label)}</span>
+      <span class="lanechip" style="--lc:${LANE_COLOR[c.lane] || "var(--ink-3)"}"><i></i><span>${c.lane === "router" ? "Answered by Loomux" : `${esc(c.lane)} on ${esc(MACHINE_NAME[ln.m])}`}</span></span>
+      ${c.ms.length > 1 ? `<span class="vt-steps">${c.ms.slice(0,-1).map(m => `<span>${si(m.k)}${esc(m.label)}</span>`).join("")}</span>` : ""}</span></button>`;
+  }).join("")}</div>`;
+}
+
+// All conversations (Today's list half; replaces the old Conversations section).
+function convList(dev){
+  const f = S.filter, q = S.search.trim().toLowerCase();
+  const groups = {all:null, you:["approval","asking","waiting","failed"], running:["working"], done:["done"]};
+  const ids = Object.keys(CONVS).filter(id => {
+    const c = CONVS[id], s = convStatus(id);
+    if(groups[f] && !groups[f].includes(s)) return false;
+    return !q || (c.title + " " + c.preview + " " + c.ws + " " + (MACHINE_NAME[c.m]||"")).toLowerCase().includes(q);
+  });
+  const rank = {approval:0, asking:0, failed:1, waiting:2, working:3, done:4};
+  ids.sort((a, b) => (rank[convStatus(a)] - rank[convStatus(b)]) || ((typeof convTime(b) === "number" ? convTime(b) : 0) - (typeof convTime(a) === "number" ? convTime(a) : 0)));
+  const chip = (k, l) => `<button class="chip" data-act="filter" data-arg="${k}" aria-pressed="${f===k}">${l}</button>`;
+  const tm = id => { const t = convTime(id); return typeof t === "number" ? (convStatus(id) === "working" ? "now" : hhmm(t)) : t; };
+  return `<div class="searchrow"><label class="vh" for="${dev}-search">Search conversations</label><input class="inp" id="${dev}-search" type="search" data-search placeholder="Search conversations" value="${esc(S.search)}" autocomplete="off">
+    <div class="chips">${chip("all","All")}${chip("you","Needs you")}${chip("running","Working")}${chip("done","Done")}</div></div>
+    <div class="rows">${ids.map(id => `<button class="row convrow" data-act="open" data-arg="${id}"><div class="main"><div class="t">${esc(CONVS[id].title)}</div><div class="pv">${esc(CONVS[id].preview)}</div><div class="meta2">${st(convStatus(id))}<span>${esc(where(id))}</span></div></div><span class="end tnum">${esc(tm(id))}</span></button>`).join("") || `<p style="padding:16px" class="muted">No conversations match. Clear the search or pick another filter.</p>`}</div>`;
+}
+function dayPick(dev){
+  const today = S.day === "today";
+  return `<div class="daypick" role="group" aria-label="Day"><button data-act="day" data-arg="yesterday" aria-pressed="${!today}">${ic("chevl")}Yesterday</button><button data-act="day" data-arg="today" aria-pressed="${today}">Today</button><span class="date">${today ? "Wed 7 Oct" : "Tue 6 Oct"}</span></div>`;
+}
+function todaySummary(){
+  if(S.day !== "today") return "4 conversations. One is still waiting for your reply.";
+  return `${needsCount()} waiting on you, ${runningList().length} working, 1 answered directly.`;
+}
+
+// ---------- phone ----------
+const SB = `<div class="sb" aria-hidden="true"><span class="tnum">9:41</span><span>5G ▮▮▮ 82%</span></div>`;
+function tabs(cur){
+  const n = needsCount();
+  const t = (k, label, icon, extra="") => `<button class="tab" data-act="tab" data-arg="${k}" ${cur===k?'aria-current="page"':""}><span class="tpill">${icon}</span>${label}${extra}</button>`;
+  const todayIc = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity=".45"/><path d="M3 9.5c5 0 5 5 9 5s4-7 9-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+  return `<nav class="tabs" aria-label="Main">${t("inbox","Inbox",ic("inbox"), n ? `<span class="badge" aria-label="${n} need you">${n}</span>` : "")}${t("today","Today",todayIc)}${t("machines","Machines",ic("server"))}${t("more","More",ic("more"))}</nav>`;
+}
+function pSheet(){
+  const s = S.ui.p.sheet; if(!s) return "";
+  let inner = "";
+  if(s === "more") inner = `<div class="grab"></div><div class="menu"><button data-act="nav" data-arg="vault">${ic("key")}Vault</button><button data-act="sheet" data-arg="settings">${ic("gear")}Settings and devices</button><button data-act="logout">${ic("out")}Log out</button></div>`;
+  if(s === "settings") inner = `<div class="grab"></div><h2>Settings</h2>${settingsHTML()}`;
+  if(s === "context") inner = `<div class="grab"></div><h2>About this conversation</h2><div style="margin:0 -16px">${contextHTML("p")}</div>`;
+  if(s === "form") return `<div class="sheet-wrap"><div class="sheet full" role="dialog" aria-label="Machine form"><div style="height:28px"></div>${targetForm("p")}</div></div>`;
+  return `<div class="sheet-wrap"><button class="scrim" data-act="sheet-close" aria-label="Close"></button><div class="sheet" role="dialog">${inner}</div></div>`;
+}
+const toastHTML = () => S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "";
+const selWrap = (id, html) => `<div data-selid="${id}">${html}</div>`;
+function inboxCards(dev){
+  const n = needsCount();
+  const wrap = dev === "d" ? (id, html) => `<div data-selid="${id}" data-act="sel" data-arg="${id}" style="border-radius:20px;${S.sel===id?"outline:2px solid var(--accent);outline-offset:3px":""}">${html}</div>` : selWrap;
+  return `<h2 class="sec-h">Needs you <span class="faint">${n}</span></h2>
+    ${wrap("restart", offerCard(dev))}${wrap("ratelimit", promptCard(dev))}${wrap("tf", failedCard())}
+    ${olderFold()}
+    <h2 class="sec-h">Running <span class="faint">${runningList().length}</span></h2>${runningRows()}
+    <h2 class="sec-h">Done today</h2>${doneRows()}`;
+}
+function phoneApp(){
+  const scr = S.screen;
+  if(scr === "login") return SB + loginHTML("p") + toastHTML();
+  if(scr === "conversation"){
+    const h = convHead();
+    return SB + `<header class="t-head"><button class="iconbtn" data-act="back" aria-label="Back">${ic("chevl")}</button><div class="ttl"><h1>${esc(h.title)}</h1><div class="sub">${h.sub}</div></div>${S.convId!=="new" ? `<button class="btn btn-sm btn-quiet" data-act="sheet" data-arg="context">Details</button>` : ""}</header>
+      <div class="scroll" data-sk="thread"><div class="thread">${threadHTML("p")}</div></div>${composer("p")}${pSheet()}${toastHTML()}`;
+  }
+  let head = "", body = "", cur = scr;
+  if(scr === "inbox"){
+    const n = needsCount();
+    head = `<div style="flex:1"><h1>Inbox</h1><p class="sub">${n ? `${n} things need you` : "Nothing needs you"}</p></div><button class="btn btn-sm btn-primary" data-act="open" data-arg="new">${ic("plus")}New</button>`;
+    body = phoneStrip() + inboxCards("p");
+  } else if(scr === "today"){
+    head = `<h1>Today</h1><button class="btn btn-sm btn-primary" data-act="open" data-arg="new">${ic("plus")}New</button>`;
+    body = `${dayPick("p")}<p class="muted" style="font-size:13.5px">${todaySummary()}</p>${vTimeline(S.day)}<h2 class="sec-h" style="margin-top:6px">All conversations</h2>${convList("p")}`;
+  } else if(scr === "machines"){
+    head = `<h1>Machines</h1><button class="btn btn-sm" data-act="register">${ic("plus")}Register</button>`;
+    body = S.targets.map(t => `<section class="tcard"><button class="thead" data-act="topen" data-arg="${t.id}" aria-expanded="${!!S.open[t.id]}"><div class="main"><b>${esc(t.name)}</b><div class="s">${esc(dest(t))}${t.purpose==="work"?", work machine":""}</div></div>${tStatus(t)}${ic("chevr")}</button>${S.open[t.id] ? `<div class="tbody">${targetDetail(t,"p")}</div>` : ""}</section>`).join("");
+  } else if(scr === "vault"){
+    cur = "more"; head = `<h1>Vault</h1>`; body = vaultHTML("p");
+  }
+  return SB + `<header class="p-head">${head}</header><div class="scroll" data-sk="${scr}"><div class="p-body">${body}</div></div>${tabs(cur)}${pSheet()}${toastHTML()}`;
+}
+
+// ---------- desktop ----------
+function rail(cur){
+  const n = needsCount();
+  const nav = (k, l, icon, extra="") => `<button class="nav" data-act="nav" data-arg="${k}" ${cur===k?'aria-current="page"':""}>${icon}${l}${extra}</button>`;
+  const todayIc = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity=".45"/><path d="M3 9.5c5 0 5 5 9 5s4-7 9-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+  const recent = ["restart","ratelimit","changelog","tf","backup"];
+  return `<nav class="rail" aria-label="Main">
+    <div class="brand"><span class="gl gl-router" style="--sh-hole:var(--ink)">${ic("shuttle")}</span>Loomux</div>
+    ${nav("inbox","Inbox",ic("inbox"), n ? `<span class="badge" aria-label="${n} need you">${n}</span>` : "")}${nav("today","Today",todayIc)}${nav("machines","Machines",ic("server"))}
+    <div class="recent"><h2>Recent</h2>${recent.map(id => { const s = convStatus(id); return `<button data-act="open" data-arg="${id}" title="${esc(CONVS[id].title)}"><span class="st st-${s}">${ic(ST[s].ic)}</span><span>${esc(CONVS[id].title)}</span></button>`; }).join("")}</div>
+    <div class="grow"></div>
+    ${nav("vault","Vault",ic("key"))}<button class="nav" data-act="sheet" data-arg="settings">${ic("gear")}Settings</button><button class="nav" data-act="logout">${ic("out")}Log out</button>
+  </nav>`;
+}
+const PREVIEW = {
+  restart:[["me", CONVS.restart.preview],["router","kestrel asks before new work, and this restarts a deployment. I'd like a yes first: the command is in your queue."]],
+  ratelimit:[["me","Make the limit configurable per environment, not hard-coded"],["router","claude-code stopped at a question in its terminal. Answer it here, or attach and answer it there."]],
+  tf:[["me", CONVS.tf.preview],["cc","Updated the lock file for aws 5.71 and kubernetes 2.33. Starting the plan…"]],
+};
+function preview(){
+  const id = PREVIEW[S.sel] ? S.sel : "restart", p = PREVIEW[id];
+  return `<div class="col-head" style="padding-bottom:6px"><div style="flex:1;min-width:0"><h2 style="font-size:18px;font-weight:800">${esc(CONVS[id].title)}</h2><p class="muted" style="font-size:13.5px">${esc(where(id))}</p></div></div>
+    <div class="scroll"><div class="thread" style="padding:12px 28px">${p.map(([w,t]) => w==="me" ? `<div class="msg me"><div class="body"><div class="bubble">${esc(t)}</div></div></div>` : `<div class="msg">${glyph(w)}<div class="body"><div class="bubble">${esc(t)}</div></div></div>`).join("")}
+    <div><button class="btn" data-act="open" data-arg="${id}">${ic("chat")}Open conversation</button></div></div></div>`;
+}
+function deskApp(){
+  const scr = S.screen;
+  if(scr === "login") return loginHTML("d") + toastHTML();
+  let main = "", cur = scr;
+  if(scr === "inbox"){
+    main = `<div class="d-col">${dayStrip()}<div class="d-main" style="grid-template-columns:620px 1fr;flex:1;min-height:0">
+      <div class="col"><div class="col-head"><h1>Inbox</h1><button class="btn btn-primary" data-act="open" data-arg="new">${ic("plus")}New conversation</button></div>
+        <div class="scroll" data-sk="dinbox"><div class="col-body">${inboxCards("d")}</div></div></div>
+      <aside class="col side" aria-label="Preview">${preview()}</aside></div></div>`;
+  } else if(scr === "today"){
+    const isToday = S.day === "today";
+    main = `<div class="d-main"><div class="col"><div class="col-head today-head"><h1>Today</h1>${dayPick("d")}<p class="sum">${todaySummary()}</p><button class="btn btn-primary" data-act="open" data-arg="new">${ic("plus")}New conversation</button></div>
+      <div class="scroll" data-sk="today"><div class="col-body">
+        <section class="weave-card" aria-labelledby="d-wvh"><h2 id="d-wvh">${isToday ? "The day so far" : "Tuesday 6 October"} <small>Hover or focus a stitch for what happened; select it to open the conversation at that turn.</small></h2><div class="weave-wrap">${weaveSVG(972, S.day)}</div>${legend()}</section>
+        <h2 class="sec-h">All conversations</h2><div style="max-width:880px;display:grid;gap:12px">${convList("d")}</div>
+      </div></div></div></div>`;
+  } else if(scr === "conversation"){
+    const h = convHead();
+    main = `<div class="d-main" style="grid-template-columns:1fr ${S.convId==="new"?"0px":"350px"}">
+      <div class="col"><header class="t-head"><div class="ttl"><h1>${esc(h.title)}</h1><div class="sub">${h.sub}<span class="live" style="margin-left:auto"><i></i>Connected</span></div></div>${jumpMenu()}</header>
+        <div class="scroll" data-sk="thread"><div class="thread">${threadHTML("d")}</div></div>${composer("d")}</div>
+      ${S.convId!=="new" ? `<aside class="col side" aria-label="About this conversation"><div class="scroll" data-sk="ctx">${contextHTML("d")}</div></aside>` : "<div></div>"}</div>`;
+    cur = "today";
+  } else if(scr === "machines"){
+    const t = tgt(S.target);
+    const right = S.form ? `<div class="col-body" style="padding-top:24px;max-width:640px">${targetForm("d")}</div>`
+      : `<div class="col-head"><div style="flex:1;min-width:0"><h1>${esc(t.name)}</h1><p class="muted">${esc(dest(t))}${t.kind==="remote"?", remote over SSH":", the machine Loomux runs on"}</p></div>${tStatus(t)}</div><div class="col-body" style="gap:26px;max-width:760px">${targetDetail(t,"d")}</div>`;
+    main = `<div class="d-main" style="grid-template-columns:330px 1fr">
+      <div class="col" style="border-right:1px solid var(--line)"><div class="col-head"><h1>Machines</h1><button class="btn btn-sm" data-act="register">${ic("plus")}Register</button></div>
+        <div class="col-body" style="padding:0 16px 16px"><div class="rows tlist">${S.targets.map(x => `<button class="row" data-act="tsel" data-arg="${x.id}" aria-current="${x.id===S.target && !S.form}"><div class="main"><div class="t">${esc(x.name)}</div><div class="s">${esc(dest(x))}</div><div class="s">${S.workspaces.filter(w=>w.target===x.id).length} workspaces${x.purpose==="work"?", work":""}</div></div>${tStatus(x)}</button>`).join("")}</div></div></div>
+      <div class="col"><div class="scroll" data-sk="mdetail">${right}</div></div></div>`;
+  } else if(scr === "vault"){
+    main = `<div class="d-main"><div class="col"><div class="col-head" style="max-width:820px"><h1>Vault</h1></div><div class="scroll"><div class="col-body" style="max-width:820px">${vaultHTML("d")}</div></div></div></div>`;
+  }
+  const modal = S.ui.d.sheet === "settings" ? `<div class="modal-wrap"><button class="scrim" data-act="sheet-close" aria-label="Close"></button><div class="modal" role="dialog" aria-label="Settings"><h2 style="font-size:20px;font-weight:800">Settings</h2>${settingsHTML()}</div></div>` : "";
+  return `<div class="d-shell">${rail(cur)}${main}</div>${modal}${toastHTML()}`;
+}
+
+// ---------- render loop ----------
+function render(){
+  for(const dev of ["p","d"]){
+    const root = document.getElementById("frame-"+dev);
+    if(!root) continue;
+    const ae = document.activeElement, fid = ae && root.contains(ae) ? ae.id : null;
+    let sel = null; try { if(fid && ae.selectionStart != null) sel = [ae.selectionStart, ae.selectionEnd]; } catch(e){}
+    const saved = {};
+    root.querySelectorAll("[data-sk]").forEach(el => { saved[el.dataset.sk] = {top:el.scrollTop, bottom:el.scrollHeight - el.scrollTop - el.clientHeight < 40}; });
+    root.innerHTML = dev === "p" ? phoneApp() : deskApp();
+    root.querySelectorAll("[data-sk]").forEach(el => {
+      const s = saved[el.dataset.sk];
+      if(!s){ if(el.dataset.sk === "thread") el.scrollTop = el.scrollHeight; return; }
+      el.scrollTop = s.bottom && el.dataset.sk === "thread" ? el.scrollHeight : s.top;
+    });
+    if(S.jump){
+      const g = root.querySelector(`[data-anchor="${S.jump}"]`), sc = root.querySelector('[data-sk="thread"]');
+      if(sc){ if(g){ sc.scrollTop = Math.max(0, g.offsetTop - sc.offsetTop - 12); g.classList.add("flash"); } else sc.scrollTop = sc.scrollHeight; }
+    }
+    if(S.scrollSel){
+      const c = root.querySelector(`[data-selid="${S.scrollSel}"]`), sc = c && c.closest("[data-sk]");
+      if(c && sc) sc.scrollTop = Math.max(0, c.offsetTop - sc.offsetTop - 8);
+    }
+    if(fid){ const el = document.getElementById(fid); if(el){ el.focus({preventScroll:true}); if(sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch(e){} } }
+  }
+  S.jump = null; S.scrollSel = null;
+}
+let lastMinute = Math.floor(nowM());
+function tick(){
+  const now = Date.now();
+  document.querySelectorAll("[data-since]").forEach(el => el.textContent = fmtElapsed(now - +el.dataset.since));
+  document.querySelectorAll("[data-until]").forEach(el => el.textContent = fmtCount(+el.dataset.until - now));
+  let dirty = false;
+  if(S.inbox.offer.state === "pending" && now >= S.inbox.offer.exp){ S.inbox.offer.state = "expired"; S.inbox.offer.at = nowM(); dirty = true; }
+  for(const k in S.scan){ const sc = S.scan[k]; if(sc && sc.exp && !sc.expired && now >= sc.exp){ sc.expired = true; dirty = true; } }
+  // The weave's now line moves once a minute, unless someone is mid-way through a stitch or a field.
+  const m = Math.floor(nowM()), busy = document.activeElement && document.activeElement.closest && document.activeElement.closest(".st-g, .knotbtn, input, textarea, select");
+  if(m !== lastMinute && !busy && ["inbox","today"].includes(S.screen)){ lastMinute = m; dirty = true; }
+  if(dirty) render();
+}
+
+// ---------- prototype shell ----------
+function store(k, v){ try { localStorage.setItem("shuttleweave."+k, v); } catch(e){} }
+function load(k){ try { return localStorage.getItem("shuttleweave."+k); } catch(e){ return null; } }
+function applyTheme(){ const r = document.documentElement; if(S.theme === "system") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", S.theme); }
+function syncTools(){
+  document.querySelectorAll("[data-tool]").forEach(b => {
+    const [k, v] = b.dataset.tool.split(":");
+    const cur = k === "conv" ? S.convId : S[k];
+    b.setAttribute("aria-pressed", String(cur === v));
+  });
+}
+function buildStage(){
+  const st = document.getElementById("stage");
+  const desk = `<div class="desk-slot"><p class="slot-cap">Desktop, 1280 by 820</p><div class="desk-vp" id="dvp"><div class="desk" id="desk"><div class="winbar" aria-hidden="true"><i></i><i></i><i></i><span>loomux.lab.example</span></div><div class="app is-d" id="frame-d" data-dev="d"></div></div></div></div>`;
+  const phone = `<div class="phone-slot"><p class="slot-cap">Phone, 390 by 844, installed app</p><div class="phone-vp" id="pvp"><div class="phone" id="phone"><div class="app is-p" id="frame-p" data-dev="p"></div></div></div></div>`;
+  st.innerHTML = (S.frame !== "phone" ? desk : "") + (S.frame !== "desktop" ? phone : "");
+  render(); fit();
+}
+function fit(){
+  const st = document.getElementById("stage");
+  const dvp = document.getElementById("dvp");
+  if(dvp){ const w = dvp.parentElement.clientWidth, s = Math.min(1, w / 1280); document.getElementById("desk").style.transform = `scale(${s})`; dvp.style.width = 1280*s + "px"; dvp.style.height = 820*s + "px"; }
+  const pvp = document.getElementById("pvp");
+  if(pvp){ const s = Math.min(1, st.clientWidth / 410); document.getElementById("phone").style.transform = `scale(${s})`; pvp.style.width = 410*s + "px"; pvp.style.height = 864*s + "px"; }
+}
+
+// ---------- tooltips and keyboard for the weave ----------
+function showTip(el){
+  const wrap = el.closest(".weave-wrap"); if(!wrap) return;
+  let tip = wrap.querySelector(".wtip"); if(!tip){ tip = document.createElement("div"); tip.className = "wtip"; tip.setAttribute("aria-hidden","true"); wrap.appendChild(tip); }
+  const wr = wrap.getBoundingClientRect(), r = el.getBoundingClientRect(), scale = wr.width / wrap.offsetWidth || 1;
+  tip.innerHTML = `${esc(el.dataset.tip)}<small>${esc(el.dataset.sub || "")}</small>`;
+  const x = (r.left + r.width/2 - wr.left) / scale, y = (r.top - wr.top) / scale;
+  tip.style.left = Math.min(wrap.offsetWidth - 150, Math.max(150, x)) + "px"; tip.style.top = y + "px"; tip.hidden = false;
+}
+function hideTip(el){ const wrap = el && el.closest && el.closest(".weave-wrap"); const tip = wrap && wrap.querySelector(".wtip"); if(tip) tip.hidden = true; }
+["mouseover","focusin"].forEach(ev => document.addEventListener(ev, e => { const el = e.target.closest && e.target.closest("[data-tip]"); if(el) showTip(el); }));
+["mouseout","focusout"].forEach(ev => document.addEventListener(ev, e => { const el = e.target.closest && e.target.closest("[data-tip]"); if(el) hideTip(el); }));
+function moveStitch(el, key){
+  const svg = el.closest("svg"), all = [...svg.querySelectorAll(".st-g")];
+  const lane = +el.dataset.lane, t = +el.dataset.t;
+  let next = null;
+  if(key === "ArrowLeft" || key === "ArrowRight"){
+    const same = all.filter(x => +x.dataset.lane === lane).sort((a, b) => a.dataset.t - b.dataset.t);
+    const i = same.indexOf(el); next = same[i + (key === "ArrowRight" ? 1 : -1)];
+  } else {
+    const lanes = [...new Set(all.map(x => +x.dataset.lane))].sort((a, b) => a - b);
+    const li = lanes.indexOf(lane) + (key === "ArrowDown" ? 1 : -1);
+    if(lanes[li] !== undefined) next = all.filter(x => +x.dataset.lane === lanes[li]).sort((a, b) => Math.abs(a.dataset.t - t) - Math.abs(b.dataset.t - t))[0];
+  }
+  if(next) next.focus();
+}
+
+// ---------- actions ----------
+function closeSheets(){ S.ui.p.sheet = null; S.ui.d.sheet = null; }
+const NEW_FORM = () => ({name:"", kind:"remote", host:"", user:"", port:"0", root:"", perm:"", purpose:"personal", agents:"", provision:true, shell:true, confirm:false});
+const A = {
+  open(id){ if(id === "new"){ S.convId = "new"; S.cs.new = newCS(); } else S.convId = id; S.prev = S.screen === "conversation" ? S.prev : S.screen; S.screen = "conversation"; S.jumpOpen = false; closeSheets(); },
+  back(){ S.screen = S.prev && S.prev !== "conversation" ? S.prev : "inbox"; },
+  nav(k){ S.screen = k; closeSheets(); S.form = null; },
+  tab(k){ if(k === "more"){ S.ui.p.sheet = "more"; return; } S.screen = k; closeSheets(); S.form = null; },
+  sheet(k, dev){ S.ui[dev].sheet = k; },
+  "sheet-close"(a, dev){ S.ui[dev].sheet = null; if(dev === "p" && S.form) S.form = null; },
+  sel(id){ S.sel = id; },
+  dsknot(id, dev){ S.sel = id; S.scrollSel = id; if(dev === "p" && S.screen !== "inbox") S.screen = "inbox"; },
+  stitch(arg){ const [c, a] = arg.split("|"); S.prev = S.screen; S.convId = c; S.screen = "conversation"; S.jumpOpen = false; S.jump = a === "x-end" ? "__end" : `${c}-${a}`; closeSheets(); },
+  jump(arg){ const [c, g] = arg.split("|"); S.jump = `${c}-${g}`; S.jumpOpen = false; },
+  "jump-toggle"(){ S.jumpOpen = !S.jumpOpen; },
+  day(v){ S.day = v; },
+  offer(v){ answerOffer(v); },
+  prompt(v){ answerPrompt(v); },
+  "i-retry"(){ const f = S.inbox.failed; f.state = "retrying"; f.at = nowM(); f.since = Date.now(); },
+  older(){ S.inbox.older.open = !S.inbox.older.open; },
+  snooze(){ S.inbox.older.snoozed = true; },
+  unsnooze(){ S.inbox.older.snoozed = false; },
+  filter(f){ S.filter = f; },
+  example(t){ S.drafts.compose = t; },
+  cancel(){ cancelTurn(S.convId); },
+  "c-retry"(k){ startTurn(S.convId, k || "plain"); return "norender"; },
+  "toggle-attach"(){ S.conv.showAttach = !S.conv.showAttach; },
+  unqueue(){ S.drafts.compose = S.conv.queued; S.conv.queued = null; },
+  copy(id){
+    const el = document.getElementById(id); if(!el) return;
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Press Ctrl+C to copy."); };
+    try { navigator.clipboard.writeText(el.textContent).then(() => toast("Copied"), fallback); } catch(e){ fallback(); }
+    return "norender";
+  },
+  toast(m){ toast(m); return "norender"; },
+  topen(id){ S.open[id] = !S.open[id]; },
+  tsel(id){ S.target = id; S.form = null; S.tConfirm = null; },
+  relay(arg){ const [id, v] = arg.split("|"); tgt(id).relay = v; },
+  scan(id){
+    S.scan[id] = {busy:true};
+    setTimeout(() => { S.scan[id] = {exp:Date.now() + 598e3, sel:"ED25519", ok:false, keys:[
+      {type:"ED25519", fp:"SHA256:7mWq3pX9Lr2cVd8Kz1TnYh4bGf6sJe0uQa5oRiN2xwE"},
+      {type:"ECDSA", fp:"SHA256:Ub8Kd2Ls9Wq4Xn7Rc1Vm5Tg3Hy6Jp0Ze8Fa2Qo4Bk9"},
+      {type:"RSA", fp:"SHA256:c4Nv7Rq1Wm8Kx2Ld5Ts9Hb3Yg6Jf0Pa4Ue7Zo1Qi8"}]}; render(); }, 1100);
+  },
+  "pick-key"(arg){ const [id, ty] = arg.split("|"); S.scan[id].sel = ty; },
+  "key-ok"(id){ S.scan[id].ok = !S.scan[id].ok; },
+  pin(id){ const sc = S.scan[id], k = sc.keys.find(x => x.type === sc.sel); tgt(id).pinned = k; delete S.scan[id]; toast(`Pinned the ${k.type} key for ${tgt(id).name}`); return "norender"; },
+  unpin(id){ tgt(id).pinned = null; toast(`Unpinned ${tgt(id).name}'s host key`); return "norender"; },
+  test(id){ S.test[id] = "busy"; setTimeout(() => { S.test[id] = "ok"; const t = tgt(id); if(t.health) t.health.at = "just now"; else t.health = {reachable:true, ms:41, tmux:"3.5a", disk:"n/a", at:"just now"}; render(); }, 1300); },
+  ws(arg){
+    const [id, op] = arg.split("|"), w = S.workspaces.find(x => x.id === id);
+    if(op === "reopen"){ w.st = "idle"; delete w.reason; }
+    if(op === "archive") w.st = "archived";
+    if(op === "delete") S.wsConfirm = id;
+    if(op === "keep") S.wsConfirm = null;
+    if(op === "yes"){ S.workspaces = S.workspaces.filter(x => x.id !== id); S.wsConfirm = null; toast(`Deleted ${w.name}`); return "norender"; }
+  },
+  "edit-target"(id, dev){ const t = tgt(id); S.form = {mode:"edit", id, v:{name:t.name, kind:t.kind, host:t.host, user:t.user, port:String(t.port), root:t.root, perm:t.perm, purpose:t.purpose, agents:t.agents.join(", "), provision:t.provision, shell:t.shell, confirm:t.confirm}}; S.formErr = ""; if(dev === "p") S.ui.p.sheet = "form"; },
+  register(a, dev){ S.form = {mode:"new", v:NEW_FORM()}; S.formErr = ""; if(dev === "p") S.ui.p.sheet = "form"; },
+  "form-cancel"(){ S.form = null; S.ui.p.sheet = null; },
+  "del-target"(id){ S.tConfirm = id; },
+  "del-target-keep"(){ S.tConfirm = null; },
+  "v-add"(){ S.vaultAdd = true; S.vaultErr = ""; },
+  "v-cancel"(){ S.vaultAdd = false; S.vaultErr = ""; S.drafts.vName = ""; S.drafts.vAgent = ""; S.drafts.vWs = ""; },
+  "v-replace"(id){ S.replacing = id; S.deleting = null; },
+  "v-rcancel"(){ S.replacing = null; },
+  "v-del"(id){ S.deleting = id; S.replacing = null; },
+  "v-dcancel"(){ S.deleting = null; },
+  "v-del-yes"(id){ const c = S.creds.find(x => x.id === id); S.creds = S.creds.filter(x => x.id !== id); S.deleting = null; toast(`Deleted ${c.name}`); return "norender"; },
+  "dev-out"(id){ const d = S.devices.find(x => x.id === id); S.devices = S.devices.filter(x => x.id !== id); toast(`Logged out ${d.name}`); return "norender"; },
+  logout(){ closeSheets(); S.screen = "login"; S.login = {err:"", busy:false, back:""}; },
+};
+const FORMS = {
+  "i-reply"(){ const t = S.drafts.reply.trim(); if(!t) return; S.drafts.reply = ""; answerPrompt(`"${t}"`); return "norender"; },
+  send(){
+    const t = S.drafts.compose.trim(); if(!t) return;
+    S.drafts.compose = "";
+    if(S.convId === "new"){ toast("In the real client this starts the conversation and opens its turn."); return "norender"; }
+    if(S.conv.turn){ S.conv.queued = S.conv.queued ? S.conv.queued + "\n" + t : t; return; }
+    S.conv.extra.push({who:"me", t:nowM(), text:t}); startTurn(S.convId, "plain"); return "norender";
+  },
+  target(form, dev){
+    const v = S.form.v; v.name = v.name.trim(); v.host = v.host.trim(); v.user = v.user.trim(); v.root = v.root.trim();
+    const port = Number(v.port || 0);
+    let err = "";
+    if(!v.name) err = "Give the machine a name.";
+    else if(v.kind === "remote" && (!v.host || !v.user)) err = "Host and user are required for a remote target.";
+    else if(v.kind === "remote" && (!Number.isInteger(port) || port < 0 || port > 65535)) err = "The SSH port must be a number from 0 to 65535.";
+    else if(v.root && (!v.root.startsWith("/") || v.root === "/")) err = "The workspace root must be an absolute path, and not /.";
+    S.formErr = err; if(err) return;
+    const fields = {name:v.name, kind:v.kind, host:v.kind==="remote"?v.host:"", user:v.kind==="remote"?v.user:"", port:v.kind==="remote"?port:0, root:v.root, perm:v.perm, purpose:v.purpose, agents:v.agents.split(",").map(s=>s.trim()).filter(Boolean), provision:v.provision, shell:v.shell, confirm:v.confirm};
+    let id;
+    if(S.form.mode === "new"){ id = "t" + Date.now(); S.targets.push({id, relay:"", pinned:null, health:null, ...fields}); }
+    else { id = S.form.id; Object.assign(tgt(id), fields); }
+    const was = S.form.mode; S.form = null; S.ui.p.sheet = null; S.target = id; S.open[id] = true;
+    toast(was === "new" ? `Registered ${fields.name}` : `Saved ${fields.name}`); return "norender";
+  },
+  "v-add"(form){
+    const name = S.drafts.vName.trim(), valEl = form.querySelector('input[type="password"]'), val = valEl.value;
+    const agent = S.drafts.vAgent.trim(), ws = S.drafts.vWs;
+    let err = "";
+    if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) err = "The name becomes an environment variable: letters, digits and _, not starting with a digit.";
+    else if(["PATH","HOME","SHELL","USER","TERM"].includes(name) || name.startsWith("LOOMUX_")) err = "That name is used by the shell or by Loomux itself. Pick another.";
+    else if(S.creds.some(c => c.name === name && c.ws === ws && c.agent === agent)) err = "A credential with that name already exists for this scope. Replace its value instead.";
+    else if(!val) err = "Enter a value.";
+    S.vaultErr = err; if(err) return;
+    valEl.value = "";
+    S.creds.push({id:"c" + Date.now(), name, ws, agent, upd:"just now"});
+    S.vaultAdd = false; S.drafts.vName = ""; S.drafts.vAgent = ""; S.drafts.vWs = "";
+    toast(`Saved ${name}`); return "norender";
+  },
+  "v-replace"(form){
+    const id = form.dataset.arg, el = form.querySelector("input"), c = S.creds.find(x => x.id === id);
+    if(!el.value){ toast("Enter a new value first."); return "norender"; }
+    el.value = ""; c.upd = "just now"; S.replacing = null; toast(`Replaced the value of ${c.name}`); return "norender";
+  },
+  login(form){
+    const pw = form.querySelector('input[type="password"]').value;
+    S.login.busy = true; S.login.err = ""; render();
+    setTimeout(() => {
+      S.login.busy = false;
+      if(pw === "loom"){ const back = S.login.back; S.login.back = "Restart the staging ledger deploy"; if(back){ S.convId = "restart"; S.screen = "conversation"; } else S.screen = "inbox"; toast("Logged in"); syncTools(); }
+      else { S.login.err = "That password didn't work (invalid password). Check it and try again."; render(); }
+    }, 700);
+    return "norender";
+  },
+};
+
+document.addEventListener("click", e => {
+  const tool = e.target.closest("[data-tool]");
+  if(tool){
+    const [k, v] = tool.dataset.tool.split(":");
+    if(k === "screen"){ S.screen = v; closeSheets(); S.form = null; if(v === "conversation" && !CONVS[S.convId]) S.convId = "ratelimit"; render(); }
+    if(k === "conv"){ S.convId = v; S.screen = "conversation"; closeSheets(); render(); }
+    if(k === "frame"){ S.frame = v; store("frame", v); buildStage(); }
+    if(k === "theme"){ S.theme = v; store("theme", v); applyTheme(); }
+    store("screen", S.screen); syncTools(); return;
+  }
+  const el = e.target.closest("[data-act]");
+  if(!el) return;
+  if(el.dataset.act === "sel" && e.target.closest("summary, input, textarea, select, label, form")) return;
+  const root = el.closest("[data-dev]"); const dev = root ? root.dataset.dev : "d";
+  const fn = A[el.dataset.act]; if(!fn) return;
+  if(el.tagName === "BUTTON" && el.type !== "submit") e.preventDefault();
+  e.stopPropagation();
+  const r = fn(el.dataset.arg, dev);
+  if(r !== "norender") render();
+  syncTools();
+});
+document.addEventListener("submit", e => {
+  const f = e.target.closest("[data-form]"); if(!f) return;
+  e.preventDefault();
+  const root = f.closest("[data-dev]"); const dev = root ? root.dataset.dev : "d";
+  const r = FORMS[f.dataset.form](f, dev);
+  if(r !== "norender") render();
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if(t.dataset.model){
+    S.drafts[t.dataset.model] = t.value;
+    if(t.dataset.grow){ t.rows = Math.min(6, Math.max(1, t.value.split("\n").length)); const b = t.form && t.form.querySelector('button[type="submit"]'); if(b) b.disabled = !t.value.trim(); }
+  }
+  if(t.dataset.search !== undefined){ S.search = t.value; render(); }
+  if(t.dataset.fmodel && S.form){ S.form.v[t.dataset.fmodel] = t.type === "checkbox" ? t.checked : t.value; }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.dataset.fmodel && S.form){ S.form.v[t.dataset.fmodel] = t.type === "checkbox" ? t.checked : t.value; if(t.dataset.rerender) render(); }
+  if(t.dataset.model && t.tagName === "SELECT") S.drafts[t.dataset.model] = t.value;
+});
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if(t.dataset && t.dataset.model === "compose" && e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); t.form.requestSubmit(); return; }
+  const g = t.closest && t.closest('[role="button"][data-act], [role="link"][data-act]');
+  if(g && g.tagName !== "BUTTON"){
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); g.dispatchEvent(new MouseEvent("click", {bubbles:true})); return; }
+    if(g.classList.contains("st-g") && e.key.startsWith("Arrow")){ e.preventDefault(); moveStitch(g, e.key); }
+  }
+  if(e.key === "Escape" && S.jumpOpen){ S.jumpOpen = false; render(); }
+});
+
+// ---------- boot ----------
+(function boot(){
+  S.frame = load("frame") || (innerWidth < 900 ? "phone" : "both");
+  S.theme = load("theme") || "system";
+  const sc = load("screen"); if(sc && ["inbox","today","conversation","machines","vault","login"].includes(sc)) S.screen = sc;
+  // Plain #anchors pick a state, e.g. #today, #today.dark.desktop, #conversation.restart
+  for(const tok of location.hash.replace(/^#/, "").split(".").filter(Boolean)){
+    if(["inbox","today","conversation","machines","vault","login"].includes(tok)) S.screen = tok;
+    else if(["light","dark","system"].includes(tok)) S.theme = tok;
+    else if(["phone","desktop","both"].includes(tok)) S.frame = tok;
+    else if(CONVS[tok]) S.convId = tok;
+    else if(tok === "yesterday") S.day = "yesterday";
+  }
+  S.pulse = true; setTimeout(() => { S.pulse = false; }, 3000);
+  applyTheme(); buildStage(); syncTools();
+  addEventListener("resize", fit);
+  setInterval(tick, 1000);
+})();
+</script>

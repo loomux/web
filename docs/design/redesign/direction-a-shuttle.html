@@ -1,0 +1,1264 @@
+<title>Loomux Shuttle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&display=swap">
+<style>
+/* Shuttle: Loomux as a messenger for your agents.
+   Phone: one column + bottom bar. Desktop: rail | queue or thread | context.
+   The one bold thing: the needs-you answer cards (marigold band ending in a woven hatch). */
+:root{
+  --ground:#E9EEF3; --surface:#FFFFFF; --surface-2:#F4F7FA; --sunken:#DFE6ED;
+  --ink:#14202C; --ink-2:#465668; --ink-3:#6A7A8C; --line:#D2DBE4;
+  --accent:#0B7A85; --accent-hover:#08646D; --accent-ink:#FFFFFF; --accent-soft:#DCEFF0;
+  --mari:#EFA10C; --mari-2:#F8C75A; --mari-soft:#FFF3D8; --mari-ink:#5A3A00; --mari-on:#281A00;
+  --bad:#BC372D; --bad-soft:#FBE7E4; --good:#2B7849; --good-soft:#E1F1E7;
+  --pane:#0E1A26; --pane-ink:#C8DDE5; --pane-dim:#6D899A; --pane-hi:#F8C75A;
+  --proto:#6A4ED6; --proto-soft:#EEEAFD; --chrome:#DAE2EA; --chrome-ink:#24303C; --device:#1B2531;
+  --focus:#0B7A85; --scrim:rgba(14,22,32,.42);
+  --shadow:0 1px 2px rgba(20,32,44,.06),0 10px 28px rgba(20,32,44,.09);
+  --f-ui:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Atkinson Hyperlegible Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0C1426; --surface:#132036; --surface-2:#17263E; --sunken:#0A1120;
+  --ink:#E4EBF5; --ink-2:#A2B1C5; --ink-3:#7C8CA2; --line:#24344F;
+  --accent:#43BAC5; --accent-hover:#62CBD4; --accent-ink:#03272B; --accent-soft:#0F313A;
+  --mari:#F5B23A; --mari-2:#FFD27C; --mari-soft:#32260C; --mari-ink:#FFE1A6; --mari-on:#281A00;
+  --bad:#FF8075; --bad-soft:#3A1815; --good:#6CCF95; --good-soft:#102F1E;
+  --pane:#060B15; --pane-ink:#BED4DD; --pane-dim:#5C7284; --pane-hi:#FFD27C;
+  --proto:#A897FF; --proto-soft:#221C45; --chrome:#08101E; --chrome-ink:#D5DEEA; --device:#02060D;
+  --focus:#62CBD4; --scrim:rgba(0,0,0,.55);
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --ground:#0C1426; --surface:#132036; --surface-2:#17263E; --sunken:#0A1120;
+  --ink:#E4EBF5; --ink-2:#A2B1C5; --ink-3:#7C8CA2; --line:#24344F;
+  --accent:#43BAC5; --accent-hover:#62CBD4; --accent-ink:#03272B; --accent-soft:#0F313A;
+  --mari:#F5B23A; --mari-2:#FFD27C; --mari-soft:#32260C; --mari-ink:#FFE1A6; --mari-on:#281A00;
+  --bad:#FF8075; --bad-soft:#3A1815; --good:#6CCF95; --good-soft:#102F1E;
+  --pane:#060B15; --pane-ink:#BED4DD; --pane-dim:#5C7284; --pane-hi:#FFD27C;
+  --proto:#A897FF; --proto-soft:#221C45; --chrome:#08101E; --chrome-ink:#D5DEEA; --device:#02060D;
+  --focus:#62CBD4; --scrim:rgba(0,0,0,.55);
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--chrome);color:var(--chrome-ink);font-family:var(--f-ui);font-size:15px;line-height:1.45;padding:0 16px 32px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- prototype toolbar (not part of the design) ---------- */
+.proto{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 0;background:var(--chrome);border-bottom:1px solid var(--line);margin-bottom:20px}
+.proto-name{font-weight:800;font-size:15px;margin-right:auto;display:flex;gap:8px;align-items:center}
+.proto-name small{font-weight:400;color:var(--ink-3)}
+.pgroup{display:flex;align-items:center;gap:6px;min-width:0}
+.pgroup>span{font-size:12px;color:var(--ink-3)}
+.pseg{display:flex;background:var(--sunken);border-radius:9px;padding:2px;overflow-x:auto;max-width:100%}
+.pseg button{border:0;background:none;padding:5px 10px;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap;color:var(--ink-2)}
+.pseg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.note{border:1.5px dashed var(--proto);background:var(--proto-soft);color:var(--proto);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.4}
+.note b{font-weight:700}
+
+/* ---------- stage ---------- */
+.stage{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.desk-slot{flex:1 1 640px;min-width:0}
+.phone-slot{flex:0 0 auto;max-width:100%}
+.slot-cap{font-size:12px;color:var(--ink-3);margin:0 0 8px}
+.desk-vp,.phone-vp{position:relative;overflow:hidden}
+.desk{width:1280px;height:820px;transform-origin:top left;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);display:flex;flex-direction:column;background:var(--ground)}
+.winbar{height:32px;flex:none;display:flex;align-items:center;gap:7px;padding:0 12px;background:var(--sunken);border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+.winbar i{width:11px;height:11px;border-radius:50%;background:var(--line);display:block}
+.winbar span{margin-left:14px;background:var(--surface);padding:2px 12px;border-radius:6px}
+.phone{width:410px;height:864px;transform-origin:top left;border:10px solid var(--device);border-radius:46px;overflow:hidden;box-shadow:var(--shadow);background:var(--ground)}
+
+/* ---------- app ---------- */
+.app{background:var(--ground);color:var(--ink);font-family:var(--f-ui);position:relative;overflow:hidden;display:flex;flex-direction:column;height:100%;min-height:0}
+.desk .app{flex:1}
+.app h1,.app h2,.app h3{text-wrap:balance;margin:0}
+.app p{margin:0}
+.muted{color:var(--ink-2)} .faint{color:var(--ink-3)}
+.mono{font-family:var(--f-mono)}
+.tnum{font-variant-numeric:tabular-nums}
+.sb{height:28px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12.5px;font-weight:700;color:var(--ink)}
+.scroll{overflow-y:auto;min-height:0;flex:1;overscroll-behavior:contain}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;border:1.5px solid transparent;padding:0 16px;min-height:40px;font-weight:700;font-size:14.5px;cursor:pointer;background:var(--surface-2);color:var(--ink);white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--line)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:18px;height:18px;flex:none}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{background:var(--accent-hover);border-color:transparent}
+.btn-approve{background:var(--accent);color:var(--accent-ink)}
+.btn-approve:hover{background:var(--accent-hover);border-color:transparent}
+.btn-deny{background:transparent;border-color:var(--ink-3);color:var(--ink)}
+.btn-deny:hover{border-color:var(--ink)}
+.btn-danger{background:var(--bad);color:var(--surface)}
+.btn-quiet{background:transparent;color:var(--accent);padding:0 8px}
+.btn-quiet:hover{border-color:transparent;text-decoration:underline}
+.btn-sm{min-height:32px;font-size:13.5px;padding:0 12px;border-radius:9px}
+.is-p .btn{min-height:44px}
+.is-p .btn-sm{min-height:44px}
+.iconbtn{width:44px;height:44px;border-radius:12px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.iconbtn svg{width:22px;height:22px}
+.badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--mari);color:var(--mari-on);font-size:12.5px;font-weight:800}
+
+/* status shapes */
+.st{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;white-space:nowrap}
+.st svg{width:14px;height:14px;flex:none}
+.st-approval,.st-asking,.st-waiting{color:var(--mari-ink)}
+.st-approval svg,.st-asking svg,.st-waiting svg{color:var(--mari)}
+.st-working{color:var(--accent)}
+.st-done{color:var(--good)}
+.st-failed{color:var(--bad)}
+.st-idle,.st-archived{color:var(--ink-2)}
+.st-active{color:var(--accent)}
+.st-broken{color:var(--bad)}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ---------- answer cards: the bold thing ---------- */
+.ask{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--line)}
+.ask-band{display:flex;align-items:center;gap:8px;padding:9px 84px 9px 16px;min-height:40px;font-weight:800;font-size:14px;color:var(--mari-on);
+  background:linear-gradient(90deg,var(--mari) 0,var(--mari) calc(100% - 76px),transparent calc(100% - 76px)),repeating-linear-gradient(135deg,var(--mari) 0 7px,var(--mari-2) 7px 14px);position:relative}
+.ask-band svg{width:16px;height:16px}
+.ask-band .right{margin-left:auto;font-weight:700;font-size:13px}
+.ask-band.bad{background:var(--bad-soft);color:var(--bad);padding-right:16px}
+.ask-body{padding:16px 18px 18px;display:grid;gap:12px}
+.ask h3{font-size:19px;line-height:1.25;font-weight:800}
+.ask .ctx{font-size:13.5px;color:var(--ink-2)}
+.ask .ctx a,.linkish{color:var(--accent);font-weight:700;cursor:pointer;background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px}
+.cmd{background:var(--pane);color:var(--pane-ink);font-family:var(--f-mono);font-size:13.5px;border-radius:10px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;margin:0;line-height:1.5}
+.cmd .p{color:var(--pane-dim);user-select:none}
+.ask-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.is-p .ask-actions .btn{min-height:52px;font-size:16px}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:12px;align-items:center;text-align:left;border:1.5px solid var(--line);background:var(--surface-2);border-radius:12px;padding:10px 14px;min-height:48px;cursor:pointer;font-weight:700}
+.opt:hover{border-color:var(--accent)}
+.opt b{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);flex:none;font-size:13px}
+.opt small{display:block;font-weight:400;color:var(--ink-2)}
+.replyrow{display:flex;gap:8px}
+.replyrow input{flex:1;min-width:0}
+.resolved{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:14px}
+.resolved svg{width:18px;height:18px;flex:none;margin-top:1px}
+.resolved.ok svg{color:var(--good)} .resolved.no svg{color:var(--ink-3)}
+details.raw summary{cursor:pointer;font-size:13.5px;color:var(--ink-2);font-weight:700}
+details.raw pre{margin:8px 0 0}
+
+/* inputs */
+.field{display:grid;gap:6px}
+.field>label,.flabel{font-size:13.5px;font-weight:700}
+.field small{color:var(--ink-3);font-size:12.5px}
+.inp{width:100%;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;min-height:42px}
+.inp:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.is-p .inp{min-height:46px;font-size:16px}
+.err{color:var(--bad);font-size:13.5px;font-weight:700;display:flex;gap:6px;align-items:flex-start}
+.err svg{width:16px;height:16px;flex:none;margin-top:2px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+
+/* lists */
+.sec-h{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;margin:4px 2px 0}
+.sec-h .faint{font-weight:500}
+.rows{background:var(--surface);border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.row{display:flex;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);min-height:56px;cursor:pointer;background:none;width:100%;text-align:left;border-left:0;border-right:0;border-bottom:0}
+.row:first-child{border-top:0}
+.row:hover{background:var(--surface-2)}
+.row .main{flex:1;min-width:0}
+.row .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .s{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .end{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.fold{display:flex;align-items:center;gap:8px;border:0;background:none;padding:6px 2px;font-weight:800;font-size:15px;cursor:pointer;color:var(--ink);min-height:44px}
+.fold svg{width:18px;height:18px;transition:transform .15s}
+.fold[aria-expanded="true"] svg{transform:rotate(90deg)}
+
+/* glyphs */
+.gl{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;font-weight:800;font-size:13px}
+.gl svg{width:20px;height:20px}
+.gl-router{background:var(--ink);color:var(--ground)}
+.gl-cc{background:var(--accent-soft);color:var(--accent)}
+.gl-cmd{background:var(--sunken);color:var(--ink-2)}
+.gl-sm{width:26px;height:26px;border-radius:8px;font-size:11px}
+.gl-sm svg{width:15px;height:15px}
+
+/* phone chrome */
+.p-head{display:flex;align-items:center;gap:8px;padding:6px 12px 10px 18px;flex:none}
+.p-head h1{font-size:26px;font-weight:800;letter-spacing:-.01em;flex:1}
+.p-head .sub{font-size:13px;color:var(--ink-2)}
+.p-body{padding:4px 14px 20px;display:grid;gap:14px;align-content:start}
+.tabs{flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px 6px 14px}
+.tab{border:0;background:none;display:grid;justify-items:center;gap:2px;padding:6px 0;min-height:52px;font-size:12px;font-weight:700;color:var(--ink-3);cursor:pointer;position:relative}
+.tab svg{width:24px;height:24px}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab[aria-current="page"] .tpill{background:var(--accent-soft)}
+.tpill{display:grid;place-items:center;width:56px;height:30px;border-radius:15px}
+.tab .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:20px;height:20px;font-size:11.5px}
+.sheet-wrap{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end}
+.scrim{position:absolute;inset:0;background:var(--scrim);border:0}
+.sheet{position:relative;background:var(--surface);border-radius:22px 22px 0 0;padding:10px 16px 24px;max-height:88%;overflow-y:auto;display:grid;gap:14px;animation:up .2s ease-out}
+.sheet.full{max-height:100%;height:100%;border-radius:0;padding-top:0}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);justify-self:center}
+.sheet h2{font-size:20px;font-weight:800}
+@keyframes up{from{transform:translateY(30px);opacity:.6}}
+.menu{display:grid}
+.menu button{display:flex;gap:14px;align-items:center;border:0;background:none;padding:0 4px;min-height:52px;font-weight:700;font-size:16px;cursor:pointer;border-top:1px solid var(--line);text-align:left}
+.menu button:first-child{border-top:0}
+.menu svg{width:22px;height:22px;color:var(--ink-2)}
+.toast{position:absolute;left:50%;bottom:88px;transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:30;white-space:nowrap;box-shadow:var(--shadow)}
+.is-d .toast{bottom:28px}
+
+/* desktop chrome */
+.d-shell{display:grid;grid-template-columns:216px 1fr;height:100%;min-height:0}
+.rail{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;gap:4px;min-height:0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;padding:0 8px 14px}
+.brand .gl{width:30px;height:30px}
+.nav{display:flex;align-items:center;gap:12px;border:0;background:none;border-radius:10px;padding:0 10px;min-height:40px;font-weight:700;cursor:pointer;color:var(--ink-2);text-align:left;width:100%}
+.nav svg{width:20px;height:20px;flex:none}
+.nav:hover{background:var(--surface-2);color:var(--ink)}
+.nav[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.nav .badge{margin-left:auto}
+.rail .recent{margin-top:14px;display:grid;gap:2px;overflow:hidden}
+.rail .recent h2{font-size:12.5px;font-weight:700;color:var(--ink-3);padding:0 10px 4px}
+.rail .recent button{display:flex;gap:8px;align-items:center;border:0;background:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:13px;text-align:left;color:var(--ink-2);min-width:0}
+.rail .recent button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail .recent button:hover{background:var(--surface-2);color:var(--ink)}
+.rail .recent svg{width:12px;height:12px;flex:none}
+.rail .grow{flex:1}
+.d-main{display:grid;min-height:0;min-width:0}
+.col{min-height:0;min-width:0;display:flex;flex-direction:column}
+.col-head{padding:22px 28px 14px;display:flex;align-items:center;gap:12px;flex:none}
+.col-head h1{font-size:24px;font-weight:800;flex:1}
+.col-body{padding:0 28px 28px;display:grid;gap:16px;align-content:start}
+.side{background:var(--surface-2);border-left:1px solid var(--line)}
+
+/* thread */
+.thread{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-content:start;padding:18px 16px 24px}
+.thread>*{min-width:0}
+.is-d .thread{padding:22px 32px 28px}
+.msg{display:flex;gap:10px;align-items:flex-start;max-width:100%}
+.msg .who{font-size:12.5px;color:var(--ink-3);margin-bottom:4px;display:flex;gap:8px}
+.msg .who b{color:var(--ink-2)}
+.msg .body{min-width:0;flex:1}
+.bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 14px;font-size:15px;line-height:1.55;min-width:0}
+.bubble p+p,.bubble p+pre,.bubble pre+p{margin-top:8px}
+.bubble code{font-family:var(--f-mono);font-size:.9em;background:var(--sunken);padding:1px 5px;border-radius:5px}
+.bubble pre{background:var(--pane);color:var(--pane-ink);border-radius:10px;padding:10px 12px;overflow-x:auto;font-family:var(--f-mono);font-size:13px;margin:0;line-height:1.5}
+.bubble pre code{background:none;padding:0;color:inherit}
+.tok-k{color:#8FD3F2}.tok-s{color:#F8C75A}.tok-n{color:#B7E3A1}
+.msg.me{justify-content:flex-end}
+.msg.me .bubble{background:var(--accent);color:var(--accent-ink);border-color:transparent;border-radius:16px 4px 16px 16px;max-width:82%}
+.msg.me .body{flex:0 1 auto;display:grid;justify-items:end;max-width:86%}
+.msg.me.queued .bubble{background:transparent;color:var(--ink);border:1.5px dashed var(--accent)}
+.sys{font-size:13px;color:var(--ink-2);display:flex;gap:8px;align-items:center;padding-left:44px}
+.sys svg{width:15px;height:15px;color:var(--ink-3)}
+.cmdres .bubble{padding:0;overflow:hidden}
+.cmdres .cap{padding:9px 14px;font-size:13px;color:var(--ink-2);display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line)}
+.cmdres .cap .exit{margin-left:auto;font-family:var(--f-mono);font-weight:700;color:var(--good)}
+.cmdres pre{border-radius:0}
+.turn{background:var(--surface);border:1.5px solid var(--accent);border-radius:16px;padding:14px 16px;display:grid;gap:12px}
+.turn-top{display:flex;align-items:center;gap:10px;font-weight:800}
+.turn-top .el{margin-left:auto;font-weight:700;color:var(--ink-2)}
+.stages{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.stages li{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink-3)}
+.stages li i{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink-3);flex:none}
+.stages li.done{color:var(--ink-2)} .stages li.done i{background:var(--ink-3);border-color:var(--ink-3)}
+.stages li.now{color:var(--ink);font-weight:700} .stages li.now i{border-color:var(--accent);background:var(--accent)}
+.turn-actions{display:flex;flex-wrap:wrap;gap:8px}
+.attach{display:grid;gap:6px}
+.attach code{display:block;background:var(--pane);color:var(--pane-ink);font-family:var(--f-mono);font-size:12.5px;padding:10px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-all;user-select:all}
+.attach .row2{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+.pane{background:var(--pane);color:var(--pane-ink);font-family:var(--f-mono);font-size:12.5px;line-height:1.55;border-radius:12px;padding:10px 12px;overflow:hidden;display:grid;gap:0;align-content:end}
+.pane div{white-space:pre-wrap;word-break:break-word}
+.pane .dim{color:var(--pane-dim)} .pane .hi{color:var(--pane-hi)}
+.pane-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--good)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.errcard{border:1.5px solid var(--bad);background:var(--bad-soft);border-radius:14px;padding:12px 14px;display:grid;gap:8px;font-size:14px}
+.errcard b{color:var(--bad)}
+.composer{flex:none;border-top:1px solid var(--line);background:var(--surface);padding:10px 12px 14px;display:grid;gap:6px}
+.is-d .composer{padding:14px 32px 18px}
+.comp-row{display:flex;gap:8px;align-items:flex-end}
+.comp-row textarea{flex:1;min-width:0;resize:none;border:1.5px solid var(--line);background:var(--surface-2);border-radius:14px;padding:11px 14px;line-height:1.4;max-height:150px;font-size:15px}
+.is-p .comp-row textarea{font-size:16px}
+.comp-row textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.comp-hint{font-size:12.5px;color:var(--ink-3);display:flex;gap:6px;align-items:center}
+.comp-hint.busy{color:var(--accent);font-weight:700}
+.comp-hint svg{width:15px;height:15px;flex:none}
+.t-head{flex:none;display:flex;align-items:center;gap:8px;padding:4px 8px 10px;border-bottom:1px solid var(--line)}
+.t-head .ttl{flex:1;min-width:0}
+.t-head h1{font-size:16.5px;font-weight:800;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.t-head .sub{font-size:13px;color:var(--ink-2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.is-d .t-head{padding:18px 32px 14px}
+.is-d .t-head h1{font-size:20px}
+.ctxsec{display:grid;gap:10px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.ctxsec h2{font-size:14px;font-weight:800}
+.task{display:grid;gap:6px;padding:10px 0;border-top:1px solid var(--line)}
+.task:first-of-type{border-top:0}
+.task .top{display:flex;gap:10px;align-items:center}
+.task .top b{flex:1;font-size:14px}
+.task .acts{display:flex;gap:4px;margin-left:36px}
+.empty{display:grid;gap:12px;justify-items:start;padding:32px 6px}
+.empty h2{font-size:22px;font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer;min-height:36px;text-align:left}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink);font-weight:700}
+.is-p .chip{min-height:40px}
+
+/* machines */
+.tcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.thead{display:flex;gap:12px;align-items:center;padding:14px;border:0;background:none;width:100%;text-align:left;cursor:pointer;min-height:64px}
+.thead .main{flex:1;min-width:0}
+.thead b{font-size:17px}
+.thead .s{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thead>svg{width:20px;height:20px;color:var(--ink-3);transition:transform .15s;flex:none}
+.thead[aria-expanded="true"]>svg{transform:rotate(90deg)}
+.tbody{padding:0 14px 16px;display:grid;gap:18px}
+.sect{display:grid;gap:10px}
+.sect>h3{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;font-size:14px}
+.facts div{display:grid}
+.facts span{font-size:12.5px;color:var(--ink-3)}
+.facts b{font-variant-numeric:tabular-nums}
+.is-d .facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+.plain{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px}
+.plain li{display:flex;gap:8px;align-items:flex-start}
+.plain svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--ink-3)}
+.plain li.yes svg{color:var(--good)} .plain li.no svg{color:var(--bad)}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;background:var(--sunken);border-radius:12px;padding:4px}
+.is-d .seg{grid-template-columns:repeat(4,minmax(0,1fr))}
+.seg button{border:0;background:none;border-radius:9px;padding:8px 6px;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--ink-2);min-height:44px;line-height:1.2}
+.seg button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.relay-why{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.keybox{border:1.5px solid var(--mari);background:var(--mari-soft);border-radius:14px;padding:14px;display:grid;gap:12px}
+.keybox.ok{border-color:var(--line);background:var(--surface-2)}
+.keybox h4{margin:0;font-size:15px;font-weight:800;display:flex;gap:8px;align-items:center;color:var(--mari-ink)}
+.keybox.ok h4{color:var(--good)}
+.keybox h4 svg{width:18px;height:18px}
+.keybox p{font-size:13.5px}
+.keys{display:grid;gap:8px}
+.key{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.key:has(input:checked){border-color:var(--accent)}
+.key input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+.key .fp{font-family:var(--f-mono);font-size:12.5px;word-break:break-all;color:var(--ink-2)}
+.ws{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.ws:first-child{border-top:0}
+.ws .main{flex:1 1 160px;min-width:0}
+.ws .main b{display:block}
+.ws .acts{display:flex;gap:6px;flex-wrap:wrap}
+.confirm{flex-basis:100%;background:var(--bad-soft);border-radius:10px;padding:10px 12px;display:grid;gap:8px;font-size:14px}
+.confirm .acts{display:flex;gap:8px;flex-wrap:wrap}
+.tlist .row .t{font-size:15px}
+.tlist .row[aria-current="true"]{background:var(--accent-soft)}
+.form{display:grid;gap:14px}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form fieldset{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:10px;margin:0}
+.form legend{font-weight:800;font-size:14px;padding:0 6px}
+.form .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* vault */
+.cred{display:grid;gap:8px;padding:14px;border-top:1px solid var(--line)}
+.cred:first-child{border-top:0}
+.cred .top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.cred .name{font-family:var(--f-mono);font-weight:700;font-size:15px;word-break:break-all}
+.scope{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--sunken);color:var(--ink-2)}
+.scope.all{background:var(--accent-soft);color:var(--accent)}
+.cred .acts{display:flex;gap:6px;flex-wrap:wrap}
+.lock{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+.lock svg{width:14px;height:14px}
+
+/* login */
+.login{flex:1;display:grid;place-items:center;padding:24px;position:relative;overflow:hidden}
+.login .mark{position:absolute;right:-120px;bottom:-140px;width:520px;opacity:.07;color:var(--ink);pointer-events:none}
+.login-card{width:100%;max-width:380px;display:grid;gap:18px;position:relative}
+.login-card h1{font-size:30px;font-weight:800;display:flex;gap:12px;align-items:center}
+.login-card .gl{width:44px;height:44px;border-radius:14px}
+.login-card .gl svg{width:26px;height:26px}
+.back-to{font-size:14px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.back-to b{color:var(--ink)}
+.is-d .login-card{background:var(--surface);padding:32px;border-radius:22px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.dev{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.dev:first-child{border-top:0}
+.dev .main{flex:1;min-width:0}
+.dev .main b{display:block}
+.modal-wrap{position:absolute;inset:0;z-index:20;display:grid;place-items:center}
+.modal{position:relative;background:var(--surface);border-radius:18px;padding:22px;width:480px;max-height:90%;overflow:auto;display:grid;gap:14px;box-shadow:var(--shadow)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="proto" role="toolbar" aria-label="Prototype controls">
+  <div class="proto-name">Loomux redesign <small>Direction A, Shuttle</small></div>
+  <div class="pgroup"><span>Screen</span><div class="pseg">
+    <button data-tool="screen:inbox">Inbox</button><button data-tool="screen:conversation">Conversation</button><button data-tool="screen:machines">Machines</button><button data-tool="screen:vault">Vault</button><button data-tool="screen:login">Login</button></div></div>
+  <div class="pgroup"><span>Frame</span><div class="pseg"><button data-tool="frame:phone">Phone</button><button data-tool="frame:desktop">Desktop</button><button data-tool="frame:both">Both</button></div></div>
+  <div class="pgroup"><span>Theme</span><div class="pseg"><button data-tool="theme:system">System</button><button data-tool="theme:light">Light</button><button data-tool="theme:dark">Dark</button></div></div>
+</div>
+<main id="stage" class="stage" aria-label="Mockup"></main>
+<script>
+// ---------- helpers ----------
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const NOW = Date.now();
+function fmtElapsed(ms){ const s=Math.max(0,Math.floor(ms/1000)); if(s<60) return s+"s"; const m=Math.floor(s/60); if(m<60) return m+"m "+String(s%60).padStart(2,"0")+"s"; return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; }
+function fmtCount(ms){ const s=Math.max(0,Math.ceil(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+
+const P = {
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  diamond:'<path d="M12 2.5l9.5 9.5-9.5 9.5L2.5 12z" fill="currentColor"/>',
+  diamondo:'<path d="M12 3.8l8.2 8.2-8.2 8.2L3.8 12z" fill="none" stroke="currentColor" stroke-width="2.2"/>',
+  dot:'<circle cx="12" cy="12" r="6.5" fill="currentColor"/>',
+  ring:'<circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/>',
+  tri:'<path d="M12 3l10 17.5H2z" fill="currentColor"/><path d="M12 9.5v5M12 17.3v.2" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round"/>',
+  okc:'<circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7.5 12.3l3 3 6-6.3" fill="none" stroke="var(--surface)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  square:'<rect x="5" y="5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>',
+  chevl:'<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  chevr:'<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  plus:'<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  inbox:'<path d="M3.5 13.5l2.6-7.2A2 2 0 0 1 8 5h8a2 2 0 0 1 1.9 1.3l2.6 7.2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z M3.5 13.5h5l1.2 2.5h4.6l1.2-2.5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  chat:'<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4.2A2.5 2.5 0 0 1 4 14.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  server:'<rect x="3.5" y="4" width="17" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3.5" y="13" width="17" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="7.5" cy="16.5" r="1.2" fill="currentColor"/>',
+  key:'<circle cx="8" cy="15" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11.3 11.7L20 3m-3.5 3.5l2.5 2.5m-5-0.2l2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  gear:'<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M5.5 18.5l2.1-2.1M16.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  more:'<circle cx="5" cy="12" r="1.9" fill="currentColor"/><circle cx="12" cy="12" r="1.9" fill="currentColor"/><circle cx="19" cy="12" r="1.9" fill="currentColor"/>',
+  out:'<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  term:'<rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10l3 2.5L7 15M12.5 15.5H17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  copy:'<rect x="8.5" y="8.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  retry:'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  shield:'<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  info:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5M12 7.6v.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  lock:'<rect x="5" y="10.5" width="14" height="10" rx="2.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  send:'<path d="M4 12l16-7.5-6 16-2.6-6.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  shuttle:'<path d="M1.8 12c3.4-4.4 7-6.2 10.2-6.2S18.8 7.6 22.2 12c-3.4 4.4-7 6.2-10.2 6.2S5.2 16.4 1.8 12z" fill="currentColor"/><rect x="8.3" y="10.6" width="7.4" height="2.8" rx="1.4" fill="var(--sh-hole,#fff)"/>',
+};
+const ic = (n, cls="") => `<svg viewBox="0 0 24 24" aria-hidden="true" class="${cls}">${P[n]}</svg>`;
+
+const ST = {
+  approval:{label:"Wants approval", ic:"diamond"},
+  asking:{label:"Asking you", ic:"diamond"},
+  waiting:{label:"Waiting for your reply", ic:"diamondo"},
+  working:{label:"Working", ic:"dot", cls:"pulse"},
+  done:{label:"Done", ic:"check"},
+  failed:{label:"Failed", ic:"tri"},
+  idle:{label:"Idle", ic:"ring"},
+  active:{label:"Agent attached", ic:"dot"},
+  archived:{label:"Archived", ic:"square"},
+  broken:{label:"Broken", ic:"tri"},
+  provisioning:{label:"Setting up", ic:"ring"},
+};
+const st = (k, label) => `<span class="st st-${k}">${ic(ST[k].ic, ST[k].cls||"")}${esc(label ?? ST[k].label)}</span>`;
+const glyph = (who, sm) => {
+  const c = sm ? " gl-sm" : "";
+  if (who === "router") return `<span class="gl gl-router${c}" style="--sh-hole:var(--ink)" title="Loomux">${ic("shuttle")}</span>`;
+  if (who === "cc") return `<span class="gl gl-cc${c}" title="claude-code">CC</span>`;
+  return `<span class="gl gl-cmd${c}" title="Command">${ic("term")}</span>`;
+};
+
+// ---------- fake data (invented; .example hosts, made-up fingerprints) ----------
+const CONVS = [
+  {id:"restart", title:"Restart the staging ledger deploy", where:"infra-terraform on kestrel", st:"approval", t:"2 min"},
+  {id:"ratelimit", title:"Add rate limiting to the ledger-api /transfers endpoint", where:"ledger-api on atlas", st:"asking", t:"6 min"},
+  {id:"changelog", title:"Draft the October changelog post", where:"blog-rewrite on this host", st:"working", t:"now"},
+  {id:"tf", title:"Bump terraform providers", where:"infra-terraform on kestrel", st:"failed", t:"40 min"},
+  {id:"backup", title:"Why is the nightly backup job slow?", where:"Answered by Loomux", st:"done", t:"1 h"},
+  {id:"nb", title:"Clean up old notebook outputs", where:"ml-notebook on atlas", st:"waiting", t:"2 days"},
+];
+const ATTACH = "ssh -p 22 dev@atlas.lab.example -t tmux -L loomux attach -t loomux-ledger-api-7f3a";
+const PANE_LAST = [
+  ["dim","⏺ Bash(npm test -- transfers)"],
+  ["","  ⎿  PASS  test/transfers.ratelimit.test.ts (14 tests)"],
+  ["","  ⎿  PASS  test/transfers.test.ts (31 tests)"],
+  ["","     Tests: 45 passed, 45 total   Time: 6.4 s"],
+  ["hi","⏺ All transfer tests pass with the limiter in place."],
+  ["dim","> "],
+];
+const PANE_LIVE = [
+  ["dim","⏺ Bash(psql \"$LEDGER_STAGING_URL\" -f migrations/0042_rate_limits.sql)"],
+  ["","  ⎿  BEGIN"],
+  ["","  ⎿  CREATE TABLE"],
+  ["","  ⎿  CREATE INDEX"],
+  ["","  ⎿  COMMIT"],
+  ["hi","⏺ Migration applied. Checking the table on staging."],
+  ["dim","⏺ Bash(psql \"$LEDGER_STAGING_URL\" -c '\\d rate_limit_buckets')"],
+  ["","     api_key_id  | uuid        | not null"],
+  ["","     window_start| timestamptz | not null"],
+  ["","     tokens      | integer     | not null"],
+  ["","     \"rate_limit_buckets_pkey\" PRIMARY KEY (api_key_id, window_start)"],
+  ["hi","✻ Writing the summary…"],
+];
+
+const S = {
+  screen:"inbox", frame:"both", theme:"system",
+  ui:{p:{sheet:null}, d:{sheet:null}},
+  sel:"restart",
+  filter:"all",
+  inbox:{
+    offer:{state:"pending", exp:NOW + 4*60e3 - 8e3},
+    prompt:{state:"pending", answer:""},
+    failed:{state:"failed"},
+    older:{open:false, snoozed:false},
+    running:[{id:"changelog", title:"Draft the October changelog post", stage:"claude-code is working in blog-rewrite", since:NOW - 192e3}],
+  },
+  convId:"ratelimit",
+  conv:{offer:"pending", exp:NOW + 6*60e3, extra:[], turn:null, queued:null, showAttach:false},
+  pane:[],
+  drafts:{compose:"", reply:"", vName:"", vWs:"", vAgent:""},
+  target:"kestrel", open:{kestrel:true},
+  targets:[
+    {id:"kestrel", name:"kestrel", kind:"remote", user:"ci", host:"kestrel.corp.example", port:2222, root:"/srv/loomux", purpose:"work", relay:"", perm:"manual", agents:["claude-code"], provision:true, shell:false, confirm:true, pinned:null,
+      health:{reachable:true, ms:64, tmux:"3.4", disk:"88 GB", at:"6 min ago"}},
+    {id:"atlas", name:"atlas", kind:"remote", user:"dev", host:"atlas.lab.example", port:22, root:"", purpose:"personal", relay:"", perm:"accept-edits", agents:[], provision:true, shell:true, confirm:false,
+      pinned:{type:"ED25519", fp:"SHA256:q3Vt9kR2bWm5Xc8Ld1Ns7Hy4Gf0Je6Pa2Tu9Zo3Ri5"},
+      health:{reachable:true, ms:38, tmux:"3.5a", disk:"212 GB", at:"2 min ago"}},
+    {id:"local", name:"this host", kind:"local", user:"", host:"", port:0, root:"", purpose:"personal", relay:"", perm:"", agents:[], provision:true, shell:true, confirm:false, pinned:null,
+      health:{reachable:true, ms:1, tmux:"3.5a", disk:"61 GB", at:"1 min ago"}},
+  ],
+  workspaces:[
+    {id:"w1", name:"ledger-api", target:"atlas", st:"active"},
+    {id:"w2", name:"infra-terraform", target:"kestrel", st:"idle"},
+    {id:"w3", name:"blog-rewrite", target:"local", st:"active"},
+    {id:"w4", name:"ml-notebook", target:"atlas", st:"archived"},
+    {id:"w5", name:"payments-sandbox", target:"kestrel", st:"broken", reason:"The workspace root is not writable."},
+  ],
+  scan:{}, test:{}, wsConfirm:null, tConfirm:null, form:null, formErr:"",
+  creds:[
+    {id:"c1", name:"GITHUB_TOKEN", ws:"", agent:"", upd:"8 days ago"},
+    {id:"c2", name:"ANTHROPIC_API_KEY", ws:"", agent:"claude-code", upd:"21 days ago"},
+    {id:"c3", name:"NPM_TOKEN", ws:"blog-rewrite", agent:"", upd:"3 days ago"},
+    {id:"c4", name:"KUBECONFIG_STAGING", ws:"infra-terraform", agent:"claude-code", upd:"yesterday"},
+  ],
+  vaultAdd:false, vaultErr:"", replacing:null, deleting:null,
+  devices:[
+    {id:"s1", name:"Firefox on Linux", sub:"This browser, active now", cur:true},
+    {id:"s2", name:"Pixel 9, installed app", sub:"Last used 12 min ago"},
+    {id:"s3", name:"Chrome on an old laptop", sub:"Last used 19 days ago"},
+  ],
+  login:{err:"", busy:false, back:"Restart the staging ledger deploy"},
+  toast:null,
+};
+let toastTimer = null;
+function toast(msg){ S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 2600); }
+
+function needsCount(){
+  const i = S.inbox;
+  return (i.offer.state==="pending") + (i.prompt.state==="pending") + (i.failed.state==="failed") + (!i.older.snoozed ? 1 : 0);
+}
+
+// ---------- the turn engine (conversation) ----------
+const STAGES = {
+  offer:["Queued","Deciding where this goes…","claude-code is working in ledger-api"],
+  plain:["Queued","Deciding where this goes…","Loomux is answering…"],
+};
+let turnSeq = 0, paneTimer = null;
+function startTurn(kind){
+  const id = ++turnSeq;
+  S.conv.turn = {id, kind, stage:0, since:Date.now()};
+  S.pane = [];
+  render();
+  const live = () => S.conv.turn && S.conv.turn.id === id;
+  setTimeout(() => { if(live()){ S.conv.turn.stage = 1; render(); } }, 900);
+  setTimeout(() => {
+    if(!live()) return;
+    S.conv.turn.stage = 2; render();
+    if(kind === "offer"){
+      let n = 0;
+      clearInterval(paneTimer);
+      paneTimer = setInterval(() => {
+        if(!live()){ clearInterval(paneTimer); return; }
+        S.pane.push(PANE_LIVE[n++]); paintPane();
+        if(n >= PANE_LIVE.length){ clearInterval(paneTimer); setTimeout(() => live() && finishTurn(), 1400); }
+      }, 1200);
+    } else setTimeout(() => live() && finishTurn(), 2600);
+  }, 2500);
+}
+function finishTurn(){
+  const t = S.conv.turn; S.conv.turn = null; clearInterval(paneTimer);
+  if(t.kind === "offer"){
+    S.conv.extra.push({who:"cc", html:`<p>Applied <code>0042_rate_limits.sql</code> to staging. <code>rate_limit_buckets</code> exists with its primary key on <code>(api_key_id, window_start)</code>, and the limiter on <code>/transfers</code> now reads from it.</p><p>Nothing else in the schema changed.</p>`});
+  } else {
+    S.conv.extra.push({who:"router", html:`<p>This is a mockup, so nothing went to the fleet. In the real client the answer to your message lands here.</p>`});
+  }
+  if(S.conv.queued){ const q = S.conv.queued; S.conv.queued = null; S.conv.extra.push({who:"me", text:q}); render(); startTurn("plain"); return; }
+  render();
+}
+function cancelTurn(){
+  if(!S.conv.turn) return;
+  const kind = S.conv.turn.kind;
+  S.conv.turn = null; clearInterval(paneTimer);
+  S.conv.extra.push({err:true, kind});
+  render();
+}
+function paintPane(){
+  document.querySelectorAll("[data-pane]").forEach(el => { el.innerHTML = paneLines(); });
+}
+function paneLines(){
+  const lines = S.conv.turn ? S.pane : PANE_LAST;
+  if(!lines.length) return `<div class="dim">Waiting for the agent's first output…</div>`;
+  return lines.slice(-12).map(([c,t]) => `<div class="${c}">${esc(t)}</div>`).join("");
+}
+
+// ---------- needs-you answer cards ----------
+function offerCard(dev){
+  const o = S.inbox.offer;
+  if(o.state === "approved") return `<div class="resolved ok" role="status">${ic("check")}<div><b>Approved.</b> Loomux is running it on kestrel now. <span class="muted">Restart the staging ledger deploy</span></div></div>`;
+  if(o.state === "denied") return `<div class="resolved no" role="status">${ic("x")}<div><b>Denied: nothing was run.</b> <span class="muted">Restart the staging ledger deploy</span></div></div>`;
+  if(o.state === "expired") return `<div class="resolved no" role="status">${ic("x")}<div><b>Expired: nothing was run.</b> Send the request again if you still want it.</div></div>`;
+  return `<section class="ask" aria-label="Confirmation">
+    <div class="ask-band">${ic("diamond")}Wants approval<span class="right tnum">expires in <span data-until="${o.exp}">${fmtCount(o.exp-Date.now())}</span></span></div>
+    <div class="ask-body">
+      <h3>Run this command on kestrel?</h3>
+      <pre class="cmd"><span class="p">$ </span>kubectl -n staging rollout restart deploy/ledger-api</pre>
+      <p class="ctx">Workspace infra-terraform, claude-code. kestrel is a work machine and asks before new work. In <button class="linkish" data-act="open" data-arg="restart">Restart the staging ledger deploy</button>, 2 min ago.</p>
+      <div class="ask-actions">
+        <button class="btn btn-approve" data-act="i-offer" data-arg="approved">${ic("check")}Approve</button>
+        <button class="btn btn-deny" data-act="i-offer" data-arg="denied">${ic("x")}Deny</button>
+      </div>
+    </div></section>`;
+}
+function promptCard(dev){
+  const p = S.inbox.prompt;
+  if(p.state !== "pending") return `<div class="resolved ok" role="status">${ic("check")}<div><b>Answered: ${esc(p.answer)}.</b> claude-code is working again in ledger-api.</div></div>`;
+  const opt = (n, t, d) => `<button class="opt" data-act="i-prompt" data-arg="${n}. ${esc(t)}"><b>${n}</b><span>${esc(t)}${d ? `<small>${esc(d)}</small>` : ""}</span></button>`;
+  return `<section class="ask" aria-label="Agent needs attention">
+    <div class="ask-band">${ic("diamond")}Asking you<span class="right">6 min</span></div>
+    <div class="ask-body">
+      <h3>claude-code wants to edit a file</h3>
+      <pre class="cmd">src/middleware/ratelimit.ts
+<span class="p">+</span> export function rateLimit({ perKey, windowMs }: Limits) {
+<span class="p">+</span>   const buckets = new PgBucketStore(pool);</pre>
+      <p class="ctx">Do you want to make this edit? ledger-api on atlas, in <button class="linkish" data-act="open" data-arg="ratelimit">Add rate limiting to the ledger-api /transfers endpoint</button>.</p>
+      <div class="opts">
+        ${opt(1,"Yes")}
+        ${opt(2,"Yes, and don't ask again this session")}
+        ${opt(3,"No","Tell claude-code what to do instead below")}
+      </div>
+      <form class="replyrow" data-form="i-reply">
+        <label class="vh" for="${dev}-reply">Reply to the agent</label>
+        <input class="inp" id="${dev}-reply" data-model="reply" value="${esc(S.drafts.reply)}" placeholder="Or tell it what to do instead…" autocomplete="off">
+        <button class="btn" type="submit">Reply</button>
+      </form>
+    </div></section>`;
+}
+function failedCard(){
+  const f = S.inbox.failed;
+  if(f.state === "retrying") return `<div class="resolved ok" role="status">${ic("retry")}<div><b>Sent again.</b> Bump terraform providers is queued on kestrel.</div></div>`;
+  return `<section class="ask" aria-label="Failed turn">
+    <div class="ask-band bad">${ic("tri")}Failed<span class="right">40 min ago</span></div>
+    <div class="ask-body">
+      <h3>claude-code hit its usage limit</h3>
+      <p>It resets at 5pm. Retry after that, or ask for the work on another agent.</p>
+      <details class="raw"><summary>Details</summary><pre class="cmd">agent_rate_limited: claude-code reported "5-hour limit reached | resets 5pm (Europe/Istanbul)"</pre></details>
+      <p class="ctx">infra-terraform on kestrel, in <button class="linkish" data-act="open" data-arg="tf">Bump terraform providers</button>.</p>
+      <div class="ask-actions"><button class="btn btn-primary" data-act="i-retry">${ic("retry")}Retry</button><button class="btn btn-deny" data-act="open" data-arg="tf">Open conversation</button></div>
+    </div></section>`;
+}
+function olderFold(){
+  const o = S.inbox.older;
+  if(o.snoozed) return `<p class="faint" style="font-size:13.5px;padding:0 2px">Snoozed until tomorrow: Clean up old notebook outputs. <button class="linkish" data-act="unsnooze">Undo</button></p>`;
+  return `<div><button class="fold" data-act="older" aria-expanded="${o.open}">${ic("chevr")}Older, still waiting <span class="faint">1</span></button>
+    ${o.open ? `<div class="rows"><div class="row" style="cursor:default">${ic("diamondo","")}<div class="main"><div class="t">Clean up old notebook outputs</div><div class="s">claude-code is waiting for your reply in ml-notebook, 2 days</div></div></div>
+      <div style="display:flex;gap:8px;padding:0 14px 14px 14px"><button class="btn btn-sm" data-act="open" data-arg="nb">Open</button><button class="btn btn-sm btn-deny" data-act="snooze">Snooze for a day</button></div></div>
+      <p class="faint" style="font-size:12.5px;margin-top:6px">Waiting items move here after a day. Snoozing only hides it on this device; the task still waits.</p>` : ""}</div>`;
+}
+function runningRows(){
+  const r = S.inbox.running;
+  return `<div class="rows">${r.map(x => `<button class="row" data-act="open" data-arg="${x.id}">${st("working","")}<div class="main"><div class="t">${esc(x.title)}</div><div class="s">${esc(x.stage)}</div></div><span class="end tnum" data-since="${x.since}">${fmtElapsed(Date.now()-x.since)}</span></button>`).join("")}</div>`;
+}
+function doneRows(){
+  return `<div class="rows"><button class="row" data-act="open" data-arg="backup">${st("done","")}<div class="main"><div class="t">Why is the nightly backup job slow?</div><div class="s">Answered by Loomux</div></div><span class="end">1 h</span></button></div>`;
+}
+function inboxList(dev){
+  const n = needsCount();
+  return `
+    <h2 class="sec-h">Needs you <span class="faint">${n}</span></h2>
+    ${offerCard(dev)}${promptCard(dev)}${failedCard()}
+    ${olderFold()}
+    <h2 class="sec-h">Running <span class="faint">${S.inbox.running.length}</span></h2>${runningRows()}
+    <h2 class="sec-h">Done today</h2>${doneRows()}`;
+}
+
+// ---------- conversation ----------
+function threadHTML(dev){
+  if(S.convId === "new") return `<div class="empty"><h2>Start a conversation</h2><p class="muted">Say what you want done and where. Loomux picks the machine and the agent, and asks you first when it should.</p>
+    <div class="chips">${["In ledger-api, have claude-code fix the failing transfer test","How much disk is free on atlas?","Clone the docs site onto this host"].map(t => `<button class="chip" data-act="example" data-arg="${esc(t)}">${esc(t)}</button>`).join("")}</div></div>`;
+  const c = S.conv;
+  let h = `
+  <div class="msg me"><div class="body"><div class="who">14:02</div><div class="bubble">In ledger-api on atlas, have claude-code add rate limiting to the /transfers endpoint. 20 requests a minute per API key.</div></div></div>
+  <div class="sys">${ic("shuttle")}Loomux sent this to claude-code in ledger-api on atlas.</div>
+  <div class="sys">${ic("check")}claude-code asked to edit src/middleware/ratelimit.ts. You answered 1. Yes.</div>
+  <div class="msg">${glyph("cc")}<div class="body"><div class="who"><b>claude-code</b>14:19</div><div class="bubble">
+    <p>Added a token-bucket limiter in <code>src/middleware/ratelimit.ts</code> and put it in front of the transfers route. A key over the limit gets a 429 with a <code>Retry-After</code> header.</p>
+    <pre><code><span class="tok-k">router</span>.post(<span class="tok-s">"/transfers"</span>,
+  rateLimit({ perKey: <span class="tok-n">20</span>, windowMs: <span class="tok-n">60_000</span> }),
+  createTransfer);</code></pre>
+    <p>The counters live in Postgres so the limit holds across all three API pods. That needs a new table: <code>migrations/0042_rate_limits.sql</code>.</p></div></div></div>
+  <div class="msg me"><div class="body"><div class="who">14:20</div><div class="bubble">Run the transfer tests</div></div></div>
+  <div class="msg cmdres">${glyph("cmd")}<div class="body"><div class="who"><b>Command on atlas</b>14:21</div><div class="bubble"><div class="cap mono">npm test -- transfers<span class="exit">exit 0</span></div><pre>PASS  test/transfers.ratelimit.test.ts (14 tests)
+PASS  test/transfers.test.ts (31 tests)
+Tests: 45 passed, 45 total</pre></div></div></div>
+  <div class="msg me"><div class="body"><div class="who">14:23</div><div class="bubble">Apply the migration to staging</div></div></div>
+  <div class="msg">${glyph("router")}<div class="body"><div class="who"><b>Loomux</b>14:23</div><div class="bubble"><p>This changes the staging database, so I'd like a yes first.</p></div></div></div>`;
+  h += `<div style="padding-left:44px;display:grid;gap:8px">${convOffer()}</div>`;
+  for(const x of c.extra){
+    if(x.err) h += `<div class="errcard" role="alert"><div><b>You cancelled this turn.</b> The agent's session is kept; attach to see where it stopped.</div><details class="raw"><summary>Details</summary><pre class="cmd">cancelled: dispatch cancelled by the user</pre></details><div><button class="btn btn-sm btn-primary" data-act="c-retry" data-arg="${x.kind}" ${c.turn?"disabled":""}>${ic("retry")}Retry</button></div></div>`;
+    else if(x.who === "me") h += `<div class="msg me"><div class="body"><div class="who">now</div><div class="bubble">${esc(x.text)}</div></div></div>`;
+    else h += `<div class="msg">${glyph(x.who)}<div class="body"><div class="who"><b>${x.who==="cc"?"claude-code":"Loomux"}</b>now</div><div class="bubble">${x.html}</div></div></div>`;
+  }
+  if(c.turn) h += turnCard(dev);
+  if(c.queued) h += `<div class="msg me queued"><div class="body"><div class="who">Sends when this turn finishes</div><div class="bubble">${esc(c.queued)}</div><button class="linkish" style="font-size:13px" data-act="unqueue">Edit</button></div></div>`;
+  return h;
+}
+function convOffer(){
+  const s = S.conv.offer;
+  if(s === "approved") return `<div class="resolved ok" role="status">${ic("check")}<div><b>Approved.</b> psql on atlas, migration 0042.</div></div>`;
+  if(s === "denied") return `<div class="resolved no" role="status">${ic("x")}<div><b>Denied: nothing was run.</b></div></div>`;
+  if(s === "expired") return `<div class="resolved no" role="status">${ic("x")}<div><b>Expired: nothing was run.</b> Send the request again if you still want it.</div></div>`;
+  return `<section class="ask" aria-label="Confirmation">
+    <div class="ask-band">${ic("diamond")}Wants approval<span class="right tnum">expires in <span data-until="${S.conv.exp}">${fmtCount(S.conv.exp-Date.now())}</span></span></div>
+    <div class="ask-body"><h3>Run this command on atlas?</h3>
+    <pre class="cmd"><span class="p">$ </span>psql "$LEDGER_STAGING_URL" -f migrations/0042_rate_limits.sql</pre>
+    <p class="ctx">Workspace ledger-api, claude-code.</p>
+    <div class="ask-actions"><button class="btn btn-approve" data-act="c-offer" data-arg="approved" ${S.conv.turn?"disabled":""}>${ic("check")}Approve</button><button class="btn btn-deny" data-act="c-offer" data-arg="denied" ${S.conv.turn?"disabled":""}>${ic("x")}Deny</button></div></div></section>
+    <p class="note"><b>Prototype:</b> Approve to watch a turn run: stages, timer, Cancel, attach and the pane.</p>`;
+}
+function attachBlock(dev){
+  return `<div class="attach"><code id="${dev}-attach">${esc(ATTACH)}</code><div class="row2"><button class="btn btn-sm" data-act="copy" data-arg="${dev}-attach">${ic("copy")}Copy</button><span>Paste into a terminal to watch or take over. Loomux runs its own tmux server, hence <span class="mono">-L loomux</span>.</span></div></div>`;
+}
+function turnCard(dev){
+  const t = S.conv.turn, stg = STAGES[t.kind];
+  const list = stg.map((s,i) => `<li class="${i<t.stage?"done":i===t.stage?"now":""}"><i></i>${esc(s)}</li>`).join("");
+  return `<section class="turn" role="status" aria-label="Turn in progress">
+    <div class="turn-top">${st("working","Working")}<span class="el tnum" data-since="${t.since}">${fmtElapsed(Date.now()-t.since)}</span></div>
+    <ol class="stages">${list}</ol>
+    ${dev==="p" && t.kind==="offer" && t.stage===2 ? `<div class="pane-h">Pane <span class="live"><i class="pulse"></i>live</span></div><div class="pane" data-pane style="max-height:150px">${paneLines()}</div><p class="note"><b>Live pane</b> needs an additive server endpoint; v1 today shows the last turn's capture.</p>` : ""}
+    <div class="turn-actions"><button class="btn btn-sm btn-deny" data-act="cancel">${ic("x")}Cancel</button><button class="btn btn-sm" data-act="toggle-attach" aria-expanded="${S.conv.showAttach}">${ic("term")}${S.conv.showAttach?"Hide attach command":"Attach command"}</button></div>
+    ${S.conv.showAttach ? attachBlock(dev+"t") : ""}
+  </section>`;
+}
+function composer(dev){
+  const busy = !!S.conv.turn;
+  const hint = busy ? `<p class="comp-hint busy">${ic("info")}A turn is running. Keep writing; Send holds your message until the turn finishes.</p>`
+    : `<p class="comp-hint">${dev==="d" ? "Ctrl+Enter to send. Enter makes a new line." : "Return makes a new line. Tap Send when you're done."}</p>`;
+  const rows = Math.min(6, Math.max(1, (S.drafts.compose.match(/\n/g)||[]).length + 1));
+  return `<form class="composer" data-form="send">
+    <label class="vh" for="${dev}-compose">Message</label>
+    <div class="comp-row"><textarea id="${dev}-compose" rows="${rows}" data-model="compose" data-grow placeholder="Message the agent fleet…" enterkeyhint="enter">${esc(S.drafts.compose)}</textarea>
+    <button class="btn btn-primary" type="submit" ${S.drafts.compose.trim()?"":"disabled"}>${ic("send")}Send</button></div>${hint}</form>`;
+}
+function convHead(){
+  if(S.convId === "new") return {title:"New conversation", sub:`<span>Loomux picks where it runs</span>`};
+  return {title:"Add rate limiting to the ledger-api /transfers endpoint",
+    sub:`<span>workspace: ledger-api</span><span class="faint">on atlas</span>${S.conv.turn ? st("working") : S.conv.offer==="pending" ? st("approval") : st("done","Idle")}`};
+}
+function contextHTML(dev){
+  const running = !!S.conv.turn;
+  return `
+  <div class="ctxsec"><h2>Pane</h2>
+    <div class="pane-h">${running ? `claude-code in ledger-api <span class="live"><i class="pulse"></i>live</span>` : `<span class="faint" style="font-weight:500">Captured at the end of the last turn, 14:21</span>`}</div>
+    <div class="pane" data-pane style="height:${dev==="d"?"230px":"200px"}">${paneLines()}</div>
+    <p class="note"><b>Live pane</b> needs an additive server endpoint; v1 today shows the last turn's capture.</p>
+  </div>
+  <div class="ctxsec"><h2>Tasks in this conversation</h2>
+    <div class="task"><div class="top">${glyph("cc",1)}<b>claude-code in ledger-api</b>${running ? st("working") : st("active","Attached")}</div><p class="faint" style="font-size:12.5px;margin-left:36px">Started 14:03, 4 turns</p><div class="acts"><button class="btn btn-sm btn-quiet" data-act="toggle-attach">Attach command</button><button class="btn btn-sm btn-quiet" data-act="toast" data-arg="Transcript opens here: each turn's message, final answer and pane">Transcript</button></div></div>
+    <div class="task"><div class="top">${glyph("cmd",1)}<b>Command in ledger-api</b>${st("done","exit 0")}</div><p class="faint" style="font-size:12.5px;margin-left:36px">14:21, npm test -- transfers</p><div class="acts"><button class="btn btn-sm btn-quiet" data-act="toast" data-arg="Transcript opens here">Transcript</button></div></div>
+  </div>
+  <div class="ctxsec"><h2>Attach</h2>${attachBlock(dev+"c")}</div>`;
+}
+
+// ---------- machines ----------
+const tgt = id => S.targets.find(t => t.id === id);
+const relayEff = t => t.relay || (t.purpose === "work" ? "none" : "full");
+const RELAY = {
+  full:"The router's models see the agent's output, your messages and the running summary.",
+  last_message:"The router's models see only the agent's final message, never its screen.",
+  none:"Nothing from this machine reaches the router's models. Replies arrive as the agent wrote them, and notifications only say there's news.",
+};
+function dest(t){ return t.kind === "local" ? "This host" : `${t.user}@${t.host}${t.port && t.port !== 22 ? ":"+t.port : ""}`; }
+function policyList(t){
+  const li = (ok, txt) => `<li class="${ok?"yes":"no"}">${ic(ok?"check":"x")}<span>${esc(txt)}</span></li>`;
+  const perm = {"":"Each agent uses its own default for edits.", auto:"Agents act without asking (Auto).", "accept-edits":"Agents may edit files without asking (Accept edits).", manual:"Agents ask before every edit (Manual)."}[t.perm];
+  return `<ul class="plain">
+    <li>${ic("info")}<span>${t.purpose==="work" ? "Work machine: agents run under your work logins." : "Personal machine."}</span></li>
+    ${li(t.provision, t.provision ? "New workspaces may be created here." : "No new workspaces here.")}
+    ${li(t.shell, t.shell ? "Plain shell commands may run here." : "Plain shell commands are off.")}
+    ${li(true, t.agents.length ? "Only " + t.agents.join(", ") + " may run here." : "Any agent type may run here.")}
+    <li>${ic("info")}<span>${t.confirm ? "Asks you before starting new work." : "Starts work without asking."}</span></li>
+    <li>${ic("info")}<span>${perm}</span></li></ul>`;
+}
+function relayCtl(t){
+  const def = t.purpose === "work" ? "Default (Nothing, for work)" : "Default (Everything)";
+  const opts = [["",def],["full","Everything"],["last_message","Final answer only"],["none","Nothing"]];
+  return `<div class="seg" role="radiogroup" aria-label="What the router's models may see">${opts.map(([v,l]) => `<button role="radio" aria-checked="${t.relay===v}" data-act="relay" data-arg="${t.id}|${v}">${esc(l)}</button>`).join("")}</div>
+  <p class="relay-why">${RELAY[relayEff(t)]}</p>`;
+}
+function hostKey(t){
+  if(t.kind === "local") return "";
+  if(t.pinned) return `<div class="keybox ok"><h4>${ic("shield")}Host key pinned</h4><p class="muted">Loomux checks this machine against this key alone.</p><div class="key" style="cursor:default"><div><b>${t.pinned.type}</b><div class="fp">${t.pinned.fp}</div></div></div><div><button class="btn btn-sm btn-deny" data-act="unpin" data-arg="${t.id}">Unpin</button></div></div>`;
+  const sc = S.scan[t.id];
+  if(!sc) return `<div class="keybox"><h4>${ic("diamond")}Host key not pinned</h4><p>Loomux trusts whatever key your SSH config accepts for this machine. Scan it, compare the fingerprint with the one the machine reports itself, then pin it.</p><div><button class="btn btn-primary btn-sm" data-act="scan" data-arg="${t.id}">${ic("key")}Scan host key</button></div></div>`;
+  if(sc.busy) return `<div class="keybox"><h4>${ic("diamond")}Scanning ${esc(t.host)}…</h4><p class="muted">Reading the keys the machine offers. Nothing is trusted yet.</p></div>`;
+  if(sc.expired) return `<div class="keybox"><h4>${ic("diamond")}Scan expired</h4><p>A pin must come from a scan under 10 minutes old.</p><div><button class="btn btn-primary btn-sm" data-act="scan" data-arg="${t.id}">${ic("key")}Scan again</button></div></div>`;
+  const sel = sc.keys.find(k => k.type === sc.sel);
+  return `<div class="keybox"><h4>${ic("diamond")}Pick the key to pin</h4>
+    <p>Compare with the machine's own output: <span class="mono">ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</span></p>
+    <div class="keys" role="radiogroup" aria-label="Scanned host keys">${sc.keys.map(k => `<label class="key"><input type="radio" name="${t.id}-key" ${sc.sel===k.type?"checked":""} data-act="pick-key" data-arg="${t.id}|${k.type}"><div><b>${k.type}</b><div class="fp">${k.fp}</div></div></label>`).join("")}</div>
+    <label class="check"><input type="checkbox" ${sc.ok?"checked":""} data-act="key-ok" data-arg="${t.id}">I compared this fingerprint with the one the machine reports.</label>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary btn-sm" data-act="pin" data-arg="${t.id}" ${sel && sc.ok ? "" : "disabled"}>${ic("shield")}Pin ${sel ? sel.type : ""} key</button><span class="faint tnum" style="font-size:13px">Scan expires in <span data-until="${sc.exp}">${fmtCount(sc.exp-Date.now())}</span></span></div></div>`;
+}
+function healthBlock(t){
+  const h = t.health, tr = S.test[t.id];
+  const res = tr === "busy" ? `<span class="faint">Testing…</span>` : tr ? `<span class="st st-done">${ic("check")}Reachable, tmux ${t.id==="kestrel"?"3.5a":h.tmux}, ${t.id==="kestrel"?41:h.ms} ms</span>` : "";
+  return `<div class="facts"><div><span>Status</span><b>${h.reachable ? "Reachable" : "Unreachable"}</b></div><div><span>Latency</span><b>${h.ms} ms</b></div><div><span>tmux</span><b>${h.tmux}</b></div><div><span>Disk free</span><b>${h.disk}</b></div></div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-sm" data-act="test" data-arg="${t.id}" ${tr==="busy"?"disabled":""}>Test connection</button>${res}<span class="faint" style="font-size:12.5px">Checked ${h.at}</span></div>`;
+}
+function wsRows(t){
+  const ws = S.workspaces.filter(w => w.target === t.id);
+  if(!ws.length) return `<p class="faint">No workspaces yet. Ask for work on ${esc(t.name)} in a conversation and Loomux sets one up.</p>`;
+  return `<div>${ws.map(w => {
+    const acts = [];
+    if(w.st === "archived" || w.st === "broken") acts.push(`<button class="btn btn-sm" data-act="ws" data-arg="${w.id}|reopen">Reopen</button>`);
+    if(w.st === "idle" || w.st === "broken") acts.push(`<button class="btn btn-sm" data-act="ws" data-arg="${w.id}|archive">Archive</button>`);
+    if(w.st !== "provisioning") acts.push(`<button class="btn btn-sm btn-deny" data-act="ws" data-arg="${w.id}|delete">Delete</button>`);
+    const conf = S.wsConfirm === w.id ? `<div class="confirm" role="alert"><p>Delete ${esc(w.name)} and its tasks? The conversation history stays, and its files on the machine are kept.</p><div class="acts"><button class="btn btn-sm btn-danger" data-act="ws" data-arg="${w.id}|yes">Yes, delete</button><button class="btn btn-sm" data-act="ws" data-arg="${w.id}|keep">Keep</button></div></div>` : "";
+    return `<div class="ws"><div class="main"><b>${esc(w.name)}</b><span style="font-size:13px" class="muted">target: ${esc(t.name)}</span>${w.reason ? `<p class="faint" style="font-size:13px">${esc(w.reason)}</p>` : ""}</div>${st(w.st)}<div class="acts">${acts.join("")}</div>${conf}</div>`;
+  }).join("")}</div>`;
+}
+function targetDetail(t, dev){
+  const tc = S.tConfirm === t.id;
+  return `
+    <div class="sect"><h3>Connection</h3>${healthBlock(t)}</div>
+    ${t.kind !== "local" ? `<div class="sect"><h3>Host key</h3>${hostKey(t)}</div>` : ""}
+    <div class="sect"><h3>What Loomux may do here</h3>${policyList(t)}</div>
+    <div class="sect"><h3>What the router's models may see</h3>${relayCtl(t)}</div>
+    <div class="sect"><h3>Workspaces</h3>${wsRows(t)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" data-act="edit-target" data-arg="${t.id}">Edit target</button><button class="btn btn-sm btn-deny" data-act="del-target" data-arg="${t.id}">Delete target</button></div>
+    ${tc ? `<div class="confirm" role="alert"><p>${S.workspaces.some(w=>w.target===t.id) ? `Workspaces still use ${esc(t.name)}, so Loomux will refuse to delete it. Delete or move those first.` : `Delete ${esc(t.name)}?`}</p><div class="acts"><button class="btn btn-sm" data-act="del-target-keep">Keep</button></div></div>` : ""}`;
+}
+function targetForm(dev){
+  const f = S.form.v, isNew = S.form.mode === "new";
+  const fld = (k, label, attrs="", hint="") => `<div class="field"><label for="${dev}-f-${k}">${label}</label><input class="inp" id="${dev}-f-${k}" data-fmodel="${k}" value="${esc(f[k])}" ${attrs}>${hint?`<small>${hint}</small>`:""}</div>`;
+  const chk = (k, label) => `<label class="check"><input type="checkbox" data-fmodel="${k}" ${f[k]?"checked":""}>${label}</label>`;
+  return `<form class="form" data-form="target" aria-label="${isNew ? "Register target" : "Edit " + esc(f.name)}">
+    <h2 style="font-size:20px;font-weight:800">${isNew ? "Register a machine" : "Edit " + esc(f.name)}</h2>
+    ${fld("name","Name",'autocomplete="off"')}
+    <div class="field"><label for="${dev}-f-kind">Kind</label><select class="inp" id="${dev}-f-kind" data-fmodel="kind" data-rerender><option value="remote" ${f.kind==="remote"?"selected":""}>Remote, over SSH</option><option value="local" ${f.kind==="local"?"selected":""}>This host</option></select></div>
+    ${f.kind === "remote" ? `<div class="two">${fld("host","Host",'autocomplete="off" placeholder="build-01.lab.example"')}${fld("user","User",'autocomplete="off"')}</div>${fld("port","SSH port",'inputmode="numeric"',"Leave at 0 to use your SSH config's port.")}` : ""}
+    ${fld("root","Workspace root (optional)",'placeholder="/home/agent/loomux-workspaces"',"An absolute path. Empty means ~/loomux-workspaces.")}
+    <div class="field"><label for="${dev}-f-perm">How much agents may do without asking</label><select class="inp" id="${dev}-f-perm" data-fmodel="perm"><option value="">Each agent's default</option><option value="auto" ${f.perm==="auto"?"selected":""}>Auto: act without asking</option><option value="accept-edits" ${f.perm==="accept-edits"?"selected":""}>Accept edits: edit files, ask for the rest</option><option value="manual" ${f.perm==="manual"?"selected":""}>Manual: ask before every edit</option></select></div>
+    <fieldset><legend>Policy</legend>
+      <div class="field"><label for="${dev}-f-purpose">Purpose</label><select class="inp" id="${dev}-f-purpose" data-fmodel="purpose"><option value="personal">Personal</option><option value="work" ${f.purpose==="work"?"selected":""}>Work: agents run under your work logins</option></select></div>
+      ${fld("agents","Allowed agent types (optional)",'placeholder="all agent types"',"Comma-separated, e.g. claude-code, codex.")}
+      ${chk("provision","Allow new workspaces here")}${chk("shell","Allow plain shell commands here")}${chk("confirm","Ask me before starting new work here")}
+    </fieldset>
+    ${S.formErr ? `<p class="err" role="alert">${ic("tri")}${esc(S.formErr)}</p>` : ""}
+    <div class="acts"><button class="btn btn-primary" type="submit">${isNew ? "Register" : "Save changes"}</button><button class="btn" type="button" data-act="form-cancel">Cancel</button></div>
+  </form>`;
+}
+function tStatus(t){
+  if(t.kind !== "local" && !t.pinned) return st("approval","Pin host key");
+  return st("done","Healthy");
+}
+
+// ---------- vault ----------
+function scopeChips(c){
+  if(!c.ws && !c.agent) return `<span class="scope all">Every workspace and agent</span>`;
+  return (c.ws ? `<span class="scope">Workspace ${esc(c.ws)}</span>` : "") + (c.agent ? `<span class="scope">Agent ${esc(c.agent)}</span>` : "");
+}
+function vaultHTML(dev){
+  const add = S.vaultAdd ? `<form class="form tcard" style="padding:16px" data-form="v-add" aria-label="Add credential">
+      <h2 style="font-size:18px;font-weight:800">Add credential</h2>
+      <div class="field"><label for="${dev}-v-name">Name (environment variable)</label><input class="inp mono" id="${dev}-v-name" data-model="vName" value="${esc(S.drafts.vName)}" placeholder="GITHUB_TOKEN" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label for="${dev}-v-val">Value</label><input class="inp" id="${dev}-v-val" type="password" autocomplete="new-password"><small>You won't see it again after saving. You can replace it later.</small></div>
+      <div class="two" style="display:grid;grid-template-columns:${dev==="p"?"1fr":"1fr 1fr"};gap:12px">
+        <div class="field"><label for="${dev}-v-ws">Only for workspace (optional)</label><select class="inp" id="${dev}-v-ws" data-model="vWs"><option value="">Any workspace</option>${S.workspaces.map(w => `<option ${S.drafts.vWs===w.name?"selected":""}>${esc(w.name)}</option>`).join("")}</select></div>
+        <div class="field"><label for="${dev}-v-agent">Only for agent type (optional)</label><input class="inp" id="${dev}-v-agent" data-model="vAgent" value="${esc(S.drafts.vAgent)}" placeholder="claude-code" autocomplete="off"></div>
+      </div>
+      ${S.vaultErr ? `<p class="err" role="alert">${ic("tri")}${esc(S.vaultErr)}</p>` : ""}
+      <div class="acts"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" data-act="v-cancel">Cancel</button></div></form>`
+    : `<div><button class="btn btn-primary" data-act="v-add">${ic("plus")}Add credential</button></div>`;
+  const rows = S.creds.map(c => {
+    let extra = "";
+    if(S.replacing === c.id) extra = `<form class="replyrow" data-form="v-replace" data-arg="${c.id}" aria-label="New value for ${esc(c.name)}"><label class="vh" for="${dev}-nv-${c.id}">New value</label><input class="inp" type="password" id="${dev}-nv-${c.id}" autocomplete="new-password" placeholder="New value"><button class="btn btn-primary" type="submit">Save</button><button class="btn" type="button" data-act="v-rcancel">Cancel</button></form>`;
+    else if(S.deleting === c.id) extra = `<div class="confirm" role="alert"><p>Agents that start after this won't get ${esc(c.name)}.</p><div class="acts"><button class="btn btn-sm btn-danger" data-act="v-del-yes" data-arg="${c.id}">Delete ${esc(c.name)}</button><button class="btn btn-sm" data-act="v-dcancel">Keep</button></div></div>`;
+    return `<div class="cred"><div class="top"><span class="name">${esc(c.name)}</span><span class="lock">${ic("lock")}Value hidden</span></div><div class="chips">${scopeChips(c)}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="faint" style="font-size:13px;flex:1">Updated ${esc(c.upd)}</span><div class="acts"><button class="btn btn-sm" data-act="v-replace" data-arg="${c.id}">Replace value</button><button class="btn btn-sm btn-deny" data-act="v-del" data-arg="${c.id}">Delete</button></div></div>${extra}</div>`;
+  }).join("");
+  return `<p class="muted" style="max-width:62ch">Secrets your agents get as environment variables when they start. Values are write-only: you can replace or delete one, never read it back.</p>${add}
+    <div class="rows" style="cursor:default">${rows || `<p style="padding:16px" class="muted">No credentials yet.</p>`}</div>`;
+}
+
+// ---------- settings / login ----------
+function settingsHTML(){
+  return `<div class="sect"><h3>Devices signed in</h3><div>${S.devices.map(d => `<div class="dev"><div class="main"><b>${esc(d.name)}</b><span class="faint" style="font-size:13px">${esc(d.sub)}</span></div>${d.cur ? `<span class="faint" style="font-size:13px">This device</span>` : `<button class="btn btn-sm btn-deny" data-act="dev-out" data-arg="${d.id}">Log out</button>`}</div>`).join("")}</div></div>
+  <div class="sect"><h3>Web client</h3><p class="muted" style="font-size:14px">Running v0.4.0, installed from the server image. Up to date.</p></div>
+  <div class="sect"><h3>Theme</h3><p class="muted" style="font-size:14px">Follows your device. Change it in the prototype bar above.</p></div>
+  <div><button class="btn btn-deny" data-act="logout">${ic("out")}Log out</button></div>`;
+}
+function loginHTML(dev){
+  const L = S.login;
+  return `<div class="login">${dev==="d" ? `<svg class="mark" viewBox="0 0 24 24" aria-hidden="true" style="--sh-hole:var(--ground)">${P.shuttle}</svg>` : ""}
+    <form class="login-card" data-form="login">
+      <h1><span class="gl gl-router" style="--sh-hole:var(--ink)">${ic("shuttle")}</span>Loomux</h1>
+      ${L.back ? `<p class="back-to">You'll go back to: <b>${esc(L.back)}</b></p>` : ""}
+      <div class="field"><label for="${dev}-pw">Password</label><input class="inp" id="${dev}-pw" type="password" autocomplete="current-password"></div>
+      ${L.err ? `<p class="err" role="alert">${ic("tri")}${esc(L.err)}</p>` : ""}
+      <button class="btn btn-primary" type="submit" ${L.busy?"disabled":""}>${L.busy ? "Logging in…" : "Log in"}</button>
+      <p class="note"><b>Prototype:</b> the password is <span class="mono">loom</span>. Anything else shows the error.</p>
+    </form></div>`;
+}
+
+// ---------- phone ----------
+const SB = `<div class="sb" aria-hidden="true"><span class="tnum">9:41</span><span>5G ▮▮▮ 82%</span></div>`;
+function tabs(cur){
+  const n = needsCount();
+  const t = (k, label, icon, extra="") => `<button class="tab" data-act="tab" data-arg="${k}" ${cur===k?'aria-current="page"':""}><span class="tpill">${ic(icon)}</span>${label}${extra}</button>`;
+  return `<nav class="tabs" aria-label="Main">${t("inbox","Inbox","inbox", n ? `<span class="badge" aria-label="${n} need you">${n}</span>` : "")}${t("list","Conversations","chat")}${t("machines","Machines","server")}${t("more","More","more")}</nav>`;
+}
+function pSheet(){
+  const s = S.ui.p.sheet; if(!s) return "";
+  let inner = "";
+  if(s === "more") inner = `<div class="grab"></div><div class="menu"><button data-act="nav" data-arg="vault">${ic("key")}Vault</button><button data-act="sheet" data-arg="settings">${ic("gear")}Settings and devices</button><button data-act="logout">${ic("out")}Log out</button></div>`;
+  if(s === "settings") inner = `<div class="grab"></div><h2>Settings</h2>${settingsHTML()}`;
+  if(s === "context") inner = `<div class="grab"></div><h2>About this conversation</h2><div style="margin:0 -16px">${contextHTML("p")}</div>`;
+  if(s === "form") return `<div class="sheet-wrap"><div class="sheet full" role="dialog" aria-label="Machine form"><div style="height:28px"></div>${targetForm("p")}</div></div>`;
+  return `<div class="sheet-wrap"><button class="scrim" data-act="sheet-close" aria-label="Close"></button><div class="sheet" role="dialog">${inner}</div></div>`;
+}
+const toastHTML = () => S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "";
+function phoneApp(){
+  const scr = S.screen;
+  if(scr === "login") return SB + loginHTML("p") + toastHTML();
+  if(scr === "conversation"){
+    const h = convHead();
+    return SB + `<header class="t-head"><button class="iconbtn" data-act="tab" data-arg="inbox" aria-label="Back to inbox">${ic("chevl")}</button><div class="ttl"><h1>${esc(h.title)}</h1><div class="sub">${h.sub}</div></div>${S.convId!=="new" ? `<button class="btn btn-sm btn-quiet" data-act="sheet" data-arg="context">Details</button>` : ""}</header>
+      <div class="scroll" data-sk="thread"><div class="thread">${threadHTML("p")}</div></div>${composer("p")}${pSheet()}${toastHTML()}`;
+  }
+  let head = "", body = "", cur = scr;
+  if(scr === "inbox"){
+    const n = needsCount();
+    head = `<div style="flex:1"><h1>Inbox</h1><p class="sub">${n ? `${n} things need you` : "Nothing needs you"}</p></div><button class="btn btn-sm btn-primary" data-act="open" data-arg="new">${ic("plus")}New</button>`;
+    body = inboxList("p");
+  } else if(scr === "list"){
+    head = `<h1>Conversations</h1><button class="btn btn-sm btn-primary" data-act="open" data-arg="new">${ic("plus")}New</button>`;
+    body = convList();
+  } else if(scr === "machines"){
+    head = `<h1>Machines</h1><button class="btn btn-sm" data-act="register">${ic("plus")}Register</button>`;
+    body = S.targets.map(t => `<section class="tcard"><button class="thead" data-act="topen" data-arg="${t.id}" aria-expanded="${!!S.open[t.id]}"><div class="main"><b>${esc(t.name)}</b><div class="s">${esc(dest(t))}${t.purpose==="work"?", work machine":""}</div></div>${tStatus(t)}${ic("chevr")}</button>${S.open[t.id] ? `<div class="tbody">${targetDetail(t,"p")}</div>` : ""}</section>`).join("");
+  } else if(scr === "vault"){
+    cur = "more";
+    head = `<h1>Vault</h1>`;
+    body = vaultHTML("p");
+  }
+  return SB + `<header class="p-head">${head}</header><div class="scroll" data-sk="${scr}"><div class="p-body">${body}</div></div>${tabs(cur)}${pSheet()}${toastHTML()}`;
+}
+function convList(){
+  const f = S.filter;
+  const groups = {all:null, you:["approval","asking","waiting","failed"], running:["working"], done:["done"]};
+  const rows = CONVS.filter(c => !groups[f] || groups[f].includes(c.st));
+  const chip = (k, l) => `<button class="chip" data-act="filter" data-arg="${k}" aria-pressed="${f===k}">${l}</button>`;
+  return `<div class="chips">${chip("all","All")}${chip("you","Needs you")}${chip("running","Running")}${chip("done","Done")}</div>
+    <div class="rows">${rows.map(c => `<button class="row" data-act="open" data-arg="${c.id}"><div class="main"><div class="t">${esc(c.title)}</div><div class="s">${esc(c.where)}</div><div style="margin-top:3px">${st(c.st)}</div></div><span class="end">${esc(c.t)}</span></button>`).join("") || `<p style="padding:16px" class="muted">No conversations match this filter.</p>`}</div>`;
+}
+
+// ---------- desktop ----------
+function rail(cur){
+  const n = needsCount();
+  const nav = (k, l, icon, extra="") => `<button class="nav" data-act="nav" data-arg="${k}" ${cur===k?'aria-current="page"':""}>${ic(icon)}${l}${extra}</button>`;
+  return `<nav class="rail" aria-label="Main">
+    <div class="brand"><span class="gl gl-router" style="--sh-hole:var(--ink)">${ic("shuttle")}</span>Loomux</div>
+    ${nav("inbox","Inbox","inbox", n ? `<span class="badge" aria-label="${n} need you">${n}</span>` : "")}${nav("list","Conversations","chat")}${nav("machines","Machines","server")}
+    <div class="recent"><h2>Recent</h2>${CONVS.slice(0,5).map(c => `<button data-act="open" data-arg="${c.id}" title="${esc(c.title)}"><span class="st st-${c.st}">${ic(ST[c.st].ic)}</span><span>${esc(c.title)}</span></button>`).join("")}</div>
+    <div class="grow"></div>
+    ${nav("vault","Vault","key")}<button class="nav" data-act="sheet" data-arg="settings">${ic("gear")}Settings</button><button class="nav" data-act="logout">${ic("out")}Log out</button>
+  </nav>`;
+}
+const PREVIEW = {
+  restart:{t:"Restart the staging ledger deploy", w:"infra-terraform on kestrel", m:[["me","Restart the staging ledger deploy so it picks up the new rate limits."],["router","kestrel asks before new work, and this restarts a deployment. I'd like a yes first: the command is in your queue."]]},
+  ratelimit:{t:"Add rate limiting to the ledger-api /transfers endpoint", w:"ledger-api on atlas", m:[["me","In ledger-api on atlas, have claude-code add rate limiting to the /transfers endpoint."],["cc","Writing the limiter now. I need to create src/middleware/ratelimit.ts."]]},
+  tf:{t:"Bump terraform providers", w:"infra-terraform on kestrel", m:[["me","Bump the aws and kubernetes providers to their latest minor versions and run a plan."],["cc","Updated the lock file for aws 5.71. Starting the plan…"]]},
+};
+function preview(){
+  const p = PREVIEW[S.sel] || PREVIEW.restart;
+  return `<div class="col-head" style="padding-bottom:6px"><div style="flex:1;min-width:0"><h2 style="font-size:18px;font-weight:800">${esc(p.t)}</h2><p class="muted" style="font-size:13.5px">${esc(p.w)}</p></div></div>
+    <div class="scroll"><div class="thread" style="padding:12px 28px">${p.m.map(([w,t]) => w==="me" ? `<div class="msg me"><div class="body"><div class="bubble">${esc(t)}</div></div></div>` : `<div class="msg">${glyph(w)}<div class="body"><div class="bubble">${esc(t)}</div></div></div>`).join("")}
+    <div><button class="btn" data-act="open" data-arg="${S.sel}">${ic("chat")}Open conversation</button></div></div></div>`;
+}
+function deskApp(){
+  const scr = S.screen;
+  if(scr === "login") return loginHTML("d") + toastHTML();
+  let main = "", cur = scr;
+  if(scr === "inbox"){
+    const wrap = (id, html) => `<div data-act="sel" data-arg="${id}" style="border-radius:20px;${S.sel===id?"outline:2px solid var(--accent);outline-offset:3px":""}">${html}</div>`;
+    const n = needsCount(), i = S.inbox;
+    main = `<div class="d-main" style="grid-template-columns:620px 1fr">
+      <div class="col"><div class="col-head"><h1>Inbox</h1><button class="btn btn-primary" data-act="open" data-arg="new">${ic("plus")}New conversation</button></div>
+        <div class="scroll" data-sk="dinbox"><div class="col-body">
+          <h2 class="sec-h">Needs you <span class="faint">${n}</span></h2>
+          ${wrap("restart", offerCard("d"))}${wrap("ratelimit", promptCard("d"))}${wrap("tf", failedCard())}
+          ${olderFold()}
+          <h2 class="sec-h">Running <span class="faint">${i.running.length}</span></h2>${runningRows()}
+          <h2 class="sec-h">Done today</h2>${doneRows()}
+        </div></div></div>
+      <aside class="col side" aria-label="Preview">${preview()}</aside></div>`;
+  } else if(scr === "conversation"){
+    const h = convHead();
+    main = `<div class="d-main" style="grid-template-columns:1fr ${S.convId==="new"?"0px":"370px"}">
+      <div class="col"><header class="t-head"><div class="ttl"><h1>${esc(h.title)}</h1><div class="sub">${h.sub}<span class="live" style="margin-left:auto"><i></i>Connected</span></div></div></header>
+        <div class="scroll" data-sk="thread"><div class="thread">${threadHTML("d")}</div></div>${composer("d")}</div>
+      ${S.convId!=="new" ? `<aside class="col side" aria-label="About this conversation"><div class="scroll" data-sk="ctx">${contextHTML("d")}</div></aside>` : "<div></div>"}</div>`;
+    cur = "list";
+  } else if(scr === "list"){
+    main = `<div class="d-main"><div class="col" style="max-width:860px"><div class="col-head"><h1>Conversations</h1><button class="btn btn-primary" data-act="open" data-arg="new">${ic("plus")}New conversation</button></div><div class="scroll"><div class="col-body">${convList()}</div></div></div></div>`;
+  } else if(scr === "machines"){
+    const t = tgt(S.target);
+    const right = S.form ? `<div class="col-body" style="padding-top:24px;max-width:640px">${targetForm("d")}</div>`
+      : `<div class="col-head"><div style="flex:1;min-width:0"><h1>${esc(t.name)}</h1><p class="muted">${esc(dest(t))}${t.kind==="remote"?", remote over SSH":", the machine Loomux runs on"}</p></div>${tStatus(t)}</div><div class="col-body" style="gap:26px;max-width:760px">${targetDetail(t,"d")}</div>`;
+    main = `<div class="d-main" style="grid-template-columns:330px 1fr">
+      <div class="col" style="border-right:1px solid var(--line)"><div class="col-head"><h1>Machines</h1><button class="btn btn-sm" data-act="register">${ic("plus")}Register</button></div>
+        <div class="col-body" style="padding:0 16px 16px"><div class="rows tlist">${S.targets.map(x => `<button class="row" data-act="tsel" data-arg="${x.id}" aria-current="${x.id===S.target && !S.form}"><div class="main"><div class="t">${esc(x.name)}</div><div class="s">${esc(dest(x))}</div><div class="s">${S.workspaces.filter(w=>w.target===x.id).length} workspaces${x.purpose==="work"?", work":""}</div></div>${tStatus(x)}</button>`).join("")}</div></div></div>
+      <div class="col"><div class="scroll" data-sk="mdetail">${right}</div></div></div>`;
+  } else if(scr === "vault"){
+    main = `<div class="d-main"><div class="col"><div class="col-head" style="max-width:820px"><h1>Vault</h1></div><div class="scroll"><div class="col-body" style="max-width:820px">${vaultHTML("d")}</div></div></div></div>`;
+  }
+  const modal = S.ui.d.sheet === "settings" ? `<div class="modal-wrap"><button class="scrim" data-act="sheet-close" aria-label="Close"></button><div class="modal" role="dialog" aria-label="Settings"><h2 style="font-size:20px;font-weight:800">Settings</h2>${settingsHTML()}</div></div>` : "";
+  return `<div class="d-shell">${rail(cur)}${main}</div>${modal}${toastHTML()}`;
+}
+
+// ---------- render loop ----------
+function render(){
+  for(const dev of ["p","d"]){
+    const root = document.getElementById("frame-"+dev);
+    if(!root) continue;
+    const ae = document.activeElement, fid = ae && root.contains(ae) ? ae.id : null;
+    let sel = null; try { if(fid && ae.selectionStart != null) sel = [ae.selectionStart, ae.selectionEnd]; } catch(e){}
+    const saved = {};
+    root.querySelectorAll("[data-sk]").forEach(el => { saved[el.dataset.sk] = {top:el.scrollTop, bottom:el.scrollHeight - el.scrollTop - el.clientHeight < 40}; });
+    root.innerHTML = dev === "p" ? phoneApp() : deskApp();
+    root.querySelectorAll("[data-sk]").forEach(el => {
+      const s = saved[el.dataset.sk];
+      if(!s){ if(el.dataset.sk === "thread") el.scrollTop = el.scrollHeight; return; }
+      el.scrollTop = s.bottom && el.dataset.sk === "thread" ? el.scrollHeight : s.top;
+    });
+    if(fid){ const el = document.getElementById(fid); if(el){ el.focus({preventScroll:true}); if(sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch(e){} } }
+  }
+}
+function tick(){
+  const now = Date.now();
+  document.querySelectorAll("[data-since]").forEach(el => el.textContent = fmtElapsed(now - +el.dataset.since));
+  document.querySelectorAll("[data-until]").forEach(el => el.textContent = fmtCount(+el.dataset.until - now));
+  let dirty = false;
+  if(S.inbox.offer.state === "pending" && now >= S.inbox.offer.exp){ S.inbox.offer.state = "expired"; dirty = true; }
+  if(S.conv.offer === "pending" && now >= S.conv.exp){ S.conv.offer = "expired"; dirty = true; }
+  for(const k in S.scan){ const sc = S.scan[k]; if(sc && sc.exp && !sc.expired && now >= sc.exp){ sc.expired = true; dirty = true; } }
+  if(dirty) render();
+}
+
+// ---------- prototype shell ----------
+function store(k, v){ try { localStorage.setItem("shuttle."+k, v); } catch(e){} }
+function load(k){ try { return localStorage.getItem("shuttle."+k); } catch(e){ return null; } }
+function applyTheme(){ const r = document.documentElement; if(S.theme === "system") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", S.theme); }
+function syncTools(){
+  document.querySelectorAll("[data-tool]").forEach(b => {
+    const [k, v] = b.dataset.tool.split(":");
+    const cur = k === "screen" ? ({list:"conversation"}[S.screen] || S.screen) : S[k];
+    b.setAttribute("aria-pressed", String(cur === v));
+  });
+}
+function buildStage(){
+  const st = document.getElementById("stage");
+  const desk = `<div class="desk-slot"><p class="slot-cap">Desktop, 1280 by 820</p><div class="desk-vp" id="dvp"><div class="desk" id="desk"><div class="winbar" aria-hidden="true"><i></i><i></i><i></i><span>loomux.lab.example</span></div><div class="app is-d" id="frame-d" data-dev="d"></div></div></div></div>`;
+  const phone = `<div class="phone-slot"><p class="slot-cap">Phone, 390 by 844, installed app</p><div class="phone-vp" id="pvp"><div class="phone" id="phone"><div class="app is-p" id="frame-p" data-dev="p"></div></div></div></div>`;
+  st.innerHTML = (S.frame !== "phone" ? desk : "") + (S.frame !== "desktop" ? phone : "");
+  render(); fit();
+}
+function fit(){
+  const st = document.getElementById("stage");
+  const dvp = document.getElementById("dvp");
+  if(dvp){ const w = dvp.parentElement.clientWidth, s = Math.min(1, w / 1280); document.getElementById("desk").style.transform = `scale(${s})`; dvp.style.width = 1280*s + "px"; dvp.style.height = 820*s + "px"; }
+  const pvp = document.getElementById("pvp");
+  if(pvp){ const s = Math.min(1, st.clientWidth / 410); document.getElementById("phone").style.transform = `scale(${s})`; pvp.style.width = 410*s + "px"; pvp.style.height = 864*s + "px"; }
+}
+
+// ---------- actions ----------
+function closeSheets(){ S.ui.p.sheet = null; S.ui.d.sheet = null; }
+const NEW_FORM = () => ({name:"", kind:"remote", host:"", user:"", port:"0", root:"", perm:"", purpose:"personal", agents:"", provision:true, shell:true, confirm:false});
+S.newMsgs = [];
+const A = {
+  open(id){ S.convId = id === "new" ? "new" : "ratelimit"; S.screen = "conversation"; closeSheets(); if(id === "new") S.newMsgs = []; },
+  nav(k){ S.screen = k; closeSheets(); S.form = null; },
+  tab(k){ if(k === "more"){ S.ui.p.sheet = "more"; return; } S.screen = k; closeSheets(); S.form = null; },
+  sheet(k, dev){ S.ui[dev].sheet = k; },
+  "sheet-close"(a, dev){ S.ui[dev].sheet = null; if(dev === "p" && S.form) S.form = null; },
+  sel(id){ S.sel = id; },
+  "i-offer"(v){ S.inbox.offer.state = v; if(v === "approved") S.inbox.running.unshift({id:"restart", title:"Restart the staging ledger deploy", stage:"Running a command in infra-terraform…", since:Date.now()}); },
+  "i-prompt"(v){ S.inbox.prompt = {state:"answered", answer:v}; },
+  "i-retry"(){ S.inbox.failed.state = "retrying"; setTimeout(() => { S.inbox.running.push({id:"tf", title:"Bump terraform providers", stage:"claude-code is working in infra-terraform", since:Date.now()}); render(); }, 1500); },
+  older(){ S.inbox.older.open = !S.inbox.older.open; },
+  snooze(){ S.inbox.older.snoozed = true; },
+  unsnooze(){ S.inbox.older.snoozed = false; },
+  filter(f){ S.filter = f; },
+  example(t){ S.drafts.compose = t; },
+  "c-offer"(v){
+    S.conv.offer = v;
+    S.conv.extra.push({who:"me", text: v === "approved" ? "yes" : "no"});
+    if(v === "approved") startTurn("offer");
+    else S.conv.extra.push({who:"router", html:"<p>Okay, nothing was run. The migration file is still in the workspace if you want it later.</p>"});
+  },
+  cancel(){ cancelTurn(); },
+  "c-retry"(k){ startTurn(k || "plain"); },
+  "toggle-attach"(){ S.conv.showAttach = !S.conv.showAttach; },
+  unqueue(){ S.drafts.compose = S.conv.queued; S.conv.queued = null; },
+  copy(id){
+    const el = document.getElementById(id); if(!el) return;
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Press Ctrl+C to copy."); };
+    try { navigator.clipboard.writeText(el.textContent).then(() => toast("Copied"), fallback); } catch(e){ fallback(); }
+    return "norender";
+  },
+  toast(m){ toast(m); return "norender"; },
+  topen(id){ S.open[id] = !S.open[id]; },
+  tsel(id){ S.target = id; S.form = null; S.tConfirm = null; },
+  relay(arg){ const [id, v] = arg.split("|"); tgt(id).relay = v; },
+  scan(id){
+    S.scan[id] = {busy:true};
+    setTimeout(() => { S.scan[id] = {exp:Date.now() + 598e3, sel:"ED25519", ok:false, keys:[
+      {type:"ED25519", fp:"SHA256:7mWq3pX9Lr2cVd8Kz1TnYh4bGf6sJe0uQa5oRiN2xwE"},
+      {type:"ECDSA", fp:"SHA256:Ub8Kd2Ls9Wq4Xn7Rc1Vm5Tg3Hy6Jp0Ze8Fa2Qo4Bk9"},
+      {type:"RSA", fp:"SHA256:c4Nv7Rq1Wm8Kx2Ld5Ts9Hb3Yg6Jf0Pa4Ue7Zo1Qi8"}]}; render(); }, 1100);
+  },
+  "pick-key"(arg){ const [id, ty] = arg.split("|"); S.scan[id].sel = ty; },
+  "key-ok"(id){ S.scan[id].ok = !S.scan[id].ok; },
+  pin(id){ const sc = S.scan[id], k = sc.keys.find(x => x.type === sc.sel); tgt(id).pinned = k; delete S.scan[id]; toast(`Pinned the ${k.type} key for ${tgt(id).name}`); return "norender"; },
+  unpin(id){ tgt(id).pinned = null; toast(`Unpinned ${tgt(id).name}'s host key`); return "norender"; },
+  test(id){ S.test[id] = "busy"; setTimeout(() => { S.test[id] = "ok"; const t = tgt(id); if(t.health) t.health.at = "just now"; else t.health = {reachable:true, ms:41, tmux:"3.5a", disk:"n/a", at:"just now"}; render(); }, 1300); },
+  ws(arg){
+    const [id, op] = arg.split("|"), w = S.workspaces.find(x => x.id === id);
+    if(op === "reopen"){ w.st = "idle"; delete w.reason; }
+    if(op === "archive") w.st = "archived";
+    if(op === "delete") S.wsConfirm = id;
+    if(op === "keep") S.wsConfirm = null;
+    if(op === "yes"){ S.workspaces = S.workspaces.filter(x => x.id !== id); S.wsConfirm = null; toast(`Deleted ${w.name}`); return "norender"; }
+  },
+  "edit-target"(id, dev){ const t = tgt(id); S.form = {mode:"edit", id, v:{name:t.name, kind:t.kind, host:t.host, user:t.user, port:String(t.port), root:t.root, perm:t.perm, purpose:t.purpose, agents:t.agents.join(", "), provision:t.provision, shell:t.shell, confirm:t.confirm}}; S.formErr = ""; if(dev === "p") S.ui.p.sheet = "form"; },
+  register(a, dev){ S.form = {mode:"new", v:NEW_FORM()}; S.formErr = ""; if(dev === "p") S.ui.p.sheet = "form"; },
+  "form-cancel"(){ S.form = null; S.ui.p.sheet = null; },
+  "del-target"(id){ S.tConfirm = id; },
+  "del-target-keep"(){ S.tConfirm = null; },
+  "v-add"(){ S.vaultAdd = true; S.vaultErr = ""; },
+  "v-cancel"(){ S.vaultAdd = false; S.vaultErr = ""; S.drafts.vName = ""; S.drafts.vAgent = ""; S.drafts.vWs = ""; },
+  "v-replace"(id){ S.replacing = id; S.deleting = null; },
+  "v-rcancel"(){ S.replacing = null; },
+  "v-del"(id){ S.deleting = id; S.replacing = null; },
+  "v-dcancel"(){ S.deleting = null; },
+  "v-del-yes"(id){ const c = S.creds.find(x => x.id === id); S.creds = S.creds.filter(x => x.id !== id); S.deleting = null; toast(`Deleted ${c.name}`); return "norender"; },
+  "dev-out"(id){ const d = S.devices.find(x => x.id === id); S.devices = S.devices.filter(x => x.id !== id); toast(`Logged out ${d.name}`); return "norender"; },
+  logout(){ closeSheets(); S.screen = "login"; S.login = {err:"", busy:false, back:""}; },
+};
+const FORMS = {
+  "i-reply"(form){ const t = S.drafts.reply.trim(); if(!t) return; S.inbox.prompt = {state:"answered", answer:`"${t}"`}; S.drafts.reply = ""; },
+  send(){
+    const t = S.drafts.compose.trim(); if(!t) return;
+    S.drafts.compose = "";
+    if(S.convId === "new"){ toast("In the real client this starts the conversation and opens its turn."); return "norender"; }
+    if(S.conv.turn){ S.conv.queued = S.conv.queued ? S.conv.queued + "\n" + t : t; return; }
+    S.conv.extra.push({who:"me", text:t}); startTurn("plain"); return "norender";
+  },
+  target(form, dev){
+    const v = S.form.v; v.name = v.name.trim(); v.host = v.host.trim(); v.user = v.user.trim(); v.root = v.root.trim();
+    const port = Number(v.port || 0);
+    let err = "";
+    if(!v.name) err = "Give the machine a name.";
+    else if(v.kind === "remote" && (!v.host || !v.user)) err = "Host and user are required for a remote target.";
+    else if(v.kind === "remote" && (!Number.isInteger(port) || port < 0 || port > 65535)) err = "The SSH port must be a number from 0 to 65535.";
+    else if(v.root && (!v.root.startsWith("/") || v.root === "/")) err = "The workspace root must be an absolute path, and not /.";
+    S.formErr = err; if(err) return;
+    const fields = {name:v.name, kind:v.kind, host:v.kind==="remote"?v.host:"", user:v.kind==="remote"?v.user:"", port:v.kind==="remote"?port:0, root:v.root, perm:v.perm, purpose:v.purpose, agents:v.agents.split(",").map(s=>s.trim()).filter(Boolean), provision:v.provision, shell:v.shell, confirm:v.confirm};
+    let id;
+    if(S.form.mode === "new"){ id = "t" + Date.now(); S.targets.push({id, relay:"", pinned:null, health:null, ...fields}); }
+    else { id = S.form.id; Object.assign(tgt(id), fields); }
+    const was = S.form.mode; S.form = null; S.ui.p.sheet = null; S.target = id; S.open[id] = true;
+    toast(was === "new" ? `Registered ${fields.name}` : `Saved ${fields.name}`); return "norender";
+  },
+  "v-add"(form, dev){
+    const name = S.drafts.vName.trim(), valEl = form.querySelector('input[type="password"]'), val = valEl.value;
+    const agent = S.drafts.vAgent.trim(), ws = S.drafts.vWs;
+    let err = "";
+    if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) err = "The name becomes an environment variable: letters, digits and _, not starting with a digit.";
+    else if(["PATH","HOME","SHELL","USER","TERM"].includes(name) || name.startsWith("LOOMUX_")) err = "That name is used by the shell or by Loomux itself. Pick another.";
+    else if(S.creds.some(c => c.name === name && c.ws === ws && c.agent === agent)) err = "A credential with that name already exists for this scope. Replace its value instead.";
+    else if(!val) err = "Enter a value.";
+    S.vaultErr = err; if(err) return;
+    valEl.value = "";
+    S.creds.push({id:"c" + Date.now(), name, ws, agent, upd:"just now"});
+    S.vaultAdd = false; S.drafts.vName = ""; S.drafts.vAgent = ""; S.drafts.vWs = "";
+    toast(`Saved ${name}`); return "norender";
+  },
+  "v-replace"(form){
+    const id = form.dataset.arg, el = form.querySelector("input"), c = S.creds.find(x => x.id === id);
+    if(!el.value){ toast("Enter a new value first."); return "norender"; }
+    el.value = ""; c.upd = "just now"; S.replacing = null; toast(`Replaced the value of ${c.name}`); return "norender";
+  },
+  login(form){
+    const pw = form.querySelector('input[type="password"]').value;
+    S.login.busy = true; S.login.err = ""; render();
+    setTimeout(() => {
+      S.login.busy = false;
+      if(pw === "loom"){ const back = S.login.back; S.login.back = "Restart the staging ledger deploy"; S.screen = back ? "inbox" : "inbox"; S.sel = "restart"; toast("Logged in"); syncTools(); }
+      else { S.login.err = "That password didn't work (invalid password). Check it and try again."; render(); }
+    }, 700);
+    return "norender";
+  },
+};
+
+document.addEventListener("click", e => {
+  const tool = e.target.closest("[data-tool]");
+  if(tool){
+    const [k, v] = tool.dataset.tool.split(":");
+    if(k === "screen"){ S.screen = v; closeSheets(); S.form = null; if(v === "conversation" && S.convId === "new") S.convId = "ratelimit"; render(); }
+    if(k === "frame"){ S.frame = v; store("frame", v); buildStage(); }
+    if(k === "theme"){ S.theme = v; store("theme", v); applyTheme(); }
+    store("screen", S.screen); syncTools(); return;
+  }
+  const el = e.target.closest("[data-act]");
+  if(!el) return;
+  if(el.dataset.act === "sel" && e.target.closest("summary, input, textarea, select, label, form")) return;
+  const root = el.closest("[data-dev]"); const dev = root ? root.dataset.dev : "d";
+  const fn = A[el.dataset.act]; if(!fn) return;
+  if(el.tagName === "BUTTON" && el.type !== "submit") e.preventDefault();
+  const r = fn(el.dataset.arg, dev);
+  if(r !== "norender") render();
+  syncTools();
+});
+document.addEventListener("submit", e => {
+  const f = e.target.closest("[data-form]"); if(!f) return;
+  e.preventDefault();
+  const root = f.closest("[data-dev]"); const dev = root ? root.dataset.dev : "d";
+  const r = FORMS[f.dataset.form](f, dev);
+  if(r !== "norender") render();
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if(t.dataset.model){
+    S.drafts[t.dataset.model] = t.value;
+    if(t.dataset.grow){ t.rows = Math.min(6, Math.max(1, t.value.split("\n").length)); const b = t.form && t.form.querySelector('button[type="submit"]'); if(b) b.disabled = !t.value.trim(); }
+  }
+  if(t.dataset.fmodel && S.form){ S.form.v[t.dataset.fmodel] = t.type === "checkbox" ? t.checked : t.value; }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.dataset.fmodel && S.form){ S.form.v[t.dataset.fmodel] = t.type === "checkbox" ? t.checked : t.value; if(t.dataset.rerender) render(); }
+  if(t.dataset.model && t.tagName === "SELECT") S.drafts[t.dataset.model] = t.value;
+});
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if(t.dataset && t.dataset.model === "compose" && e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); t.form.requestSubmit(); }
+});
+
+// ---------- boot ----------
+(function boot(){
+  S.frame = load("frame") || (innerWidth < 900 ? "phone" : "both");
+  S.theme = load("theme") || "system";
+  const sc = load("screen"); if(sc && ["inbox","conversation","machines","vault","login","list"].includes(sc)) S.screen = sc;
+  applyTheme(); buildStage(); syncTools();
+  addEventListener("resize", fit);
+  setInterval(tick, 1000);
+})();
+</script>

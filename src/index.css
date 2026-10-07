@@ -1,11 +1,86 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/code.css";
 
-:root {
-  color-scheme: light dark;
+/* Tailwind's dark: variant follows the same rule as the tokens: the
+   user's explicit choice (data-theme), else the OS. Only screens not yet
+   rebuilt still use dark:; new ones get both themes from the tokens. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+/* The tokens (styles/tokens.css) as Tailwind theme values, so screens
+   write bg-surface, text-ink-2, border-line, font-mono and never a
+   palette colour. `inline` keeps them as var() references, so the dark
+   values apply without a dark: variant. */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-mari: var(--mari);
+  --color-mari-2: var(--mari-2);
+  --color-mari-soft: var(--mari-soft);
+  --color-mari-ink: var(--mari-ink);
+  --color-mari-on: var(--mari-on);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-pane: var(--pane);
+  --color-pane-ink: var(--pane-ink);
+  --color-pane-dim: var(--pane-dim);
+  --color-pane-hi: var(--pane-hi);
+  --color-focus: var(--focus);
+  --color-scrim: var(--scrim);
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+}
+
+@theme {
+  --font-sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-sheet: 20px;
 }
 
 body {
   margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* One visible focus ring everywhere, keyboard only. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Inline vs. block code styling for rendered Markdown messages (see
@@ -16,82 +91,8 @@ body {
    (common for shell/log output) has no such class but must still render
    as a block. */
 .markdown-content :not(pre) > code {
-  background: rgb(0 0 0 / 10%);
+  background: var(--sunken);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-size: 0.85em;
-}
-
-@media (prefers-color-scheme: dark) {
-  .markdown-content :not(pre) > code {
-    background: rgb(255 255 255 / 10%);
-  }
-}
-
-/* Syntax-highlighting theme for rehype-highlight's `hljs-*` token classes
-   (see src/components/MessageContent.tsx) — hand-written rather than
-   pulling in a highlight.js theme package just for its CSS. Colors are
-   tuned against the dark `<pre>` background used for all code blocks,
-   so no separate light-mode variant is needed. */
-.hljs-comment,
-.hljs-quote {
-  color: #8b949e;
-  font-style: italic;
-}
-
-.hljs-keyword,
-.hljs-selector-tag,
-.hljs-doctag,
-.hljs-tag {
-  color: #ff7b72;
-}
-
-.hljs-string,
-.hljs-template-variable,
-.hljs-attr,
-.hljs-attribute,
-.hljs-regexp,
-.hljs-link,
-.hljs-addition {
-  color: #a5d6ff;
-}
-
-.hljs-number,
-.hljs-literal,
-.hljs-symbol,
-.hljs-bullet {
-  color: #79c0ff;
-}
-
-.hljs-title,
-.hljs-title.function_,
-.hljs-section,
-.hljs-selector-id,
-.hljs-selector-class {
-  color: #d2a8ff;
-}
-
-.hljs-built_in,
-.hljs-title.class_,
-.hljs-type,
-.hljs-name {
-  color: #ffa657;
-}
-
-.hljs-variable,
-.hljs-params,
-.hljs-meta {
-  color: #ffa198;
-}
-
-.hljs-deletion {
-  color: #ffa198;
-}
-
-.hljs-emphasis {
-  font-style: italic;
-}
-
-.hljs-strong {
-  font-weight: bold;
 }

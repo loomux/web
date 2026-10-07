@@ -1,53 +1,38 @@
 import { lazy, Suspense } from "react";
-import { Link, Outlet, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
-import { VersionBanner } from "./components/VersionBanner";
-import { useAuth } from "./lib/authContext";
+import { useNeedsYouCount } from "./lib/useNeedsYouCount";
+import { AppShell } from "./shell/AppShell";
+import { KeepQueryRedirect } from "./shell/KeepQueryRedirect";
+import { RouteTitle } from "./shell/RouteTitle";
 
 // Lazy-loaded per route: keeps ConversationDetailPage's markdown/syntax-
 // highlighting dependencies (the bulk of the production bundle) out of the
 // initial load for users who only ever see the dashboard or workspaces.
 const LoginPage = lazy(() => import("./routes/LoginPage").then((m) => ({ default: m.LoginPage })));
 const DashboardPage = lazy(() => import("./routes/DashboardPage").then((m) => ({ default: m.DashboardPage })));
-const WorkspacesPage = lazy(() => import("./routes/WorkspacesPage").then((m) => ({ default: m.WorkspacesPage })));
 const ConversationsPage = lazy(() =>
   import("./routes/ConversationsPage").then((m) => ({ default: m.ConversationsPage })),
 );
 const ConversationDetailPage = lazy(() =>
   import("./routes/ConversationDetailPage").then((m) => ({ default: m.ConversationDetailPage })),
 );
-const TargetsPage = lazy(() => import("./routes/TargetsPage").then((m) => ({ default: m.TargetsPage })));
+const MachinesPage = lazy(() => import("./routes/MachinesPage").then((m) => ({ default: m.MachinesPage })));
+const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const NotFoundPage = lazy(() => import("./routes/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const CredentialsPage = lazy(() =>
   import("./routes/CredentialsPage").then((m) => ({ default: m.CredentialsPage })),
 );
 
-function AppShell() {
-  const { logout } = useAuth();
-  return (
-    <div className="min-h-svh flex flex-col">
-      <VersionBanner />
-      <nav className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 dark:border-neutral-800">
-        <div className="flex gap-4 text-sm">
-          <Link to="/">Dashboard</Link>
-          <Link to="/workspaces">Workspaces</Link>
-          <Link to="/conversations">Conversations</Link>
-          <Link to="/targets">Targets</Link>
-          <Link to="/credentials">Credentials</Link>
-        </div>
-        <button onClick={logout} className="text-sm text-neutral-500 hover:underline">
-          Log out
-        </button>
-      </nav>
-      <div className="flex-1">
-        <Outlet />
-      </div>
-    </div>
-  );
+function RouteFallback() {
+  return <p className="p-4 text-ink-3">Loading…</p>;
 }
 
-function RouteFallback() {
-  return <p className="p-4 text-neutral-500">Loading…</p>;
+// The Inbox's tab title carries the needs-you count ("Inbox (3) · Loomux").
+function InboxTitle({ children }: { children: React.ReactNode }) {
+  const count = useNeedsYouCount();
+  return <RouteTitle title={count > 0 ? `Inbox (${count})` : "Inbox"}>{children}</RouteTitle>;
 }
 
 export function App() {
@@ -55,15 +40,26 @@ export function App() {
     <RouteErrorBoundary>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<RouteTitle title="Log in"><LoginPage /></RouteTitle>} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/workspaces" element={<WorkspacesPage />} />
-              <Route path="/conversations" element={<ConversationsPage />} />
-              <Route path="/conversations/:id" element={<ConversationDetailPage />} />
-              <Route path="/targets" element={<TargetsPage />} />
-              <Route path="/credentials" element={<CredentialsPage />} />
+              {/* Route map: docs/design/redesign/build-plan.md §4. Screens not yet
+                  rebuilt render their current page inside the new shell. */}
+              <Route path="/" element={<InboxTitle><DashboardPage /></InboxTitle>} />
+              <Route path="/today" element={<RouteTitle title="Today"><ConversationsPage /></RouteTitle>} />
+              <Route path="/conversations/:id" element={<RouteTitle title="Conversation"><ConversationDetailPage /></RouteTitle>} />
+              <Route path="/machines" element={<RouteTitle title="Machines"><MachinesPage /></RouteTitle>} />
+              <Route path="/vault" element={<RouteTitle title="Vault"><CredentialsPage /></RouteTitle>} />
+              <Route path="/settings" element={<RouteTitle title="Settings"><SettingsPage /></RouteTitle>} />
+
+              {/* Old addresses keep working. */}
+              <Route path="/conversations" element={<KeepQueryRedirect to="/today" />} />
+              <Route path="/targets" element={<KeepQueryRedirect to="/machines" />} />
+              <Route path="/targets/:id" element={<KeepQueryRedirect to="/machines" />} />
+              <Route path="/workspaces" element={<KeepQueryRedirect to="/machines" />} />
+              <Route path="/credentials" element={<KeepQueryRedirect to="/vault" />} />
+
+              <Route path="*" element={<RouteTitle title="Not found"><NotFoundPage /></RouteTitle>} />
             </Route>
           </Route>
         </Routes>

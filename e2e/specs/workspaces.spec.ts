@@ -20,7 +20,7 @@ test("provision a workspace with an agent, follow up, then archive, reopen and d
   await expect(page.getByText(/e2e agent reply: .*second turn/)).toBeVisible({ timeout: 45_000 });
   await turnDone(page);
 
-  await page.getByRole("link", { name: "Workspaces" }).click();
+  await page.getByRole("link", { name: "Machines" }).click();
   const row = page.getByRole("listitem").filter({ hasText: name });
   await expect(row.getByText("target: local")).toBeVisible();
   await row.getByRole("button", { name: "Archive" }).click();
