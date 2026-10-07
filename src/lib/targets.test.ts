@@ -189,8 +189,21 @@ describe("validateTargetRequest", () => {
   it("rejects an unknown permission_mode", () => {
     expect(validateTargetRequest({ ...base, permission_mode: "auto" })).toBeNull();
     expect(validateTargetRequest({ ...base, permission_mode: "yolo" })).toBe(
-      'permission_mode must be empty, "auto", "accept-edits" or "manual"',
+      'permission_mode must be empty, "auto", "accept_edits" or "manual"',
     );
+  });
+
+  // The API spells it accept_edits since its v1 freeze; servers before
+  // said accept-edits. Both read into the form, and a request sends the
+  // legacy spelling, which every server accepts.
+  it("reads permission_mode in either spelling and sends the one every server takes", () => {
+    for (const stored of ["accept_edits", "accept-edits"]) {
+      const values = targetFormFromTarget(makeTarget({ permission_mode: stored }));
+      expect(values.permission_mode).toBe("accept_edits");
+      const req = toTargetRequest(values);
+      expect(req.permission_mode).toBe("accept-edits");
+      expect(validateTargetRequest(req)).toBeNull();
+    }
   });
 
   it("allows an empty or absent workspace_root", () => {

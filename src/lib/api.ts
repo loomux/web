@@ -212,7 +212,8 @@ export interface Target {
   // means the target's default ($HOME/loomux-workspaces).
   workspace_root?: string;
   // How much agents on this target may do without asking (server #142):
-  // "", "auto", "accept-edits" or "manual". Empty is each agent's default.
+  // "", "auto", "accept_edits" (pre-1.0 servers: "accept-edits") or
+  // "manual". Empty is each agent's default.
   // Absent from older servers.
   permission_mode?: string;
   // The target's policy (server LOOM-89): what Loomux may do there. Absent
