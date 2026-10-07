@@ -171,6 +171,16 @@ describe("api", () => {
     ["getWebVersion", () => api.getWebVersion("t"), "GET", "/api/v1/web/version"],
     ["updateWeb", () => api.updateWeb("t"), "POST", "/api/v1/web/update"],
     ["rollbackWeb", () => api.rollbackWeb("t"), "POST", "/api/v1/web/rollback"],
+    ["getTaskTranscript", () => api.getTaskTranscript("t", "task1"), "GET", "/api/v1/tasks/task1/transcript"],
+    ["getConversationEvents", () => api.getConversationEvents("t", "c1"), "GET", "/api/v1/conversations/c1/events"],
+    ["scanHostKey", () => api.scanHostKey("t", "x1"), "POST", "/api/v1/targets/x1/scan-host-key"],
+    ["pinHostKey", () => api.pinHostKey("t", "x1", "SHA256:a"), "POST", "/api/v1/targets/x1/pin"],
+    ["unpinHostKey", () => api.unpinHostKey("t", "x1"), "DELETE", "/api/v1/targets/x1/pin"],
+    ["testTarget", () => api.testTarget("t", "x1"), "POST", "/api/v1/targets/x1/test"],
+    ["probeTarget", () => api.probeTarget("t", "x1"), "POST", "/api/v1/targets/x1/probe"],
+    ["listSessions", () => api.listSessions("t"), "GET", "/api/v1/sessions"],
+    ["deleteSession", () => api.deleteSession("t", "s1"), "DELETE", "/api/v1/sessions/s1"],
+    ["getDeepHealth", () => api.getDeepHealth("t"), "GET", "/api/v1/health/deep"],
   ] as const)("%s calls %s %s", async (_name, call, method, path) => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     await call();
@@ -187,6 +197,8 @@ describe("api", () => {
         "dispatch", "getAttachInfo", "getConversation", "getDispatch", "getVersion", "getWebVersion", "listConversations",
         "listCredentials", "listTargets", "listWorkspaces", "login", "logout", "rollbackWeb", "setCredentialValue",
         "setWorkspaceStatus", "updateTarget", "updateWeb",
+        "getTaskTranscript", "getConversationEvents", "scanHostKey", "pinHostKey", "unpinHostKey", "testTarget",
+        "probeTarget", "listSessions", "deleteSession", "getDeepHealth",
       ].sort(),
     );
   });

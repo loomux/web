@@ -34,7 +34,7 @@ export function Segmented<K extends string>({
         <ToggleButton
           key={o.key}
           id={o.key}
-          className="min-h-9 pointer-coarse:min-h-11 rounded-[7px] px-3 text-sm font-bold text-ink-2 data-[hovered]:text-ink data-[selected]:bg-surface data-[selected]:text-ink data-[selected]:shadow-1"
+          className="min-h-9 pointer-coarse:min-h-11 rounded-[7px] px-3 text-sm font-bold text-ink-2 data-[hovered]:text-ink data-[selected]:bg-surface data-[selected]:text-ink data-[selected]:shadow-1 data-[selected]:ring-1 data-[selected]:ring-line"
         >
           {o.label}
         </ToggleButton>

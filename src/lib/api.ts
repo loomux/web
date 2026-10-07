@@ -114,6 +114,10 @@ export interface ConversationTask {
   error_class?: string;
   // The prompt a needs_attention task's agent is stopped at (LOOM-97).
   attention?: Attention;
+  // A command task's command, exit code and the end of its output.
+  command?: string;
+  exit_code?: number | null;
+  output_tail?: string;
 }
 
 // A prompt read off an agent's pane (LOOM-97): an approval, a question or
@@ -223,8 +227,128 @@ export interface Target {
   allow_provision?: boolean;
   allow_shell?: boolean;
   require_confirmation?: boolean;
+  // What the router models may see of this target's work (operations.md
+  // "What the router models see"): "full", "last_message", "none", or ""
+  // for the purpose's default; relay_effective is what applies.
+  relay?: string;
+  relay_effective?: string;
+  // 0: the SSH config's port.
+  ssh_port?: number;
+  // Host keys this target is checked against (LOOM-114); empty: the SSH
+  // known_hosts.
+  pinned_host_keys?: HostKey[];
+  // The last health probe, null before the first.
+  health?: TargetHealth | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface HostKey {
+  type: string;
+  fingerprint: string;
+}
+
+export interface TargetHealth {
+  status: string;
+  reachable: boolean;
+  latency_ms: number;
+  tmux_version: string;
+  disk_free_bytes?: number | null;
+  last_probed_at: string;
+  error?: string;
+}
+
+// POST /targets/{id}/scan-host-key: what the host offers right now. Trusts
+// nothing; a pin must name one of these before expires_at.
+export interface HostKeyScan {
+  target_id: string;
+  host_keys: HostKey[];
+  expires_at: string;
+  pinned_host_keys: HostKey[];
+}
+
+// POST /targets/{id}/test: the onboarding check.
+export interface TargetTestResult {
+  target_id: string;
+  reachable: boolean;
+  tmux_version?: string;
+  latency_ms: number;
+  error?: string;
+  host_key_problem: boolean;
+}
+
+export interface TargetAgent {
+  agent_type: string;
+  available: boolean;
+  path?: string;
+  version?: string;
+  auth_status?: string;
+  checked_at: string;
+}
+
+// POST /targets/{id}/probe: health and agent CLIs, re-checked and recorded.
+export interface TargetProbeResult {
+  health: TargetHealth | null;
+  agents: TargetAgent[];
+}
+
+// A signed-in device (GET /sessions).
+export interface LoginSession {
+  id: string;
+  created_at: string;
+  last_used_at: string;
+  current: boolean;
+}
+
+// One turn of a task (GET /tasks/{id}/transcript, LOOM-91): what was sent,
+// the agent's final message, and its pane at the turn's end, redacted.
+export interface TranscriptTurn {
+  id: string;
+  user_message: string;
+  agent_message: string;
+  pane: string;
+  created_at: string;
+}
+
+export interface TranscriptPage {
+  task_id: string;
+  turns: TranscriptTurn[];
+  has_more: boolean;
+  next_before?: string;
+}
+
+// The dispatch audit trail (GET /conversations/{id}/events, LOOM-110): the
+// steps of each turn, which the Today weave and the turn rail draw.
+export type ConversationEventKind =
+  | "decision"
+  | "command"
+  | "provision"
+  | "offer"
+  | "offer_answered"
+  | "agent_turn"
+  | "relay"
+  | "outcome";
+
+export interface ConversationEvent {
+  id: string;
+  dispatch_id?: string;
+  created_at: string;
+  kind: ConversationEventKind | string;
+  model?: string;
+  tier?: string;
+  target_id?: string;
+  workspace_id?: string;
+  task_id?: string;
+  command?: string;
+  outcome?: string;
+  error_class?: string;
+  duration_ms: number;
+  detail?: string;
+}
+
+export interface DeepHealth {
+  status: string;
+  components: Record<string, { status: string; error?: string; detail?: unknown }>;
 }
 
 // A credential in the vault (server LOOM-134): a secret injected into an
@@ -263,6 +387,8 @@ export interface TargetRequest {
   allow_provision?: boolean;
   allow_shell?: boolean;
   require_confirmation?: boolean;
+  relay?: string;
+  ssh_port?: number;
 }
 
 export interface AttachTargetInfo {
@@ -431,6 +557,45 @@ export const api = {
 
   getAttachInfo: (token: string, taskId: string) =>
     request<AttachInfoResponse>(`/tasks/${taskId}/attach-info`, token),
+
+  getTaskTranscript: (token: string, taskId: string, page: { limit?: number; before?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (page.limit) q.set("limit", String(page.limit));
+    if (page.before) q.set("before", page.before);
+    const qs = q.toString();
+    return request<TranscriptPage>(`/tasks/${encodeURIComponent(taskId)}/transcript${qs ? `?${qs}` : ""}`, token);
+  },
+
+  getConversationEvents: (token: string, conversationId: string) =>
+    request<{ conversation_id: string; events: ConversationEvent[] }>(
+      `/conversations/${encodeURIComponent(conversationId)}/events`,
+      token,
+    ),
+
+  scanHostKey: (token: string, targetId: string) =>
+    request<HostKeyScan>(`/targets/${encodeURIComponent(targetId)}/scan-host-key`, token, { method: "POST" }),
+
+  pinHostKey: (token: string, targetId: string, fingerprint: string) =>
+    request<Target>(`/targets/${encodeURIComponent(targetId)}/pin`, token, {
+      method: "POST",
+      body: JSON.stringify({ fingerprint }),
+    }),
+
+  unpinHostKey: (token: string, targetId: string) =>
+    request<Target>(`/targets/${encodeURIComponent(targetId)}/pin`, token, { method: "DELETE" }),
+
+  testTarget: (token: string, targetId: string) =>
+    request<TargetTestResult>(`/targets/${encodeURIComponent(targetId)}/test`, token, { method: "POST" }),
+
+  probeTarget: (token: string, targetId: string) =>
+    request<TargetProbeResult>(`/targets/${encodeURIComponent(targetId)}/probe`, token, { method: "POST" }),
+
+  listSessions: (token: string) => request<{ sessions: LoginSession[] }>("/sessions", token),
+
+  deleteSession: (token: string, sessionId: string) =>
+    request<void>(`/sessions/${encodeURIComponent(sessionId)}`, token, { method: "DELETE" }),
+
+  getDeepHealth: (token: string) => request<DeepHealth>("/health/deep", token),
 
   getVersion: () => request<VersionResponse>("/version", null),
 
