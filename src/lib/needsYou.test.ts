@@ -104,6 +104,23 @@ describe("deriveDecisions", () => {
     expect(d).toMatchObject({ kind: "failed", key: "failed:d2", since: ago(MIN / 2), dispatch: failed });
   });
 
+  it("keeps what a retry resends, and where answers go", () => {
+    const failed = dispatch({ dispatch_id: "d2", status: "failed", created_at: ago(MIN) });
+    const [d] = deriveDecisions(
+      summary(),
+      detail({
+        tasks: [task({ id: "a", kind: "agent", workspace_id: "w-agent" }), task({ id: "b", kind: "command", workspace_id: "w-cmd" })],
+        dispatches: [failed],
+        messages: [
+          { id: "m1", role: "user", content: "earlier", task_id: "", dispatch_id: "d1", created_at: ago(9 * MIN) },
+          { id: "m2", role: "user", content: "bump the providers", task_id: "", dispatch_id: "d2", created_at: ago(MIN) },
+        ],
+      }),
+      NOW,
+    );
+    expect(d).toMatchObject({ kind: "failed", retryMessage: "bump the providers", workspaceHint: "w-agent" });
+  });
+
   it("finds an interrupted latest turn", () => {
     const [d] = deriveDecisions(summary(), detail({ dispatches: [dispatch({ status: "interrupted" })] }), NOW);
     expect(d.kind).toBe("failed");

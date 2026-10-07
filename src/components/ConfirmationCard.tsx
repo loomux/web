@@ -1,18 +1,5 @@
 import type { Confirmation } from "../lib/api";
-
-function heading(c: Confirmation): string {
-  const where = c.target_name ? ` on ${c.target_name}` : "";
-  switch (c.kind) {
-    case "run_command":
-      return `Run this command${where}?`;
-    case "install_agent":
-      return `Install ${c.agent_type || "the agent"}${where}?`;
-    case "clone_remote":
-      return `Clone a repository you didn't name${where}?`;
-    default:
-      return `Start this work${where}?`;
-  }
-}
+import { offerHeading as heading } from "../lib/offerText";
 
 const resolved: Record<Confirmation["status"], string> = {
   pending: "",

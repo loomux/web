@@ -1,3 +1,4 @@
+import { newId } from "../lib/id";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -181,7 +182,7 @@ export function ConversationDetailPage() {
         conversationId,
         text,
         workspaceHint,
-        crypto.randomUUID(),
+        newId(),
         confirmationId,
       );
       if (accepted.dispatch_id) setFollowed(accepted);

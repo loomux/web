@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deriveDecisions, detailCandidates, groupDecisions, type NeedsYou } from "./needsYou";
 import { snooze, snoozedUntil, snoozeVersion, subscribeSnoozes, unsnooze } from "./snooze";
 import { useApiClient } from "./useApiClient";
@@ -40,15 +40,39 @@ export function useNeedsYou(): UseNeedsYou {
   const candidates = useMemo(() => detailCandidates(summaries, now), [summaries, now]);
 
   // Same key and fetch as the conversation screen, so they share a cache.
+  // Details aren't polled: the list is, and a conversation whose list entry
+  // moved on (updated_at later than its detail) is refetched below. Offer
+  // expiry needs no fetch; it's checked against the clock.
+  const queryClient = useQueryClient();
   const details = useQueries({
     queries: candidates.map((c) => ({
       queryKey: ["conversation", c.conversation_id],
       queryFn: () => apiClient.getConversation(c.conversation_id),
       retry: false,
-      staleTime: 10_000,
-      refetchInterval: LIST_REFRESH_MS,
+      staleTime: Infinity,
     })),
   });
+
+  // The list entry's updated_at each detail was last fetched for. Compared
+  // with the server's own timestamps only, so clock skew can't cause a loop.
+  const fetchedFor = useRef(new Map<string, string>());
+  const changed = candidates
+    .filter((c) => {
+      const seen = fetchedFor.current.get(c.conversation_id);
+      return seen !== undefined && seen !== c.updated_at;
+    })
+    .map((c) => `${c.conversation_id}@${c.updated_at}`)
+    .join(",");
+  useEffect(() => {
+    for (const c of candidates) {
+      if (!fetchedFor.current.has(c.conversation_id)) fetchedFor.current.set(c.conversation_id, c.updated_at);
+    }
+    for (const entry of changed ? changed.split(",") : []) {
+      const [id, updatedAt] = entry.split("@");
+      fetchedFor.current.set(id, updatedAt);
+      void queryClient.invalidateQueries({ queryKey: ["conversation", id], exact: true });
+    }
+  }, [candidates, changed, queryClient]);
 
   const detailById = new Map(details.map((d, i) => [candidates[i].conversation_id, d.data] as const));
   const detailKey = details.map((d) => d.dataUpdatedAt).join(",");

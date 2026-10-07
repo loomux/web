@@ -1,4 +1,4 @@
-import type { Confirmation, ConversationSummary, ConversationTask, Dispatch } from "./api";
+import type { Confirmation, ConversationMessage, ConversationSummary, ConversationTask, Dispatch } from "./api";
 import { isTerminalDispatch } from "./dispatchTurn";
 
 // The needs-you model (principles 1-2, build-plan §6 PR 2): every
@@ -17,6 +17,7 @@ export interface ConversationDetail {
   tasks: ConversationTask[];
   dispatches?: Dispatch[];
   confirmations?: Confirmation[];
+  messages?: ConversationMessage[];
 }
 
 export interface Decision {
@@ -32,6 +33,11 @@ export interface Decision {
   confirmation?: Confirmation;
   task?: ConversationTask;
   dispatch?: Dispatch;
+  // Answering sends a chat message; these make it land where the
+  // conversation page's own send would: the latest agent task's workspace,
+  // and for a failed turn, the text (and offer) it carried.
+  workspaceHint?: string;
+  retryMessage?: string;
 }
 
 // Offers first (they expire), then what agents are stuck on, then failures,
@@ -70,11 +76,14 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
     return out;
   }
 
+  const workspaceHint = detail.tasks.findLast((t) => t.kind === "agent")?.workspace_id || undefined;
+  const withHint = { ...base, workspaceHint };
+
   // Offers still open. One past expires_at is inert even before the server
   // marks it expired: it can no longer be approved.
   for (const c of detail.confirmations ?? []) {
     if (c.status === "pending" && Date.parse(c.expires_at) > now) {
-      out.push({ ...base, key: `offer:${c.id}`, kind: "offer", since: c.created_at, confirmation: c });
+      out.push({ ...withHint, key: `offer:${c.id}`, kind: "offer", since: c.created_at, confirmation: c });
     }
   }
 
@@ -82,7 +91,7 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
   const taskKind = task && TASK_KIND[task.status];
   if (task && taskKind) {
     out.push({
-      ...base,
+      ...withHint,
       workspaceId: task.workspace_id || base.workspaceId,
       key: `task:${task.id}:${task.status}@${task.updated_at}`,
       kind: taskKind,
@@ -101,7 +110,8 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
     dispatch.error_class !== "cancelled"
   ) {
     out.push({
-      ...base,
+      ...withHint,
+      retryMessage: detail.messages?.find((m) => m.role === "user" && m.dispatch_id === dispatch.dispatch_id)?.content,
       key: `failed:${dispatch.dispatch_id}`,
       kind: "failed",
       since: dispatch.finished_at ?? dispatch.created_at,
