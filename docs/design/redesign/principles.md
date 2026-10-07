@@ -1,12 +1,47 @@
 # Loomux web client redesign: principles
 
-Phase 1 of the full rewrite (2026-10-07). Read with
+Phase 1 of the full rewrite (2026-10-07), updated for phase 2
+(2026-10-08). Read with
 [`../ui-inventory.md`](../ui-inventory.md), which is the factual brief. This
 document says what the product is for, what the new client must get right,
 what is wrong with today's information architecture, and the three visual
 directions offered for the user to pick from. The mockups live next to it
 (`direction-a-shuttle.html`, `direction-b-patchbay.html`,
-`direction-c-weave.html`).
+`direction-c-weave.html`), with the merged result in
+`merged-shuttle-weave.html` and the build plan in
+[`build-plan.md`](build-plan.md).
+
+## Decision (2026-10-08)
+
+The user picked **Shuttle** as the base, plus **Weave's** time graph and
+its read-back affordances. Patchbay is not taken forward. What that means
+for the IA:
+
+- **Navigation: Inbox, Today, Machines**, with Vault and Settings one step
+  down. On phones: a bottom bar of Inbox, Today, Machines and More.
+- **Inbox (home)** is the act-on-it view: decision cards, then working,
+  then recent. Above the queue sits a **Day strip**: one compressed row
+  per machine on desktop, a single fleet-wide row on phones. It shows
+  working segments and needs-you knots; tapping a knot selects that item,
+  and tapping the strip opens Today.
+- **Today** is the read-back view, and it replaces the separate
+  Conversations section. On desktop: the full weave for the chosen day,
+  on a real time axis. Lanes are workspaces grouped under their machine,
+  conversations are threads crossing lanes when they move workspace, and
+  every turn, command, offer, prompt and failure is a stitch. Needs-you
+  items are marigold knots. A stitch opens its conversation at that turn.
+  Below the weave is **All conversations** (search, filters). On phones
+  the weave becomes a vertical, newest-first timeline of turn clusters
+  with workspace chips; the full weave is never scrolled sideways on a
+  phone.
+- **Conversation** gains Weave's **turn rail**: the steps of each turn
+  (routed, set up, agent turn, offer, command, failure) in a margin beside
+  the messages on desktop, and as inline step markers with a "Turn steps"
+  disclosure on phones.
+- Shuttle's look stays: Atkinson Hyperlegible Next and Mono, porcelain and
+  night-blue grounds, kingfisher accent, marigold with its diamond and
+  hatch for needs you. The weave is redrawn in those tokens; Weave's
+  indigo palette and serif prose are not carried over.
 
 ## What Loomux is
 
@@ -88,7 +123,7 @@ desk, but must still work on a phone.
 3. **Machines own workspaces.** Targets and their workspaces are one
    section ("Machines"). A target shows health, policy in plain words, relay
    (what the router models may see), pinned host keys and its workspaces.
-4. **Setup is out of the way.** Daily nav: Inbox, Conversations, Machines.
+4. **Setup is out of the way.** Daily nav: Inbox, Today, Machines.
    Vault and Settings (devices/sessions, web client version, theme) sit one
    step down. On phones: a bottom bar of three plus a "More" sheet.
 5. **Show the work.** A running turn shows its stages as a short timeline,
