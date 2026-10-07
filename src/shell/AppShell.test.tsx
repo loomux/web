@@ -96,6 +96,34 @@ describe("AppShell", () => {
     expect(within(bottomBar).getByRole("link", { name: /Inbox/ })).toHaveTextContent("2 need you");
   });
 
+  it("counts a pending offer the list status doesn't show", async () => {
+    const soon = new Date(Date.now() + 5 * 60_000).toISOString();
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({
+          conversations: [
+            { conversation_id: "c1", workspace_id: "", status: "completed", updated_at: new Date().toISOString() },
+          ],
+        });
+      }
+      if (url === "/api/v1/conversations/c1") {
+        return jsonResponse({
+          conversation_id: "c1",
+          tasks: [],
+          messages: [],
+          dispatches: [],
+          confirmations: [
+            { id: "o1", kind: "run_command", status: "pending", created_at: new Date().toISOString(), expires_at: soon },
+          ],
+        });
+      }
+      return jsonResponse({ error: "not found" }, 404);
+    }) as typeof fetch;
+    renderShell();
+    expect(await within(navs().sidebar).findByRole("link", { name: /^Inbox\W+1 need you$/ })).toBeInTheDocument();
+  });
+
   it("shows no count when nothing needs you", async () => {
     serve([{ status: "running" }]);
     renderShell();

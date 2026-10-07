@@ -9,8 +9,10 @@ export type ThemePreference = "system" | "light" | "dark";
 
 export const THEME_STORAGE_KEY = "loomux.theme";
 
-const LIGHT_CHROME = "#e9eef3";
-const DARK_CHROME = "#0c1426";
+// --chrome in styles/tokens.css, and the pre-paint script in index.html;
+// theme.test.ts keeps the three in step.
+export const LIGHT_CHROME = "#e9eef3";
+export const DARK_CHROME = "#0c1426";
 
 export function readThemePreference(): ThemePreference {
   try {

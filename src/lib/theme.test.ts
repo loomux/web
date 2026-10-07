@@ -1,6 +1,10 @@
+/// <reference types="node" />
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   applyThemePreference,
+  DARK_CHROME,
+  LIGHT_CHROME,
   readThemePreference,
   storeThemePreference,
   THEME_STORAGE_KEY,
@@ -61,5 +65,21 @@ describe("theme preference", () => {
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     expect(light.content).toBe("#e9eef3");
     expect(dark.content).toBe("#0c1426");
+  });
+});
+
+// Read from disk: Vitest serves CSS imports as empty strings.
+const tokensCss = readFileSync("src/styles/tokens.css", "utf8");
+const indexHtml = readFileSync("index.html", "utf8");
+
+describe("chrome colours", () => {
+  it("match the --chrome token", () => {
+    expect(tokensCss).toContain(`--chrome: light-dark(${LIGHT_CHROME}, ${DARK_CHROME});`);
+  });
+
+  it("match index.html's metas and pre-paint script", () => {
+    expect(indexHtml).toContain(`media="(prefers-color-scheme: light)" content="${LIGHT_CHROME}"`);
+    expect(indexHtml).toContain(`media="(prefers-color-scheme: dark)" content="${DARK_CHROME}"`);
+    expect(indexHtml).toContain(`t === "dark" ? "${DARK_CHROME}" : "${LIGHT_CHROME}"`);
   });
 });
