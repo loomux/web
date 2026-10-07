@@ -128,8 +128,10 @@ export function DecisionCard({
 
   return (
     <section
+      id={`decision-${d.key}`}
+      tabIndex={-1}
       aria-label={d.kind === "offer" ? "Confirmation" : heading}
-      className={`overflow-hidden rounded-card border bg-surface shadow-1 ${isFailed ? "border-bad/40" : "border-mari"}`}
+      className={`scroll-mt-4 overflow-hidden rounded-card border bg-surface shadow-1 focus-visible:outline-2 ${isFailed ? "border-bad/40" : "border-mari"}`}
     >
       <div
         className={`relative flex min-h-10 items-center gap-2 pl-4 pr-20 text-sm font-extrabold ${

@@ -12,9 +12,7 @@ import { RouteTitle } from "./shell/RouteTitle";
 // initial load for users who only ever see the dashboard or workspaces.
 const LoginPage = lazy(() => import("./routes/LoginPage").then((m) => ({ default: m.LoginPage })));
 const InboxPage = lazy(() => import("./routes/InboxPage").then((m) => ({ default: m.InboxPage })));
-const ConversationsPage = lazy(() =>
-  import("./routes/ConversationsPage").then((m) => ({ default: m.ConversationsPage })),
-);
+const TodayPage = lazy(() => import("./routes/TodayPage").then((m) => ({ default: m.TodayPage })));
 const ConversationPage = lazy(() => import("./routes/ConversationPage").then((m) => ({ default: m.ConversationPage })));
 const MachinesPage = lazy(() => import("./routes/MachinesPage").then((m) => ({ default: m.MachinesPage })));
 const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
@@ -44,14 +42,15 @@ export function App() {
               {/* Route map: docs/design/redesign/build-plan.md §4. Screens not yet
                   rebuilt render their current page inside the new shell. */}
               <Route path="/" element={<InboxTitle><InboxPage /></InboxTitle>} />
-              <Route path="/today" element={<RouteTitle title="Today"><ConversationsPage /></RouteTitle>} />
+              <Route path="/today" element={<TodayPage />} />
+              <Route path="/today/:date" element={<TodayPage />} />
               <Route path="/conversations/:id" element={<ConversationPage />} />
               <Route path="/machines" element={<RouteTitle title="Machines"><MachinesPage /></RouteTitle>} />
               <Route path="/vault" element={<RouteTitle title="Vault"><CredentialsPage /></RouteTitle>} />
               <Route path="/settings" element={<RouteTitle title="Settings"><SettingsPage /></RouteTitle>} />
 
               {/* Old addresses keep working. */}
-              <Route path="/conversations" element={<KeepQueryRedirect to="/today" />} />
+              <Route path="/conversations" element={<KeepQueryRedirect to="/today" hash="#all" />} />
               <Route path="/targets" element={<KeepQueryRedirect to="/machines" />} />
               <Route path="/targets/:id" element={<KeepQueryRedirect to="/machines" />} />
               <Route path="/workspaces" element={<KeepQueryRedirect to="/machines" />} />

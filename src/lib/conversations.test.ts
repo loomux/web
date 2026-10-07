@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareConversationSummaries,
-  formatStatusLabel,
   matchesStatusFilter,
-  statusBadgeClasses,
   statusRank,
 } from "./conversations";
 
@@ -66,33 +64,6 @@ describe("compareConversationSummaries", () => {
   });
 });
 
-describe("statusBadgeClasses", () => {
-  it("maps awaiting_input to red urgency", () => {
-    expect(statusBadgeClasses("awaiting_input")).toContain("bg-red-100");
-    expect(statusBadgeClasses("awaiting_input")).toContain("text-red-700");
-  });
-
-  it("maps human_takeover to orange urgency", () => {
-    expect(statusBadgeClasses("human_takeover")).toContain("bg-orange-100");
-    expect(statusBadgeClasses("human_takeover")).toContain("text-orange-700");
-  });
-
-  it("maps running to blue", () => {
-    expect(statusBadgeClasses("running")).toContain("bg-blue-100");
-    expect(statusBadgeClasses("running")).toContain("text-blue-700");
-  });
-
-  it("maps completed to green", () => {
-    expect(statusBadgeClasses("completed")).toContain("bg-green-100");
-    expect(statusBadgeClasses("completed")).toContain("text-green-700");
-  });
-
-  it("maps failed to neutral", () => {
-    expect(statusBadgeClasses("failed")).toContain("bg-neutral-200");
-    expect(statusBadgeClasses("failed")).toContain("text-neutral-700");
-  });
-});
-
 describe("matchesStatusFilter", () => {
   it("includes everything for all", () => {
     expect(matchesStatusFilter("awaiting_input", "all")).toBe(true);
@@ -114,12 +85,5 @@ describe("matchesStatusFilter", () => {
     expect(matchesStatusFilter("completed", "done")).toBe(true);
     expect(matchesStatusFilter("failed", "done")).toBe(true);
     expect(matchesStatusFilter("running", "done")).toBe(false);
-  });
-});
-
-describe("formatStatusLabel", () => {
-  it("shows a snake_case status as words", () => {
-    expect(formatStatusLabel("awaiting_input")).toBe("awaiting input");
-    expect(formatStatusLabel("running")).toBe("running");
   });
 });

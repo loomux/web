@@ -21,6 +21,8 @@ export interface DisplayMessage {
   failed?: Dispatch;
   // The offer this reply made, awaiting or given an answer (LOOM-123).
   confirmation?: Confirmation;
+  // The turn (dispatch) this message belongs to.
+  dispatchId?: string;
 }
 
 // useWorkspaceNameById maps workspace ids to names. A workspace this
@@ -234,6 +236,7 @@ export function useConversation(conversationId: string | null) {
       text: m.content,
       key: m.id,
       createdAt: m.created_at,
+      dispatchId: m.dispatch_id,
       failed: m.role === "user" && m.dispatch_id ? failedById.get(m.dispatch_id) : undefined,
       confirmation:
         m.role === "assistant" && m.dispatch_id ? confirmationByDispatch.get(m.dispatch_id) : undefined,
