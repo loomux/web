@@ -132,10 +132,10 @@ export function turnStage(d: Dispatch, tasks: ConversationTask[], workspaceNames
   const base = { taskId: task.id, workspace, agent };
   if (task.kind === "command") return { ...base, label: `Running a command in ${workspace}…` };
   switch (task.status) {
-    case "needs-attention":
-    case "awaiting-input":
+    case "needs_attention":
+    case "awaiting_input":
       return { ...base, label: `${agent} is waiting for you` };
-    case "human-takeover":
+    case "human_takeover":
       return { ...base, label: "Someone has taken over the session" };
     case "completed":
       return { ...base, label: "Relaying the answer…" };

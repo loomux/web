@@ -1,5 +1,14 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { api, ApiError } from "./api";
+import { api, ApiError, normalizeStatus, openConversationStream, type StreamEvent } from "./api";
+
+type SSEOptions = { onmessage: (msg: { event: string; data: string }) => void };
+const sse = vi.hoisted(() => ({ options: null as SSEOptions | null }));
+vi.mock("@microsoft/fetch-event-source", () => ({
+  fetchEventSource: (_url: string, options: SSEOptions) => {
+    sse.options = options;
+    return new Promise(() => {});
+  },
+}));
 
 describe("api", () => {
   const originalFetch = globalThis.fetch;
@@ -35,6 +44,28 @@ describe("api", () => {
     );
   });
 
+  it("reads the machine-readable code beside the message (API v1)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "a turn is already running", code: "conversation_busy", dispatch_id: "d1" }), {
+        status: 409,
+      }),
+    );
+
+    const err = await api.dispatch("t", "c1", "hi").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ status: 409, message: "a turn is already running", code: "conversation_busy", dispatchId: "d1" });
+  });
+
+  it("leaves code unset for a pre-1.0 server's error body", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "not found" }), { status: 404 }),
+    );
+
+    const err = await api.getDispatch("t", "d1").catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 404, message: "not found" });
+    expect((err as ApiError).code).toBeUndefined();
+  });
+
   it("falls back to statusText when the error body isn't JSON", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response("not json", { status: 500, statusText: "Server Error" }),
@@ -55,6 +86,62 @@ describe("api", () => {
     const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const headers = init.headers as Headers;
     expect(headers.get("Authorization")).toBe("Bearer my-token");
+  });
+
+  // Task statuses: pre-1.0 servers spell them in kebab-case, API v1 in
+  // snake_case. Whichever the server sends, the client sees snake_case.
+  describe("status normalisation", () => {
+    it("turns either spelling into snake_case", () => {
+      expect(normalizeStatus("awaiting-input")).toBe("awaiting_input");
+      expect(normalizeStatus("needs-attention")).toBe("needs_attention");
+      expect(normalizeStatus("human-takeover")).toBe("human_takeover");
+      expect(normalizeStatus("awaiting_input")).toBe("awaiting_input");
+      expect(normalizeStatus("running")).toBe("running");
+    });
+
+    it.each([["awaiting-input"], ["awaiting_input"]])("listConversations reads %s as awaiting_input", async (status) => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ conversations: [{ conversation_id: "c1", workspace_id: "w1", status, updated_at: "x" }] }),
+          { status: 200 },
+        ),
+      );
+      const res = await api.listConversations("t");
+      expect(res.conversations[0].status).toBe("awaiting_input");
+    });
+
+    it.each([["needs-attention"], ["needs_attention"]])("getConversation reads a task's %s as needs_attention", async (status) => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            conversation_id: "c1",
+            tasks: [{ id: "t1", workspace_id: "w1", kind: "agent", agent_type: "a", status, created_at: "x", updated_at: "x" }],
+            messages: [],
+          }),
+          { status: 200 },
+        ),
+      );
+      const res = await api.getConversation("t", "c1");
+      expect(res.tasks[0].status).toBe("needs_attention");
+      expect(res.messages).toEqual([]);
+    });
+
+    it.each([["human-takeover"], ["human_takeover"]])("the stream reads a task_update's %s as human_takeover", (status) => {
+      const events: StreamEvent[] = [];
+      const stop = openConversationStream("t", "c1", {
+        onEvent: (e) => events.push(e),
+        onConnected: () => {},
+        onUnauthorized: () => {},
+      });
+      sse.options!.onmessage({
+        event: "task_update",
+        data: JSON.stringify({ task_id: "t1", workspace_id: "w1", status, updated_at: "x" }),
+      });
+      stop();
+      expect(events).toEqual([
+        { type: "task_update", data: { task_id: "t1", workspace_id: "w1", status: "human_takeover", updated_at: "x" } },
+      ]);
+    });
   });
 
   // The contract with loomux/server's api/server.go route table: each

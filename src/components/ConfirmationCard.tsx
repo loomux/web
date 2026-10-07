@@ -36,6 +36,8 @@ export function ConfirmationCard({
   onAnswer: (message: "yes" | "no") => void;
 }) {
   const pending = c.status === "pending";
+  // API v1 renamed it workspace_name; pre-1.0 servers send `workspace`.
+  const workspace = c.workspace_name ?? c.workspace;
   const buttonBase = "rounded px-3 py-1.5 text-sm disabled:opacity-50";
   return (
     <section
@@ -52,10 +54,10 @@ export function ConfirmationCard({
           {c.command || c.git_remote}
         </pre>
       )}
-      {(c.workspace || (c.agent_type && c.kind !== "install_agent")) && (
+      {(workspace || (c.agent_type && c.kind !== "install_agent")) && (
         <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-          {c.workspace && <>Workspace {c.workspace}</>}
-          {c.workspace && c.agent_type && c.kind !== "install_agent" && " · "}
+          {workspace && <>Workspace {workspace}</>}
+          {workspace && c.agent_type && c.kind !== "install_agent" && " · "}
           {c.agent_type && c.kind !== "install_agent" && <>{c.agent_type}</>}
         </p>
       )}

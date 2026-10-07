@@ -13,9 +13,9 @@ export const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
 // Highest urgency: statuses that require human intervention.
 // Within a group, most recently updated first; conversation_id is a stable tie-breaker.
 const STATUS_RANK: Record<string, number> = {
-  "needs-attention": 0,
-  "awaiting-input": 0,
-  "human-takeover": 0,
+  "needs_attention": 0,
+  "awaiting_input": 0,
+  "human_takeover": 0,
   running: 1,
   completed: 2,
   failed: 2,
@@ -40,11 +40,11 @@ export function compareConversationSummaries(
 
 export function statusBadgeClasses(status: string): string {
   switch (status) {
-    case "needs-attention":
+    case "needs_attention":
       return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
-    case "awaiting-input":
+    case "awaiting_input":
       return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
-    case "human-takeover":
+    case "human_takeover":
       return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200";
     case "running":
       return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200";
@@ -62,7 +62,7 @@ export function matchesStatusFilter(status: string, filter: FilterKey): boolean 
     case "all":
       return true;
     case "needs-you":
-      return status === "needs-attention" || status === "awaiting-input" || status === "human-takeover";
+      return status === "needs_attention" || status === "awaiting_input" || status === "human_takeover";
     case "running":
       return status === "running";
     case "done":
@@ -71,5 +71,5 @@ export function matchesStatusFilter(status: string, filter: FilterKey): boolean 
 }
 
 export function formatStatusLabel(status: string): string {
-  return status.replace(/-/g, " ");
+  return status.replace(/[-_]/g, " ");
 }

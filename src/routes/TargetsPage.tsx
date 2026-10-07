@@ -248,17 +248,6 @@ export function TargetsPage() {
 
           <label className="block space-y-1">
             <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              SSH key reference <span className="text-neutral-400">(optional)</span>
-            </span>
-            <input
-              value={values.ssh_key_ref}
-              onChange={(e) => setValues({ ...values, ssh_key_ref: e.target.value })}
-              className={INPUT_CLASSES}
-            />
-          </label>
-
-          <label className="block space-y-1">
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
               Workspace root <span className="text-neutral-400">(optional)</span>
             </span>
             <input

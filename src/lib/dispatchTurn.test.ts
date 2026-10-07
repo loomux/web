@@ -129,7 +129,7 @@ describe("turnStage", () => {
   });
 
   it("says when the agent is waiting on the user", () => {
-    expect(turnStage(dispatch(), [task({ status: "needs-attention" })], names).label).toMatch(/waiting for you/i);
+    expect(turnStage(dispatch(), [task({ status: "needs_attention" })], names).label).toMatch(/waiting for you/i);
   });
 
   it("says when a command is running", () => {
