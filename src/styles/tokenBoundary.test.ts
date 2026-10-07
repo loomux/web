@@ -52,7 +52,6 @@ const legacy = new Set([
   "../routes/ConversationDetailPage.tsx",
   "../routes/ConversationsPage.tsx",
   "../routes/CredentialsPage.tsx",
-  "../routes/DashboardPage.tsx",
   "../routes/LoginPage.tsx",
   "../routes/TargetsPage.tsx",
   "../routes/WorkspacesPage.tsx",

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
+import { newId } from "../lib/id";
 import { useApiClient } from "../lib/useApiClient";
 import {
   compareConversationSummaries,
@@ -44,7 +45,7 @@ export function ConversationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Conversations</h1>
         <button
-          onClick={() => navigate(`/conversations/${crypto.randomUUID()}`)}
+          onClick={() => navigate(`/conversations/${newId()}`)}
           className="rounded bg-neutral-900 px-3 py-1.5 text-sm text-white dark:bg-neutral-100 dark:text-neutral-900"
         >
           New conversation

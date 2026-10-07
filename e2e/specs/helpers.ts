@@ -31,7 +31,7 @@ export async function ensureLocalTarget(request: APIRequestContext) {
   }
 }
 
-// Opens a new conversation from the dashboard.
+// Opens a new conversation from the Inbox.
 export async function newConversation(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "New conversation" }).click();

@@ -44,6 +44,10 @@ contain no colour literals. A lint rule (an `oxlint` restriction or a small
 grep test like `apiBoundary.test.ts`) fails on hex literals and
 `neutral-*`/`amber-*` classes outside `tokens.css`.
 
+Browser floor: tokens use CSS `light-dark()` (Chrome 123, Safari 17.5,
+Firefox 120, all from 2024). Loomux's clients are an Android Chrome PWA and
+current desktop browsers, so nothing older is supported.
+
 ## 2. Design tokens
 
 From the merged mockup. Light values first; dark redefines the same names.

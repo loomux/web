@@ -11,7 +11,7 @@ import { RouteTitle } from "./shell/RouteTitle";
 // highlighting dependencies (the bulk of the production bundle) out of the
 // initial load for users who only ever see the dashboard or workspaces.
 const LoginPage = lazy(() => import("./routes/LoginPage").then((m) => ({ default: m.LoginPage })));
-const DashboardPage = lazy(() => import("./routes/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const InboxPage = lazy(() => import("./routes/InboxPage").then((m) => ({ default: m.InboxPage })));
 const ConversationsPage = lazy(() =>
   import("./routes/ConversationsPage").then((m) => ({ default: m.ConversationsPage })),
 );
@@ -45,7 +45,7 @@ export function App() {
             <Route element={<AppShell />}>
               {/* Route map: docs/design/redesign/build-plan.md §4. Screens not yet
                   rebuilt render their current page inside the new shell. */}
-              <Route path="/" element={<InboxTitle><DashboardPage /></InboxTitle>} />
+              <Route path="/" element={<InboxTitle><InboxPage /></InboxTitle>} />
               <Route path="/today" element={<RouteTitle title="Today"><ConversationsPage /></RouteTitle>} />
               <Route path="/conversations/:id" element={<RouteTitle title="Conversation"><ConversationDetailPage /></RouteTitle>} />
               <Route path="/machines" element={<RouteTitle title="Machines"><MachinesPage /></RouteTitle>} />
