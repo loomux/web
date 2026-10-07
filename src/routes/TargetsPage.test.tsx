@@ -31,6 +31,7 @@ const REMOTE_TARGET = {
   kind: "remote",
   host: "beta.example",
   user: "agent",
+  // A pre-1.0 server still returns it; the client ignores it (API v1 drops it).
   ssh_key_ref: "vault://keys/beta",
   workspace_root: "/srv/loomux",
   permission_mode: "auto",
@@ -49,7 +50,6 @@ const LOCAL_TARGET = {
   kind: "local",
   host: "",
   user: "",
-  ssh_key_ref: "",
   created_at: "2026-09-01T00:00:00Z",
   updated_at: "2026-09-01T00:00:00Z",
 };
@@ -161,7 +161,6 @@ describe("TargetsPage", () => {
       kind: "remote",
       host: "gamma.example",
       user: "agent",
-      ssh_key_ref: "",
       workspace_root: "",
       permission_mode: "",
       purpose: "",
@@ -205,7 +204,6 @@ describe("TargetsPage", () => {
       kind: "local",
       host: "",
       user: "",
-      ssh_key_ref: "",
       workspace_root: "",
       permission_mode: "",
       purpose: "",
@@ -268,7 +266,7 @@ describe("TargetsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("edits via PUT, round-tripping ssh_key_ref and workspace_root, and sets permission_mode", async () => {
+  it("edits via PUT, round-tripping workspace_root, and sets permission_mode", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();
     let put: unknown = null;
@@ -288,10 +286,11 @@ describe("TargetsPage", () => {
 
     await user.click(await screen.findByRole("button", { name: "Edit" }));
 
-    // The form is pre-filled from the stored row, including the two fields the
-    // UI would otherwise drop — PUT replaces the record wholesale.
+    // The form is pre-filled from the stored row, including the field the
+    // UI would otherwise drop — PUT replaces the record wholesale. The SSH
+    // key reference is gone from the API (v1) and from the form.
     expect(screen.getByLabelText("Name")).toHaveValue("beta-remote");
-    expect(screen.getByLabelText(/SSH key reference/)).toHaveValue("vault://keys/beta");
+    expect(screen.queryByLabelText(/SSH key reference/)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Workspace root/)).toHaveValue("/srv/loomux");
 
     expect(screen.getByLabelText(/Permission mode/)).toHaveValue("auto");
@@ -313,7 +312,6 @@ describe("TargetsPage", () => {
       kind: "remote",
       host: "beta.example",
       user: "runner",
-      ssh_key_ref: "vault://keys/beta",
       workspace_root: "/srv/loomux",
       permission_mode: "manual",
       purpose: "work",

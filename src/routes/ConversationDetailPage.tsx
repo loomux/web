@@ -25,7 +25,7 @@ interface DisplayMessage {
 
 // Statuses where a human plausibly wants to intervene — see
 // docs/design/web-client-design.md "Attach-info surfacing".
-const ATTACH_RELEVANT_STATUSES = new Set(["running", "needs-attention", "awaiting-input", "human-takeover"]);
+const ATTACH_RELEVANT_STATUSES = new Set(["running", "needs_attention", "awaiting_input", "human_takeover"]);
 
 // useWorkspaceNameById maps workspace ids to names. A workspace this
 // conversation just provisioned isn't in a list fetched before it existed,
@@ -162,7 +162,7 @@ export function ConversationDetailPage() {
   }
 
   // send dispatches text as the conversation's next message — typed in
-  // the composer, or an answer from the needs-attention card.
+  // the composer, or an answer from the needs_attention card.
   // It returns once the server has accepted the turn; the stream carries
   // the rest. A Retry is a send of the same text.
   async function send(text: string, onAccepted?: () => void, confirmationId?: string) {
@@ -262,9 +262,9 @@ export function ConversationDetailPage() {
   }, [lastKey, messages.length, inFlight]);
 
   const latestTask = history?.tasks[history.tasks.length - 1];
-  // A needs-attention task's prompt (LOOM-97) — shown until it's answered,
+  // A needs_attention task's prompt (LOOM-97) — shown until it's answered,
   // and not while that answer is on its way.
-  const attentionTask = history?.tasks.findLast((t) => t.status === "needs-attention" && t.attention);
+  const attentionTask = history?.tasks.findLast((t) => t.status === "needs_attention" && t.attention);
   const latestWorkspaceName = latestTask
     ? (workspaceNameById.get(latestTask.workspace_id) ?? latestTask.workspace_id)
     : null;

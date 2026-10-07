@@ -56,7 +56,6 @@ export interface TargetFormValues {
   kind: TargetKind;
   host: string;
   user: string;
-  ssh_key_ref: string;
   workspace_root: string;
   permission_mode: PermissionMode;
   purpose: TargetPurpose;
@@ -72,7 +71,6 @@ export const EMPTY_TARGET_FORM: TargetFormValues = {
   kind: "remote",
   host: "",
   user: "",
-  ssh_key_ref: "",
   workspace_root: "",
   permission_mode: "",
   purpose: "",
@@ -82,17 +80,15 @@ export const EMPTY_TARGET_FORM: TargetFormValues = {
   require_confirmation: false,
 };
 
-// Pre-fills the edit form from a stored row. ssh_key_ref and workspace_root
-// are carried through deliberately: PUT replaces the record wholesale, so a
-// field the form drops is a field the server clears (api/server.go's
-// targetResponse comment makes the same point about ssh_key_ref).
+// Pre-fills the edit form from a stored row. workspace_root and the policy
+// fields are carried through deliberately: PUT replaces the record
+// wholesale, so a field the form drops is a field the server clears.
 export function targetFormFromTarget(target: Target): TargetFormValues {
   return {
     name: target.name,
     kind: target.kind === "local" ? "local" : "remote",
     host: target.host,
     user: target.user,
-    ssh_key_ref: target.ssh_key_ref,
     workspace_root: target.workspace_root ?? "",
     permission_mode: isPermissionMode(target.permission_mode) ? target.permission_mode : "",
     purpose: target.purpose === "work" ? "work" : "",
@@ -114,7 +110,6 @@ export function toTargetRequest(values: TargetFormValues): TargetRequest {
     kind: values.kind,
     host: local ? "" : values.host.trim(),
     user: local ? "" : values.user.trim(),
-    ssh_key_ref: values.ssh_key_ref.trim(),
     workspace_root: values.workspace_root.trim(),
     permission_mode: values.permission_mode,
     purpose: values.purpose,

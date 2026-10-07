@@ -14,17 +14,36 @@ export class ApiError extends Error {
   status: number;
   // The turn already in flight, on a 409 from POST /dispatch (LOOM-80).
   dispatchId?: string;
+  // The machine-readable reason beside the message (API v1), e.g.
+  // "conversation_busy", "not_found", "rate_limited",
+  // "idempotency_conflict". Absent from pre-1.0 servers.
+  code?: string;
 
-  constructor(status: number, message: string, dispatchId?: string) {
+  constructor(status: number, message: string, dispatchId?: string, code?: string) {
     super(message);
     this.status = status;
     this.dispatchId = dispatchId;
+    this.code = code;
   }
 }
 
 interface ErrorResponse {
   error: string;
+  code?: string;
   dispatch_id?: string;
+}
+
+// Task statuses are snake_case from API v1 ("awaiting_input",
+// "needs_attention", "human_takeover"); pre-1.0 servers spell them in
+// kebab-case ("awaiting-input", ...). Every status read from the server
+// goes through here, so the rest of the client only ever sees snake_case
+// whichever server it talks to.
+export function normalizeStatus(s: string): string {
+  return s.replaceAll("-", "_");
+}
+
+function normalizeTask<T extends { status: string }>(t: T): T {
+  return typeof t.status === "string" ? { ...t, status: normalizeStatus(t.status) } : t;
 }
 
 async function request<T>(
@@ -41,14 +60,16 @@ async function request<T>(
   if (!res.ok) {
     let message = res.statusText;
     let dispatchId: string | undefined;
+    let code: string | undefined;
     try {
       const body = (await res.json()) as ErrorResponse;
       if (body.error) message = body.error;
       dispatchId = body.dispatch_id;
+      if (typeof body.code === "string" && body.code) code = body.code;
     } catch {
       // body wasn't JSON (or was empty) — fall back to statusText
     }
-    throw new ApiError(res.status, message, dispatchId);
+    throw new ApiError(res.status, message, dispatchId, code);
   }
 
   if (res.status === 204) return undefined as T;
@@ -63,9 +84,7 @@ export interface WorkspaceSummary {
   // LOOM-44 metadata — additive, may be absent from older servers.
   tags?: string[];
   description?: string;
-  capabilities?: string[];
   rolling_summary?: string;
-  is_dynamic?: boolean;
   last_used_at?: string;
   // Why it's in its status, e.g. what made it failed (LOOM-77).
   status_reason?: string;
@@ -93,7 +112,7 @@ export interface ConversationTask {
   completed_at?: string;
   failure_reason?: string;
   error_class?: string;
-  // The prompt a needs-attention task's agent is stopped at (LOOM-97).
+  // The prompt a needs_attention task's agent is stopped at (LOOM-97).
   attention?: Attention;
 }
 
@@ -119,6 +138,9 @@ export interface Confirmation {
   target_name?: string;
   agent_type?: string;
   command?: string;
+  // The workspace's name. API v1 calls it workspace_name; pre-1.0 servers
+  // send it as `workspace`.
+  workspace_name?: string;
   workspace?: string;
   git_remote?: string;
   status: "pending" | "approved" | "denied" | "expired";
@@ -179,14 +201,13 @@ export interface MessageAddedEvent {
 }
 
 // A registered host Loomux can run tmux sessions on — LOOM-59's
-// targetResponse. `ssh_key_ref` is a vault reference, never secret material.
+// targetResponse.
 export interface Target {
   id: string;
   name: string;
   kind: string;
   host: string;
   user: string;
-  ssh_key_ref: string;
   // LOOM-90 metadata — additive, may be absent from older servers. Empty
   // means the target's default ($HOME/loomux-workspaces).
   workspace_root?: string;
@@ -234,7 +255,6 @@ export interface TargetRequest {
   kind: string;
   host: string;
   user: string;
-  ssh_key_ref: string;
   workspace_root?: string;
   permission_mode?: string;
   purpose?: string;
@@ -350,11 +370,13 @@ export const api = {
   setWorkspaceStatus: (token: string, id: string, status: "idle" | "archived") =>
     request<void>(`/workspaces/${id}`, token, { method: "PATCH", body: JSON.stringify({ status }) }),
 
-  listConversations: (token: string) =>
-    request<{ conversations: ConversationSummary[] }>("/conversations", token),
+  listConversations: async (token: string) => {
+    const res = await request<{ conversations: ConversationSummary[] }>("/conversations", token);
+    return { ...res, conversations: (res.conversations ?? []).map(normalizeTask) };
+  },
 
-  getConversation: (token: string, id: string) =>
-    request<{
+  getConversation: async (token: string, id: string) => {
+    const res = await request<{
       conversation_id: string;
       tasks: ConversationTask[];
       messages: ConversationMessage[];
@@ -362,7 +384,9 @@ export const api = {
       dispatches?: Dispatch[];
       // Absent from servers before LOOM-123.
       confirmations?: Confirmation[];
-    }>(`/conversations/${id}`, token),
+    }>(`/conversations/${id}`, token);
+    return { ...res, tasks: (res.tasks ?? []).map(normalizeTask) };
+  },
 
   getDispatch: (token: string, id: string) =>
     request<Dispatch>(`/dispatches/${id}`, token),
@@ -457,7 +481,9 @@ export function openConversationStream(token: string, conversationId: string, ha
     onmessage(msg) {
       if (!msg.data) return;
       if (msg.event === "task_update" || msg.event === "dispatch_update" || msg.event === "message_added") {
-        handlers.onEvent({ type: msg.event, data: JSON.parse(msg.data) } as StreamEvent);
+        let data = JSON.parse(msg.data);
+        if (msg.event === "task_update" && data && typeof data === "object") data = normalizeTask(data);
+        handlers.onEvent({ type: msg.event, data } as StreamEvent);
       }
     },
     onclose() {

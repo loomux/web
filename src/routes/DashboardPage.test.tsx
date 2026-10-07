@@ -50,8 +50,8 @@ describe("DashboardPage", () => {
           conversations: [
             { conversation_id: "running-1", workspace_id: "ws-a", status: "running", updated_at: "2026-09-10T12:00:00Z" },
             { conversation_id: "completed-1", workspace_id: "ws-a", status: "completed", updated_at: "2026-09-10T11:00:00Z" },
-            { conversation_id: "awaiting-1", workspace_id: "ws-a", status: "awaiting-input", updated_at: "2026-09-10T10:00:00Z" },
-            { conversation_id: "takeover-1", workspace_id: "ws-b", status: "human-takeover", updated_at: "2026-09-10T09:00:00Z" },
+            { conversation_id: "awaiting-1", workspace_id: "ws-a", status: "awaiting_input", updated_at: "2026-09-10T10:00:00Z" },
+            { conversation_id: "takeover-1", workspace_id: "ws-b", status: "human_takeover", updated_at: "2026-09-10T09:00:00Z" },
           ],
         });
       }
@@ -74,7 +74,7 @@ describe("DashboardPage", () => {
     expect(screen.queryByText("running")).not.toBeInTheDocument();
     expect(screen.queryByText("completed")).not.toBeInTheDocument();
 
-    // Attention-first ordering: awaiting-input before human-takeover (more recent).
+    // Attention-first ordering: awaiting_input before human_takeover (more recent).
     const items = screen.getAllByText(/Alpha|Beta/);
     expect(items[0]?.textContent).toBe("Alpha");
     expect(items[1]?.textContent).toBe("Beta");
@@ -98,9 +98,7 @@ describe("DashboardPage", () => {
               status: "online",
               tags: ["fleet", "prod"],
               description: "The alpha workspace",
-              capabilities: ["bash", "python"],
               rolling_summary: "Healthy — 0 failing tasks",
-              is_dynamic: false,
               last_used_at: "2026-09-10T10:00:00Z",
             },
             {
@@ -109,6 +107,7 @@ describe("DashboardPage", () => {
               target_id: "tgt-b",
               status: "offline",
               rolling_summary: "Offline since morning",
+              // Sent by pre-1.0 servers only; API v1 drops it and so does the UI.
               is_dynamic: true,
             },
           ],
@@ -125,7 +124,7 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Offline since morning")).toBeInTheDocument();
     expect(screen.getByText("fleet")).toBeInTheDocument();
     expect(screen.getByText("prod")).toBeInTheDocument();
-    expect(screen.getByText("dynamic")).toBeInTheDocument();
+    expect(screen.queryByText("dynamic")).not.toBeInTheDocument();
   });
 
   it("navigates to a new conversation when the button is clicked", async () => {

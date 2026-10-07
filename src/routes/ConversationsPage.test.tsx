@@ -44,7 +44,7 @@ describe("ConversationsPage", () => {
           conversations: [
             { conversation_id: "completed-1", workspace_id: "ws-a", status: "completed", updated_at: "2026-09-10T12:00:00Z" },
             { conversation_id: "running-1", workspace_id: "ws-b", status: "running", updated_at: "2026-09-10T11:00:00Z" },
-            { conversation_id: "awaiting-1", workspace_id: "ws-a", status: "awaiting-input", updated_at: "2026-09-10T10:00:00Z" },
+            { conversation_id: "awaiting-1", workspace_id: "ws-a", status: "awaiting_input", updated_at: "2026-09-10T10:00:00Z" },
           ],
         });
       }
@@ -87,7 +87,7 @@ describe("ConversationsPage", () => {
       if (url === "/api/v1/conversations") {
         return jsonResponse({
           conversations: [
-            { conversation_id: "awaiting-1", workspace_id: "ws-a", status: "awaiting-input", updated_at: "2026-09-10T10:00:00Z" },
+            { conversation_id: "awaiting-1", workspace_id: "ws-a", status: "awaiting_input", updated_at: "2026-09-10T10:00:00Z" },
             { conversation_id: "running-1", workspace_id: "ws-b", status: "running", updated_at: "2026-09-10T11:00:00Z" },
           ],
         });

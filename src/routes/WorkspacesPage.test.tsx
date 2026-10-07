@@ -42,7 +42,7 @@ function fakeServer(
     const method = init?.method ?? "GET";
     if (url === "/api/v1/workspaces" && method === "GET") return jsonResponse({ workspaces });
     if (url === "/api/v1/targets" && method === "GET")
-      return jsonResponse({ targets: [{ id: "devbox", name: "Dev Box", kind: "remote", host: "", user: "", ssh_key_ref: "" }] });
+      return jsonResponse({ targets: [{ id: "devbox", name: "Dev Box", kind: "remote", host: "", user: "" }] });
     const call = { method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined };
     calls.push(call);
     return respond(call) ?? new Response(null, { status: 204 });

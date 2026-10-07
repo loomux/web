@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareConversationSummaries,
+  formatStatusLabel,
   matchesStatusFilter,
   statusBadgeClasses,
   statusRank,
@@ -12,8 +13,8 @@ function make(status: string, updatedAt: string, id: string) {
 
 describe("statusRank", () => {
   it("ranks attention statuses highest", () => {
-    expect(statusRank("awaiting-input")).toBe(0);
-    expect(statusRank("human-takeover")).toBe(0);
+    expect(statusRank("awaiting_input")).toBe(0);
+    expect(statusRank("human_takeover")).toBe(0);
   });
 
   it("ranks running in the middle", () => {
@@ -32,7 +33,7 @@ describe("statusRank", () => {
 
 describe("compareConversationSummaries", () => {
   it("orders attention statuses before running and done", () => {
-    const attention = make("awaiting-input", "2026-09-10T10:00:00Z", "a");
+    const attention = make("awaiting_input", "2026-09-10T10:00:00Z", "a");
     const running = make("running", "2026-09-10T11:00:00Z", "b");
     const completed = make("completed", "2026-09-10T12:00:00Z", "c");
 
@@ -66,14 +67,14 @@ describe("compareConversationSummaries", () => {
 });
 
 describe("statusBadgeClasses", () => {
-  it("maps awaiting-input to red urgency", () => {
-    expect(statusBadgeClasses("awaiting-input")).toContain("bg-red-100");
-    expect(statusBadgeClasses("awaiting-input")).toContain("text-red-700");
+  it("maps awaiting_input to red urgency", () => {
+    expect(statusBadgeClasses("awaiting_input")).toContain("bg-red-100");
+    expect(statusBadgeClasses("awaiting_input")).toContain("text-red-700");
   });
 
-  it("maps human-takeover to orange urgency", () => {
-    expect(statusBadgeClasses("human-takeover")).toContain("bg-orange-100");
-    expect(statusBadgeClasses("human-takeover")).toContain("text-orange-700");
+  it("maps human_takeover to orange urgency", () => {
+    expect(statusBadgeClasses("human_takeover")).toContain("bg-orange-100");
+    expect(statusBadgeClasses("human_takeover")).toContain("text-orange-700");
   });
 
   it("maps running to blue", () => {
@@ -94,13 +95,13 @@ describe("statusBadgeClasses", () => {
 
 describe("matchesStatusFilter", () => {
   it("includes everything for all", () => {
-    expect(matchesStatusFilter("awaiting-input", "all")).toBe(true);
+    expect(matchesStatusFilter("awaiting_input", "all")).toBe(true);
     expect(matchesStatusFilter("completed", "all")).toBe(true);
   });
 
   it("matches needs-you statuses", () => {
-    expect(matchesStatusFilter("awaiting-input", "needs-you")).toBe(true);
-    expect(matchesStatusFilter("human-takeover", "needs-you")).toBe(true);
+    expect(matchesStatusFilter("awaiting_input", "needs-you")).toBe(true);
+    expect(matchesStatusFilter("human_takeover", "needs-you")).toBe(true);
     expect(matchesStatusFilter("running", "needs-you")).toBe(false);
   });
 
@@ -113,5 +114,12 @@ describe("matchesStatusFilter", () => {
     expect(matchesStatusFilter("completed", "done")).toBe(true);
     expect(matchesStatusFilter("failed", "done")).toBe(true);
     expect(matchesStatusFilter("running", "done")).toBe(false);
+  });
+});
+
+describe("formatStatusLabel", () => {
+  it("shows a snake_case status as words", () => {
+    expect(formatStatusLabel("awaiting_input")).toBe("awaiting input");
+    expect(formatStatusLabel("running")).toBe("running");
   });
 });

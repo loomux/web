@@ -566,7 +566,7 @@ describe("ConversationDetailPage", () => {
 
   it("sends the conversation's current workspace as workspace_hint", async () => {
     const task = (id: string, workspace: string, updated: string) => ({
-      id, workspace_id: workspace, kind: "agent", agent_type: "claude-code", status: "awaiting-input",
+      id, workspace_id: workspace, kind: "agent", agent_type: "claude-code", status: "awaiting_input",
       created_at: updated, updated_at: updated,
     });
     const body = await sendAndCaptureDispatchBody([
@@ -701,14 +701,14 @@ describe("ConversationDetailPage", () => {
     await waitFor(() => expect(dispatchCalls).toBe(1));
     await waitFor(() => expect(composer).toHaveValue(""));
   });
-  // LOOM-97: a needs-attention task's prompt is shown as a card whose
+  // LOOM-97: a needs_attention task's prompt is shown as a card whose
   // buttons answer it with an ordinary chat message.
   async function answerFromCard(click: (user: ReturnType<typeof userEvent.setup>) => Promise<void>) {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();
     const bodies: Record<string, unknown>[] = [];
     const task = {
-      id: "t1", workspace_id: "ws-1", kind: "agent", agent_type: "claude-code", status: "needs-attention",
+      id: "t1", workspace_id: "ws-1", kind: "agent", agent_type: "claude-code", status: "needs_attention",
       created_at: "2026-10-04T18:00:00Z", updated_at: "2026-10-04T18:00:00Z",
       attention: {
         kind: "permission", title: "Bash command", detail: "rm -rf build", question: "Do you want to proceed?",

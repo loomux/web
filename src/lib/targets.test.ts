@@ -19,7 +19,6 @@ function makeTarget(overrides: Partial<Target> = {}): Target {
     kind: "remote",
     host: "alpha.example",
     user: "agent",
-    ssh_key_ref: "vault://keys/alpha",
     workspace_root: "/srv/loomux",
     permission_mode: "manual",
     purpose: "work",
@@ -39,7 +38,6 @@ function form(overrides: Partial<TargetFormValues> = {}): TargetFormValues {
     kind: "remote",
     host: "alpha.example",
     user: "agent",
-    ssh_key_ref: "",
     workspace_root: "",
     permission_mode: "",
     purpose: "",
@@ -58,7 +56,6 @@ describe("targetFormFromTarget", () => {
       kind: "remote",
       host: "alpha.example",
       user: "agent",
-      ssh_key_ref: "vault://keys/alpha",
       workspace_root: "/srv/loomux",
       permission_mode: "manual",
       purpose: "work",
@@ -110,9 +107,9 @@ describe("targetFormFromTarget", () => {
 describe("toTargetRequest", () => {
   it("trims every field", () => {
     const req = toTargetRequest(
-      form({ name: "  alpha  ", host: " h ", user: " u ", ssh_key_ref: " k " }),
+      form({ name: "  alpha  ", host: " h ", user: " u ", workspace_root: " /srv " }),
     );
-    expect(req).toMatchObject({ name: "alpha", host: "h", user: "u", ssh_key_ref: "k" });
+    expect(req).toMatchObject({ name: "alpha", host: "h", user: "u", workspace_root: "/srv" });
   });
 
   it("blanks host and user for a local target", () => {
@@ -121,11 +118,9 @@ describe("toTargetRequest", () => {
     expect(req.user).toBe("");
   });
 
-  it("keeps ssh_key_ref and workspace_root on an edit", () => {
-    const req = toTargetRequest(
-      form({ ssh_key_ref: "vault://keys/alpha", workspace_root: "/srv/loomux" }),
-    );
-    expect(req.ssh_key_ref).toBe("vault://keys/alpha");
+  it("keeps workspace_root on an edit, and sends no ssh_key_ref (removed in API v1)", () => {
+    const req = toTargetRequest(form({ workspace_root: "/srv/loomux" }));
+    expect(req).not.toHaveProperty("ssh_key_ref");
     expect(req.workspace_root).toBe("/srv/loomux");
   });
 
@@ -153,7 +148,7 @@ describe("toTargetRequest", () => {
 // These expectations are the server's own messages (registry.Target.Validate).
 // If they drift, the client is no longer previewing what the server will say.
 describe("validateTargetRequest", () => {
-  const base = { name: "alpha", kind: "remote", host: "h", user: "u", ssh_key_ref: "" };
+  const base = { name: "alpha", kind: "remote", host: "h", user: "u" };
 
   it("accepts a valid remote target", () => {
     expect(validateTargetRequest(base)).toBeNull();
