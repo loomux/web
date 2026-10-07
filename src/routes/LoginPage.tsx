@@ -12,9 +12,9 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Where to land after logging in: the page that sent us here
-  // (ProtectedRoute's state.from, a path in this app), else /workspaces.
+  // (ProtectedRoute's state.from, a path in this app), else the Inbox.
   const from = (location.state as { from?: string } | null)?.from;
-  const next = from && from.startsWith("/") && !from.startsWith("//") ? from : "/workspaces";
+  const next = from && from.startsWith("/") && !from.startsWith("//") ? from : "/";
 
   if (token) {
     return <Navigate to={next} replace />;

@@ -1,0 +1,124 @@
+/* Design tokens (docs/design/redesign/build-plan.md §2). The only place
+   colour values live: components use them through the Tailwind theme in
+   index.css (bg-surface, text-ink, …) or as var(--…). A test
+   (src/styles/tokenBoundary.test.ts) fails on colour literals elsewhere.
+
+   Light values on :root; dark redefines the same names, once for the OS
+   setting (unless the user chose light) and once for an explicit choice
+   (lib/theme.ts sets data-theme on <html>). */
+
+:root {
+  color-scheme: light;
+
+  --ground: #e9eef3;
+  --surface: #ffffff;
+  --surface-2: #f4f7fa;
+  --sunken: #dfe6ed;
+  --line: #d2dbe4;
+
+  --ink: #14202c;
+  --ink-2: #465668;
+  --ink-3: #6a7a8c;
+
+  /* Kingfisher: the one accent. */
+  --accent: #0b7a85;
+  --accent-hover: #08646d;
+  --accent-ink: #ffffff;
+  --accent-soft: #dceff0;
+
+  /* Marigold: needs you. Always paired with its diamond shape. */
+  --mari: #efa10c;
+  --mari-2: #f8c75a;
+  --mari-soft: #fff3d8;
+  --mari-ink: #5a3a00;
+  --mari-on: #281a00;
+
+  --bad: #bc372d;
+  --bad-soft: #fbe7e4;
+  --good: #2b7849;
+  --good-soft: #e1f1e7;
+
+  /* Terminal panes and code blocks: dark in both themes. */
+  --pane: #0e1a26;
+  --pane-ink: #c8dde5;
+  --pane-dim: #6d899a;
+  --pane-hi: #f8c75a;
+
+  --focus: #0b7a85;
+  --scrim: rgb(14 22 32 / 42%);
+  --shadow-1: 0 1px 2px rgb(20 32 44 / 6%);
+  --shadow-2: 0 1px 2px rgb(20 32 44 / 6%), 0 10px 28px rgb(20 32 44 / 9%);
+
+  /* Also the <meta name="theme-color"> values (lib/theme.ts). */
+  --chrome: #e9eef3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0c1426;
+    --surface: #132036;
+    --surface-2: #17263e;
+    --sunken: #0a1120;
+    --line: #24344f;
+    --ink: #e4ebf5;
+    --ink-2: #a2b1c5;
+    --ink-3: #7c8ca2;
+    --accent: #43bac5;
+    --accent-hover: #62cbd4;
+    --accent-ink: #03272b;
+    --accent-soft: #0f313a;
+    --mari: #f5b23a;
+    --mari-2: #ffd27c;
+    --mari-soft: #32260c;
+    --mari-ink: #ffe1a6;
+    --mari-on: #281a00;
+    --bad: #ff8075;
+    --bad-soft: #3a1815;
+    --good: #6ccf95;
+    --good-soft: #102f1e;
+    --pane: #060b15;
+    --pane-ink: #bed4dd;
+    --pane-dim: #5c7284;
+    --pane-hi: #ffd27c;
+    --focus: #62cbd4;
+    --scrim: rgb(0 0 0 / 55%);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 35%);
+    --shadow-2: 0 1px 2px rgb(0 0 0 / 35%), 0 12px 30px rgb(0 0 0 / 35%);
+    --chrome: #0c1426;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0c1426;
+  --surface: #132036;
+  --surface-2: #17263e;
+  --sunken: #0a1120;
+  --line: #24344f;
+  --ink: #e4ebf5;
+  --ink-2: #a2b1c5;
+  --ink-3: #7c8ca2;
+  --accent: #43bac5;
+  --accent-hover: #62cbd4;
+  --accent-ink: #03272b;
+  --accent-soft: #0f313a;
+  --mari: #f5b23a;
+  --mari-2: #ffd27c;
+  --mari-soft: #32260c;
+  --mari-ink: #ffe1a6;
+  --mari-on: #281a00;
+  --bad: #ff8075;
+  --bad-soft: #3a1815;
+  --good: #6ccf95;
+  --good-soft: #102f1e;
+  --pane: #060b15;
+  --pane-ink: #bed4dd;
+  --pane-dim: #5c7284;
+  --pane-hi: #ffd27c;
+  --focus: #62cbd4;
+  --scrim: rgb(0 0 0 / 55%);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 35%);
+  --shadow-2: 0 1px 2px rgb(0 0 0 / 35%), 0 12px 30px rgb(0 0 0 / 35%);
+  --chrome: #0c1426;
+}

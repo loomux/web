@@ -3,7 +3,7 @@ import { login } from "./helpers";
 
 test("add, replace and delete a credential; its value is never shown", async ({ page }) => {
   await login(page);
-  await page.getByRole("link", { name: "Credentials" }).click();
+  await page.getByRole("link", { name: "Vault" }).click();
   const name = `E2E_TOKEN_${Date.now()}`;
 
   await page.getByRole("button", { name: "Add credential" }).click();

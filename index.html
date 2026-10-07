@@ -5,8 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#171717" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e9eef3" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c1426" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      // Apply a stored theme choice before first paint (lib/theme.ts).
+      try {
+        var t = localStorage.getItem("loomux.theme");
+        if (t === "light" || t === "dark") {
+          document.documentElement.setAttribute("data-theme", t);
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+            m.content = t === "dark" ? "#0c1426" : "#e9eef3";
+          });
+        }
+      } catch (e) {}
+    </script>
     <title>Loomux</title>
   </head>
   <body>

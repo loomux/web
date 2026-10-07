@@ -1,0 +1,67 @@
+/* Syntax-highlighting theme for rehype-highlight's `hljs-*` token classes
+   (see src/components/MessageContent.tsx) — hand-written rather than
+   pulling in a highlight.js theme package just for its CSS. Colors are
+   tuned against the dark `<pre>` background used for all code blocks,
+   so no separate light-mode variant is needed. */
+.hljs-comment,
+.hljs-quote {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-tag {
+  color: #ff7b72;
+}
+
+.hljs-string,
+.hljs-template-variable,
+.hljs-attr,
+.hljs-attribute,
+.hljs-regexp,
+.hljs-link,
+.hljs-addition {
+  color: #a5d6ff;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: #79c0ff;
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #d2a8ff;
+}
+
+.hljs-built_in,
+.hljs-title.class_,
+.hljs-type,
+.hljs-name {
+  color: #ffa657;
+}
+
+.hljs-variable,
+.hljs-params,
+.hljs-meta {
+  color: #ffa198;
+}
+
+.hljs-deletion {
+  color: #ffa198;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
