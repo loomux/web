@@ -149,6 +149,29 @@ describe("DecisionCard", () => {
     expect(sent[0].body).toMatchObject({ message: "2" });
   });
 
+  it("keeps the agent's numbering when it leaves out \"Type something…\"", async () => {
+    const { sent } = setup({
+      key: "task:k2",
+      kind: "prompt",
+      conversationId: "c1",
+      since: iso(-MIN),
+      task: {
+        id: "k2",
+        workspace_id: "w1",
+        kind: "agent",
+        agent_type: "codex",
+        status: "needs_attention",
+        created_at: iso(-2 * MIN),
+        updated_at: iso(-MIN),
+        attention: { kind: "question", options: [{ label: "Yes" }, { label: "Type something…" }, { label: "No" }], selected: 0 },
+      },
+    });
+    const no = screen.getByRole("button", { name: /No$/ });
+    expect(no).toHaveTextContent("3");
+    await userEvent.click(no);
+    expect(sent[0].body).toMatchObject({ message: "3" });
+  });
+
   it("sends a free-text reply", async () => {
     const { sent } = setup({ key: "a", kind: "awaiting", conversationId: "c1", since: iso(-MIN) });
     await userEvent.type(screen.getByLabelText("Reply to the agent"), "use the staging DB{Enter}");

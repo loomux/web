@@ -104,7 +104,12 @@ export function DecisionCard({
 
   const isFailed = d.kind === "failed";
   const attention = d.kind === "prompt" ? d.task?.attention : undefined;
-  const options = (attention?.options ?? []).filter((o) => !/^type something/i.test(o.label));
+  // An option is answered by its number in the agent's own list, so the
+  // number is taken before "Type something…" (answered by the reply box)
+  // is left out.
+  const options = (attention?.options ?? [])
+    .map((o, i) => ({ ...o, n: i + 1 }))
+    .filter((o) => !/^type something/i.test(o.label));
   const canReply = d.kind === "awaiting" || (d.kind === "prompt" && attention && attention.kind !== "trust");
   const busy = answer.isPending;
 
@@ -208,14 +213,14 @@ export function DecisionCard({
 
         {attention && attention.kind !== "trust" && attention.kind !== "permission" && options.length > 0 && (
           <ul className="flex flex-col gap-2">
-            {options.map((o, i) => (
-              <li key={o.label}>
+            {options.map((o) => (
+              <li key={o.n}>
                 <Button
                   isDisabled={busy}
                   className="w-full !justify-start text-left whitespace-normal"
-                  onPress={() => send(String(i + 1), `Answered: ${o.label}.`)}
+                  onPress={() => send(String(o.n), `Answered: ${o.label}.`)}
                 >
-                  <span className="grid size-6 shrink-0 place-items-center rounded-md bg-accent-soft text-sm text-accent">{i + 1}</span>
+                  <span className="grid size-6 shrink-0 place-items-center rounded-md bg-accent-soft text-sm text-accent">{o.n}</span>
                   {o.label}
                 </Button>
               </li>
@@ -262,14 +267,14 @@ export function DecisionCard({
         )}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-sm">
-            <Link to={`/conversations/${d.conversationId}`} className="min-h-9 content-center font-bold text-accent">
-              Open conversation
-            </Link>
-            {onSnooze && d.kind !== "offer" && (
-              <button type="button" onClick={() => onSnooze(d)} className="min-h-9 font-bold text-ink-2 hover:text-ink">
-                Snooze until tomorrow
-              </button>
-            )}
+          <Link to={`/conversations/${d.conversationId}`} className="min-h-9 content-center font-bold text-accent">
+            Open conversation
+          </Link>
+          {onSnooze && d.kind !== "offer" && (
+            <button type="button" onClick={() => onSnooze(d)} className="min-h-9 font-bold text-ink-2 hover:text-ink">
+              Snooze until tomorrow
+            </button>
+          )}
         </div>
       </div>
     </section>
