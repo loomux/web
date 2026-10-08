@@ -19,9 +19,7 @@ const MachinePage = lazy(() => import("./routes/MachinePage").then((m) => ({ def
 const MachineNewPage = lazy(() => import("./routes/MachineNewPage").then((m) => ({ default: m.MachineNewPage })));
 const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import("./routes/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
-const CredentialsPage = lazy(() =>
-  import("./routes/CredentialsPage").then((m) => ({ default: m.CredentialsPage })),
-);
+const VaultPage = lazy(() => import("./routes/VaultPage").then((m) => ({ default: m.VaultPage })));
 
 function RouteFallback() {
   return <p className="p-4 text-ink-3">Loading…</p>;
@@ -50,7 +48,7 @@ export function App() {
               <Route path="/machines" element={<MachinesPage />} />
               <Route path="/machines/new" element={<MachineNewPage />} />
               <Route path="/machines/:id" element={<MachinePage />} />
-              <Route path="/vault" element={<RouteTitle title="Vault"><CredentialsPage /></RouteTitle>} />
+              <Route path="/vault" element={<VaultPage />} />
               <Route path="/settings" element={<RouteTitle title="Settings"><SettingsPage /></RouteTitle>} />
 
               {/* Old addresses keep working. */}

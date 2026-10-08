@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
-import { CredentialsPage } from "./CredentialsPage";
+import { VaultPage } from "./VaultPage";
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -12,7 +12,7 @@ function renderPage() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <MemoryRouter>
-          <CredentialsPage />
+          <VaultPage />
         </MemoryRouter>
       </AuthProvider>
     </QueryClientProvider>,
@@ -51,7 +51,7 @@ function fakeServer(credentials: unknown[] = [CRED]) {
   return calls;
 }
 
-describe("CredentialsPage (LOOM-134)", () => {
+describe("VaultPage (LOOM-134)", () => {
   const originalFetch = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -64,7 +64,7 @@ describe("CredentialsPage (LOOM-134)", () => {
     fakeServer();
     renderPage();
     expect(await screen.findByText("GITHUB_TOKEN")).toBeInTheDocument();
-    expect(screen.getByText(/workspace loomux-web, agent claude-code/)).toBeInTheDocument();
+    expect(screen.getByText(/Only in loomux-web, only for claude-code/)).toBeInTheDocument();
   });
 
   it("adds a credential, sending the value once", async () => {

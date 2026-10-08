@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type WebRelease, type WebVersionResponse } from "../lib/api";
 import { useApiClient } from "../lib/useApiClient";
+import { Button } from "../ui/Button";
 
 function describe(rel: WebRelease | null | undefined): string {
   if (!rel) return "an unversioned build";
@@ -35,70 +36,54 @@ export function WebClientUpdate({ reload = () => window.location.reload() }: { r
   if (error instanceof ApiError && error.status === 404) return null;
 
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-medium text-neutral-500 uppercase tracking-wide">Web client</h2>
-      <div className="rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800 space-y-2">
-        {error && <p className="text-red-600">Couldn't read the web client's version: {error.message}</p>}
-        {data && (
-          <>
-            <p>
-              Running <span className="font-medium">{describe(data.current)}</span>
-              <span className="text-neutral-500">
-                {data.source === "installed" ? ", installed by an update" : ", from the server image"}
-              </span>
-            </p>
-            {!data.updates_enabled && (
-              <p className="text-neutral-500">Updates aren't set up on this server.</p>
-            )}
-            {data.latest_error && (
-              <p className="text-amber-700 dark:text-amber-300">Couldn't check for updates: {data.latest_error}</p>
-            )}
-            {data.updates_enabled && !data.latest_error && data.latest && !data.update_available && (
-              <p className="text-neutral-500">Up to date.</p>
-            )}
-            {data.update_available && data.latest && swapped === undefined && (
-              <div className="flex flex-wrap items-center gap-3">
-                <span>
-                  <span className="font-medium">{describe(data.latest)}</span> is available.
-                </span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => update.mutate()}
-                  className="rounded bg-neutral-900 px-3 py-1 text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-                >
-                  {update.isPending ? "Updating…" : "Update"}
-                </button>
-              </div>
-            )}
-            {data.previous && swapped === undefined && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => rollback.mutate()}
-                className="text-neutral-600 underline disabled:opacity-50 dark:text-neutral-400"
-              >
-                {rollback.isPending ? "Rolling back…" : `Roll back to ${data.previous.tag}`}
-              </button>
-            )}
-          </>
-        )}
-        {failure && <p className="text-red-600">{failure.message}</p>}
-        {swapped !== undefined && (
-          <div role="status" className="flex flex-wrap items-center gap-3">
-            <span>
-              The server now serves <span className="font-medium">{describe(swapped)}</span>. Reload to use it.
+    <section aria-labelledby="web-client" className="flex flex-col gap-2 rounded-card border border-line bg-surface p-5">
+      <h2 id="web-client" className="text-lg font-bold text-ink">
+        Web client
+      </h2>
+      {error && <p className="text-bad">Couldn't read the web client's version: {error.message}</p>}
+      {data && (
+        <>
+          <p className="text-ink">
+            Running <b>{describe(data.current)}</b>
+            <span className="text-ink-2">
+              {data.source === "installed" ? ", installed by an update" : ", from the server image"}
             </span>
-            <button
-              type="button"
-              onClick={reload}
-              className="rounded bg-neutral-900 px-3 py-1 text-white dark:bg-neutral-100 dark:text-neutral-900"
-            >
-              Reload
-            </button>
-          </div>
-        )}
-      </div>
+          </p>
+          {!data.updates_enabled && <p className="text-sm text-ink-2">Updates aren't set up on this server.</p>}
+          {data.latest_error && <p className="text-sm text-mari-ink">Couldn't check for updates: {data.latest_error}</p>}
+          {data.updates_enabled && !data.latest_error && data.latest && !data.update_available && (
+            <p className="text-sm text-ink-2">Up to date.</p>
+          )}
+          {data.update_available && data.latest && swapped === undefined && (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-ink">
+                <b>{describe(data.latest)}</b> is available.
+              </span>
+              <Button variant="primary" size="sm" isDisabled={busy} isPending={update.isPending} pendingLabel="Updating…" onPress={() => update.mutate()}>
+                Update
+              </Button>
+            </div>
+          )}
+          {data.previous && swapped === undefined && (
+            <div>
+              <Button variant="quiet" size="sm" isDisabled={busy} isPending={rollback.isPending} pendingLabel="Rolling back…" onPress={() => rollback.mutate()}>
+                {`Roll back to ${data.previous.tag}`}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+      {failure && <p className="text-bad">{failure.message}</p>}
+      {swapped !== undefined && (
+        <div role="status" className="flex flex-wrap items-center gap-3">
+          <span className="text-ink">
+            The server now serves <b>{describe(swapped)}</b>. Reload to use it.
+          </span>
+          <Button variant="primary" size="sm" onPress={reload}>
+            Reload
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
