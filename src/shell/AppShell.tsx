@@ -4,6 +4,7 @@ import { Button as AriaButton } from "react-aria-components";
 import { VersionBanner } from "../components/VersionBanner";
 import { useAuth } from "../lib/authContext";
 import { useNeedsYouCount } from "../lib/useNeedsYouCount";
+import { useOnline } from "../lib/useOnline";
 import { CountBadge } from "../ui/CountBadge";
 import { Icon, type IconName } from "../ui/icons";
 import { Sheet } from "../ui/Sheet";
@@ -59,6 +60,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const needsYou = useNeedsYouCount();
   const [moreOpen, setMoreOpen] = useState(false);
+  const online = useOnline();
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[15rem_1fr] [--shell-bottom:calc(4rem+env(safe-area-inset-bottom))] md:[--shell-bottom:0px]">
@@ -97,6 +99,11 @@ export function AppShell() {
       </nav>
 
       <div className="flex min-h-svh min-w-0 flex-col pb-[var(--shell-bottom)]">
+        {!online && (
+          <div role="status" className="bg-ink px-4 py-2 text-center text-sm text-surface">
+            You're offline. Loomux catches up when you're back.
+          </div>
+        )}
         <VersionBanner />
         <main className="min-w-0 flex-1">
           <Outlet />

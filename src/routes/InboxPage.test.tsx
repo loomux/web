@@ -76,7 +76,7 @@ function serve() {
   return dispatched;
 }
 
-function renderInbox() {
+function renderInbox(path = "/") {
   localStorage.setItem("loomux.token", "tok");
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter(
@@ -85,7 +85,7 @@ function renderInbox() {
       { path: "/conversations/:id", element: <p>conversation page</p> },
       { path: "/today", element: <p>today page</p> },
     ],
-    { initialEntries: ["/"] },
+    { initialEntries: [path] },
   );
   render(
     <QueryClientProvider client={queryClient}>
@@ -162,5 +162,11 @@ describe("InboxPage", () => {
     renderInbox();
     expect(await screen.findByText("You're all caught up.")).toBeInTheDocument();
     expect(screen.getByText("Nothing needs you right now.")).toBeInTheDocument();
+  });
+
+  it("starts a new conversation from the installed app's shortcut", async () => {
+    serve();
+    const router = renderInbox("/?new=1");
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/conversations\/[0-9a-f-]{36}$/));
   });
 });

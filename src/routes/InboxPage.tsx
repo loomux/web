@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnsweredCard, DecisionCard, type Answered } from "../inbox/DecisionCard";
 import { newId } from "../lib/id";
 import type { Decision } from "../lib/needsYou";
@@ -44,6 +44,13 @@ export function InboxPage() {
   const apiClient = useApiClient();
   const navigate = useNavigate();
   const needsYou = useNeedsYou();
+  const [search] = useSearchParams();
+
+  // The installed app's "New conversation" shortcut opens /?new=1.
+  const wantsNew = search.get("new") === "1";
+  useEffect(() => {
+    if (wantsNew) navigate(`/conversations/${newId()}`, { replace: true });
+  }, [wantsNew, navigate]);
   const [answered, setAnswered] = useState<{ decision: Decision; outcome: Answered }[]>([]);
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [olderOpen, setOlderOpen] = useState(false);

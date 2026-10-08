@@ -7,6 +7,7 @@ import { AuthContext } from "./authContext";
 // design intent (loomux-server api/README.md) — see
 // docs/design/web-client-design.md "Auth flow" for the full reasoning.
 const STORAGE_KEY = "loomux.token";
+export const SIGNED_OUT_KEY = "loomux.signedOut";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
@@ -30,8 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  // The server refused the session (expired, or revoked from another
+  // device): note it, so the login page can say why it's showing.
   const handleUnauthorized = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
+    try {
+      sessionStorage.setItem(SIGNED_OUT_KEY, "1");
+    } catch {
+      // the login page just won't explain
+    }
     setToken(null);
   }, []);
 

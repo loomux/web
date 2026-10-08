@@ -17,18 +17,17 @@ export function VersionBanner() {
 
   if (isError) {
     return (
-      <div className="bg-amber-100 text-amber-900 text-sm px-4 py-2 text-center dark:bg-amber-900 dark:text-amber-100">
-        Could not reach the Loomux server to check API compatibility.
+      <div role="status" className="bg-mari-soft px-4 py-2 text-center text-sm text-mari-ink">
+        Couldn't reach the Loomux server to check that this app and the server match.
       </div>
     );
   }
 
   if (data && data.api_version !== EXPECTED_API_VERSION) {
     return (
-      <div className="bg-amber-100 text-amber-900 text-sm px-4 py-2 text-center dark:bg-amber-900 dark:text-amber-100">
-        Server API version ({data.api_version}) does not match what this
-        client expects ({EXPECTED_API_VERSION}) — some features may not
-        work correctly.
+      <div role="status" className="bg-mari-soft px-4 py-2 text-center text-sm text-mari-ink">
+        The server speaks API {data.api_version}, but this app expects {EXPECTED_API_VERSION}, so some things may not
+        work. Update the app or the server.
       </div>
     );
   }

@@ -34,7 +34,7 @@ describe("LoginPage", () => {
     await waitFor(() => expect(localStorage.getItem("loomux.token")).toBe("tok-1"));
   });
 
-  it("shows the server's error message on a failed login", async () => {
+  it("says the password was wrong on a 401", async () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(
@@ -52,7 +52,7 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "wrong");
     await userEvent.click(screen.getByRole("button", { name: /log in/i }));
 
-    expect(await screen.findByText("invalid password")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid password. Check it and try again.");
     expect(localStorage.getItem("loomux.token")).toBeNull();
   });
 
@@ -104,5 +104,25 @@ describe("LoginPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /log in/i }));
 
     expect(await screen.findByText("inbox page")).toBeInTheDocument();
+  });
+
+  it("says why it's showing after the server signed this device out", async () => {
+    sessionStorage.setItem("loomux.signedOut", "1");
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ token: "tok-1" }), { status: 200 }));
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<p>inbox page</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("You were signed out");
+    await userEvent.type(screen.getByLabelText("Password"), "hunter2");
+    await userEvent.click(screen.getByRole("button", { name: "Log in" }));
+    expect(await screen.findByText("inbox page")).toBeInTheDocument();
+    expect(sessionStorage.getItem("loomux.signedOut")).toBeNull();
   });
 });

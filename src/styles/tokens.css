@@ -18,10 +18,10 @@
 
   --ink: light-dark(#14202c, #e4ebf5);
   --ink-2: light-dark(#465668, #a2b1c5);
-  --ink-3: light-dark(#6a7a8c, #7c8ca2);
+  --ink-3: light-dark(#566678, #8595ab);
 
   /* Kingfisher: the one accent. */
-  --accent: light-dark(#0b7a85, #43bac5);
+  --accent: light-dark(#0a737e, #43bac5);
   --accent-hover: light-dark(#08646d, #62cbd4);
   --accent-ink: light-dark(#ffffff, #03272b);
   --accent-soft: light-dark(#dceff0, #0f313a);
@@ -41,10 +41,10 @@
   /* Terminal panes and code blocks: dark in both themes. */
   --pane: light-dark(#0e1a26, #060b15);
   --pane-ink: light-dark(#c8dde5, #bed4dd);
-  --pane-dim: light-dark(#6d899a, #5c7284);
+  --pane-dim: light-dark(#879cad, #8197a8);
   --pane-hi: light-dark(#f8c75a, #ffd27c);
 
-  --focus: light-dark(#0b7a85, #62cbd4);
+  --focus: light-dark(#0a737e, #62cbd4);
   --scrim: light-dark(rgb(14 22 32 / 42%), rgb(0 0 0 / 55%));
   --shadow-1: 0 1px 2px light-dark(rgb(20 32 44 / 6%), rgb(0 0 0 / 35%));
   --shadow-2: 0 1px 2px light-dark(rgb(20 32 44 / 6%), rgb(0 0 0 / 35%)), 0 10px 28px light-dark(rgb(20 32 44 / 9%), rgb(0 0 0 / 35%));

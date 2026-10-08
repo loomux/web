@@ -50,6 +50,8 @@ describe("Devices", () => {
     // This device signs out with Log out, not here.
     expect(within(rows[0]).queryByRole("button")).not.toBeInTheDocument();
     await userEvent.click(within(rows[2]).getByRole("button", { name: "Log out this device" }));
+    expect(deleted).toEqual([]);
+    await userEvent.click(within(rows[2]).getByRole("button", { name: "Yes, log it out" }));
     await waitFor(() => expect(deleted).toEqual(["s-old"]));
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
   });
