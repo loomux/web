@@ -16,7 +16,8 @@
 ### Changed
 
 - You can keep writing while a turn runs. Send then reads "Send when done" and holds the message until the turn
-  ends; "Keep it as a draft" takes it back.
+  ends; "Keep it as a draft" takes it back. If the turn ends with something waiting on you (an agent's question,
+  an offer, a failure), the message isn't sent: it goes back in the box, so it can't be taken as the answer.
 - On a touch screen Enter adds a new line and Send is the button; with a keyboard Enter still sends (Shift+Enter
   for a new line). The keyboard no longer pops up by itself on phones after a turn.
 - The thread stays where you are when you've scrolled up to read, instead of jumping to the end on every update.

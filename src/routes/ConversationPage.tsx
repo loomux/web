@@ -6,8 +6,9 @@ import { TaskList } from "../conversation/TaskList";
 import { TurnCard } from "../conversation/TurnCard";
 import { useConversation, type DisplayMessage } from "../conversation/useConversation";
 import { DecisionCard } from "../inbox/DecisionCard";
-import type { Confirmation } from "../lib/api";
-import type { Decision, DecisionKind } from "../lib/needsYou";
+import type { Confirmation, Dispatch } from "../lib/api";
+import { isTerminalDispatch } from "../lib/dispatchTurn";
+import type { ConversationDetail, Decision, DecisionKind } from "../lib/needsYou";
 import { offerAction, offerHeading } from "../lib/offerText";
 import { formatRelativeTime } from "../lib/time";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
@@ -36,6 +37,23 @@ const TASK_DECISION: Record<string, DecisionKind> = {
   awaiting_input: "awaiting",
   human_takeover: "takeover",
 };
+
+// Whether the conversation, as last read, has something waiting on the
+// user: an open offer, an agent's prompt or wait, a takeover, or a latest
+// turn that failed.
+function waitingOnUser(history: ConversationDetail, now: number): boolean {
+  if (history.confirmations?.some((cf) => cf.status === "pending" && Date.parse(cf.expires_at) > now)) return true;
+  const latest = history.tasks.reduce<ConversationDetail["tasks"][number] | undefined>(
+    (best, t) => (!best || Date.parse(t.updated_at) >= Date.parse(best.updated_at) ? t : best),
+    undefined,
+  );
+  if (latest && TASK_DECISION[latest.status]) return true;
+  const last = history.dispatches?.reduce<Dispatch | undefined>(
+    (best, d) => (!best || Date.parse(d.created_at) >= Date.parse(best.created_at) ? d : best),
+    undefined,
+  );
+  return last?.status === "failed" || last?.status === "interrupted";
+}
 
 // An offer once it's answered or has expired: what it was and how it
 // ended, under the same name as the card it replaces.
@@ -89,7 +107,6 @@ export function ConversationPage() {
   const conversationId = id ?? null;
   const c = useConversation(conversationId);
   const [draft, setDraft] = useState("");
-  const [queued, setQueued] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
 
   const firstUser = c.messages.find((m) => m.role === "user")?.text;
@@ -98,16 +115,36 @@ export function ConversationPage() {
 
   const send = (text: string) => void c.send(text, { onAccepted: () => setDraft(""), onRejected: (t) => setDraft((d) => d || t) });
 
-  // A message held while a turn ran goes once the turn ends. If the
-  // server still refuses it (another turn started), it's back in the box.
-  const { inFlight, sending, send: sendNow } = c;
+  // A message held while a turn ran (principles 6). The server reads the
+  // next message as the answer to whatever is waiting (router
+  // attention.go parseAnswer: "ok" approves a prompt; confirm.go: any
+  // message consumes an offer), so it only goes once the history read
+  // after that turn shows nothing waiting. Otherwise it's handed back,
+  // unsent, to be sent on purpose after the card is answered.
+  const [queued, setQueued] = useState<{ text: string; after: string } | null>(null);
+  const [held, setHeld] = useState(false);
+  const { send: sendNow, history } = c;
+  const settled = queued ? history?.dispatches?.find((d) => d.dispatch_id === queued.after) : undefined;
+  const turnSettled = !!settled && isTerminalDispatch(settled.status) && !c.inFlight && !c.sending;
   useEffect(() => {
-    if (queued === null || inFlight || sending) return;
-    void sendNow(queued, {
+    if (!queued || !turnSettled || !history) return;
+    release(queued.text, waitingOnUser(history, Date.now()));
+    // release only reads state setters and sendNow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queued, turnSettled, history, sendNow]);
+
+  function release(text: string, blocked: boolean) {
+    if (blocked) {
+      setDraft((d) => (d ? `${text}\n${d}` : text));
+      setQueued(null);
+      setHeld(true);
+      return;
+    }
+    void sendNow(text, {
       onAccepted: () => setQueued(null),
       onRejected: (t) => setDraft((d) => d || t),
     });
-  }, [queued, inFlight, sending, sendNow]);
+  }
 
   // Keep the end in view as the thread grows, unless the reader has
   // scrolled up to read something: then leave them where they are.
@@ -127,7 +164,7 @@ export function ConversationPage() {
   const endDecision: Decision | null =
     latest && endKind && c.pendingUser === null
       ? {
-          key: `task:${latest.id}:${latest.status}`,
+          key: `task:${latest.id}:${latest.status}@${latest.updated_at}`,
           kind: endKind,
           conversationId: conversationId!,
           since: latest.updated_at,
@@ -249,14 +286,20 @@ export function ConversationPage() {
           onDraftChange={setDraft}
           sending={c.sending}
           inFlight={c.inFlight}
-          queued={queued}
-          onSend={send}
+          queued={queued?.text ?? null}
+          held={held}
+          onSend={(text) => {
+            setHeld(false);
+            send(text);
+          }}
           onQueue={(text) => {
-            setQueued(text);
+            if (!c.active) return;
+            setHeld(false);
+            setQueued({ text, after: c.active.dispatch_id });
             setDraft("");
           }}
           onUnqueue={() => {
-            setDraft(queued ?? "");
+            setDraft(queued?.text ?? "");
             setQueued(null);
           }}
           autoFocusKey={`${conversationId}:${c.busy}`}

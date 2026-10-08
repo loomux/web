@@ -73,7 +73,7 @@ interface Posted {
 }
 
 // A server whose conversation state the test sets as it goes.
-function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: unknown[] }) {
+function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: unknown[]; confirmations?: unknown[] }) {
   const posts: Posted[] = [];
   const cancels: string[] = [];
   let cancelResponse: () => Response = () => jsonResponse({ dispatch_id: cancels.at(-1) }, 202);
@@ -97,6 +97,8 @@ function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: u
     if (url === "/api/v1/workspaces") {
       return jsonResponse({ workspaces: [{ id: "ws-1", name: "my-app", target_id: "t", status: "online" }] });
     }
+    // The turn card's terminal: no capture, no live pane.
+    if (url.startsWith("/api/v1/tasks/")) return jsonResponse({ error: "no such task" }, 404);
     throw new Error(`unexpected fetch: ${method} ${url}`);
   });
   return {
@@ -359,5 +361,101 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     const card = await screen.findByRole("status", { name: /turn in progress/i });
     await user.click(within(card).getByRole("button", { name: /cancel/i }));
     expect(await screen.findByText(/already finished/i)).toBeInTheDocument();
+  });
+
+  // "Send when done" holds a message during a turn. The server reads the
+  // next message as the answer to whatever is waiting, so a held message
+  // only goes if the finished turn left nothing to answer.
+  describe("a message held during a turn", () => {
+    const running = () => ({
+      messages: [userMsg("m1", "deploy it", "d1")] as unknown[],
+      tasks: [] as unknown[],
+      dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "running", created_at: T0, started_at: T0 }] as unknown[],
+      confirmations: [] as unknown[],
+    });
+
+    async function holdThenFinish(conv: ReturnType<typeof running>, leave: (conv: ReturnType<typeof running>) => void, text = "ok") {
+      const user = userEvent.setup();
+      const server = fakeServer(conv);
+      renderPage();
+      await screen.findByRole("status", { name: /turn in progress/i });
+      await user.type(screen.getByPlaceholderText(/message the agent fleet/i), text);
+      await user.click(screen.getByRole("button", { name: "Send when done" }));
+      expect(screen.getByText(/sends when this turn finishes/i)).toBeInTheDocument();
+
+      conv.dispatches = [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: T0 }];
+      conv.messages = [...conv.messages, { id: "m2", role: "assistant", content: "done with that", task_id: "t1", created_at: T0 }];
+      leave(conv);
+      act(() => stream.push({ dispatch_id: "d1", status: "succeeded", updated_at: T0 } satisfies DispatchUpdateEvent));
+      await screen.findByText("done with that");
+      return server;
+    }
+
+    it("goes once the turn ends with nothing waiting", async () => {
+      const server = await holdThenFinish(running(), () => {}, "next step");
+      await waitFor(() => expect(server.posts).toHaveLength(1));
+      expect(server.posts[0].body.message).toBe("next step");
+      expect(server.posts[0].body).not.toHaveProperty("confirmation_id");
+    });
+
+    it("isn't sent when the turn ended at an agent's prompt: an \"ok\" must not approve it", async () => {
+      const server = await holdThenFinish(running(), (conv) => {
+        conv.tasks = [
+          {
+            id: "t1",
+            workspace_id: "ws-1",
+            kind: "agent",
+            agent_type: "claude-code",
+            status: "needs_attention",
+            created_at: T0,
+            updated_at: "2026-10-05T10:00:30Z",
+            attention: { kind: "permission", title: "Bash command", detail: "rm -rf build", selected: 0 },
+          },
+        ];
+      });
+      expect(await screen.findByText(/Not sent: something in this conversation needs your answer first/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("ok");
+      expect(screen.getByRole("region", { name: "claude-code needs your approval" })).toBeInTheDocument();
+      expect(server.posts).toHaveLength(0);
+    });
+
+    it("isn't sent when the turn ended with an offer waiting", async () => {
+      const server = await holdThenFinish(running(), (conv) => {
+        conv.confirmations = [
+          {
+            id: "conf-9",
+            dispatch_id: "d1",
+            kind: "run_command",
+            command: "kubectl -n staging rollout restart deploy/ledger-api",
+            status: "pending",
+            created_at: T0,
+            expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+          },
+        ];
+        conv.messages = [
+          userMsg("m1", "deploy it", "d1"),
+          { id: "m2", role: "assistant", content: "done with that", task_id: "", dispatch_id: "d1", created_at: T0 },
+        ];
+      }, "yes");
+      expect(await screen.findByText(/Not sent/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("yes");
+      expect(server.posts).toHaveLength(0);
+    });
+
+    it("isn't sent when the turn failed", async () => {
+      const conv = running();
+      const user = userEvent.setup();
+      const server = fakeServer(conv);
+      renderPage();
+      await screen.findByRole("status", { name: /turn in progress/i });
+      await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "and then this");
+      await user.click(screen.getByRole("button", { name: "Send when done" }));
+      conv.dispatches = [
+        { dispatch_id: "d1", conversation_id: "abc123", status: "failed", error_class: "timeout", error: "took too long", created_at: T0 },
+      ];
+      act(() => stream.push({ dispatch_id: "d1", status: "failed", error_class: "timeout", updated_at: T0 } satisfies DispatchUpdateEvent));
+      expect(await screen.findByText(/Not sent/)).toBeInTheDocument();
+      expect(server.posts).toHaveLength(0);
+    });
   });
 });

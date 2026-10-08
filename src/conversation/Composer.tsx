@@ -16,6 +16,7 @@ export function Composer({
   sending,
   inFlight,
   queued,
+  held = false,
   onSend,
   onQueue,
   onUnqueue,
@@ -26,6 +27,9 @@ export function Composer({
   sending: boolean;
   inFlight: boolean;
   queued: string | null;
+  // A held message came back unsent because the turn left something to
+  // answer first.
+  held?: boolean;
   onSend: (text: string) => void;
   onQueue: (text: string) => void;
   onUnqueue: () => void;
@@ -70,6 +74,11 @@ export function Composer({
 
   return (
     <form onSubmit={submit} className="border-t border-line bg-surface px-3 py-3 md:px-6">
+      {held && queued === null && (
+        <p role="status" className="mb-2 text-sm font-bold text-mari-ink">
+          Not sent: something in this conversation needs your answer first. Answer it above, then send your message.
+        </p>
+      )}
       {queued !== null && (
         <p role="status" className="mb-2 flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
           Your next message sends when this turn finishes.

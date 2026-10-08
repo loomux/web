@@ -9,7 +9,7 @@ import { PanePanel } from "./PanePanel";
 // Every task this conversation ran, newest first, each with its own attach
 // command and terminal (principles 5). Today only the latest task got an
 // attach command.
-function TaskRow({ task, workspace, refresh }: { task: ConversationTask; workspace?: string; refresh: string }) {
+function TaskRow({ task, workspace, refresh, live }: { task: ConversationTask; workspace?: string; refresh: string; live: boolean }) {
   const [open, setOpen] = useState<"none" | "attach" | "terminal">("none");
   const isCommand = task.kind === "command";
   const toggle = (which: "attach" | "terminal") => setOpen((o) => (o === which ? "none" : which));
@@ -38,7 +38,7 @@ function TaskRow({ task, workspace, refresh }: { task: ConversationTask; workspa
         </button>
       </div>
       {open === "attach" && <AttachCommand taskId={task.id} label="Show the command" />}
-      {open === "terminal" && <PanePanel taskId={task.id} running={task.status === "running"} refresh={refresh} />}
+      {open === "terminal" && <PanePanel taskId={task.id} running={live} refresh={refresh} />}
     </li>
   );
 }
@@ -54,10 +54,12 @@ export function TaskList({
     return <p className="text-sm text-ink-3">No tasks yet. Work the router hands to an agent or a command shows up here.</p>;
   }
   const newest = [...tasks].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
+  // One live terminal per conversation at most: the newest running task's.
+  const liveId = newest.find((t) => t.status === "running")?.id;
   return (
     <ul aria-label="Tasks">
       {newest.map((t) => (
-        <TaskRow key={t.id} task={t} workspace={workspaceName(t.workspace_id)} refresh={t.updated_at} />
+        <TaskRow key={t.id} task={t} workspace={workspaceName(t.workspace_id)} refresh={t.updated_at} live={t.id === liveId} />
       ))}
     </ul>
   );
