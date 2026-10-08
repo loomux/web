@@ -8,7 +8,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
 import type { DispatchUpdateEvent, MessageAddedEvent } from "../lib/api";
-import { ConversationDetailPage } from "./ConversationDetailPage";
+import { ConversationPage } from "./ConversationPage";
 
 // A stream the tests push events into.
 const stream = vi.hoisted(() => {
@@ -45,7 +45,7 @@ function renderPage() {
       <MemoryRouter initialEntries={["/conversations/abc123"]}>
         <AuthProvider>
           <Routes>
-            <Route path="/conversations/:id" element={<ConversationDetailPage />} />
+            <Route path="/conversations/:id" element={<ConversationPage />} />
           </Routes>
         </AuthProvider>
       </MemoryRouter>
@@ -73,7 +73,7 @@ interface Posted {
 }
 
 // A server whose conversation state the test sets as it goes.
-function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: unknown[] }) {
+function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: unknown[]; confirmations?: unknown[] }) {
   const posts: Posted[] = [];
   const cancels: string[] = [];
   let cancelResponse: () => Response = () => jsonResponse({ dispatch_id: cancels.at(-1) }, 202);
@@ -97,6 +97,8 @@ function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: u
     if (url === "/api/v1/workspaces") {
       return jsonResponse({ workspaces: [{ id: "ws-1", name: "my-app", target_id: "t", status: "online" }] });
     }
+    // The turn card's terminal: no capture, no live pane.
+    if (url.startsWith("/api/v1/tasks/")) return jsonResponse({ error: "no such task" }, 404);
     throw new Error(`unexpected fetch: ${method} ${url}`);
   });
   return {
@@ -111,7 +113,7 @@ function fakeServer(conv: { messages: unknown[]; tasks: unknown[]; dispatches: u
   };
 }
 
-describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
+describe("ConversationPage async dispatch (LOOM-81)", () => {
   const originalFetch = globalThis.fetch;
   beforeEach(() => {
     stream.reset();
@@ -143,8 +145,9 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
 
     const card = await screen.findByRole("status", { name: /turn in progress/i });
     await waitFor(() => expect(card).toHaveTextContent(/deciding where this goes/i));
-    expect(screen.getByPlaceholderText(/message the agent fleet/i)).toBeDisabled();
-    expect(screen.getAllByText("fix the build")).toHaveLength(1);
+    // The composer stays open for the next message; Send waits for the turn.
+    expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
+    expect(within(screen.getByRole("log", { name: "Messages" })).getAllByText("fix the build")).toHaveLength(1);
 
     // The agent starts on it.
     conv.tasks = [
@@ -177,7 +180,7 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
 
     expect(await screen.findByText("fixed it")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByPlaceholderText(/message the agent fleet/i)).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument());
   });
 
   it("shows an agent's late report when the stream says a message was added (LOOM-121)", async () => {
@@ -225,8 +228,8 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
 
     const card = await screen.findByRole("status", { name: /turn in progress/i });
     await waitFor(() => expect(card).toHaveTextContent(/claude-code is working in my-app/i));
-    expect(screen.getByRole("button", { name: /show attach command/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/message the agent fleet/i)).toBeDisabled();
+    expect(within(card).getByRole("button", { name: /show attach command/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
   });
 
   it("keeps a failed turn after a reload, with a plain-language error and a Retry that sends the same text again", async () => {
@@ -247,10 +250,9 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     });
     renderPage();
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/couldn't reach the machine/i);
-    expect(alert).toHaveTextContent(/reachable over ssh/i);
-    expect(screen.getByText("check disk on devbox")).toBeInTheDocument();
+    const failed = await screen.findByRole("region", { name: /couldn't reach the machine/i });
+    expect(failed).toHaveTextContent(/reachable over ssh/i);
+    expect(within(screen.getByRole("log", { name: "Messages" })).getByText("check disk on devbox")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry/i }));
     await waitFor(() => expect(server.posts).toHaveLength(1));
@@ -277,8 +279,8 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     });
     renderPage();
 
-    const alert = await screen.findByRole("alert");
-    await user.click(within(alert).getByRole("button", { name: /retry/i }));
+    const failed = await screen.findByRole("region", { name: /couldn't reach the machine/i });
+    await user.click(within(failed).getByRole("button", { name: /retry/i }));
 
     await waitFor(() => expect(server.posts).toHaveLength(1));
     expect(server.posts[0].body.message).toBe("yes");
@@ -341,9 +343,8 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
       stream.push({ dispatch_id: "d1", status: "failed", error_class: "cancelled", updated_at: T0 } satisfies DispatchUpdateEvent),
     );
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/you cancelled this turn/i);
-    expect(within(alert).getByRole("button", { name: /retry/i })).toBeEnabled();
+    const cancelled = await screen.findByRole("region", { name: /you cancelled this turn/i });
+    expect(within(cancelled).getByRole("button", { name: /retry/i })).toBeEnabled();
     expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument();
   });
 
@@ -360,5 +361,101 @@ describe("ConversationDetailPage async dispatch (LOOM-81)", () => {
     const card = await screen.findByRole("status", { name: /turn in progress/i });
     await user.click(within(card).getByRole("button", { name: /cancel/i }));
     expect(await screen.findByText(/already finished/i)).toBeInTheDocument();
+  });
+
+  // "Send when done" holds a message during a turn. The server reads the
+  // next message as the answer to whatever is waiting, so a held message
+  // only goes if the finished turn left nothing to answer.
+  describe("a message held during a turn", () => {
+    const running = () => ({
+      messages: [userMsg("m1", "deploy it", "d1")] as unknown[],
+      tasks: [] as unknown[],
+      dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "running", created_at: T0, started_at: T0 }] as unknown[],
+      confirmations: [] as unknown[],
+    });
+
+    async function holdThenFinish(conv: ReturnType<typeof running>, leave: (conv: ReturnType<typeof running>) => void, text = "ok") {
+      const user = userEvent.setup();
+      const server = fakeServer(conv);
+      renderPage();
+      await screen.findByRole("status", { name: /turn in progress/i });
+      await user.type(screen.getByPlaceholderText(/message the agent fleet/i), text);
+      await user.click(screen.getByRole("button", { name: "Send when done" }));
+      expect(screen.getByText(/sends when this turn finishes/i)).toBeInTheDocument();
+
+      conv.dispatches = [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: T0 }];
+      conv.messages = [...conv.messages, { id: "m2", role: "assistant", content: "done with that", task_id: "t1", created_at: T0 }];
+      leave(conv);
+      act(() => stream.push({ dispatch_id: "d1", status: "succeeded", updated_at: T0 } satisfies DispatchUpdateEvent));
+      await screen.findByText("done with that");
+      return server;
+    }
+
+    it("goes once the turn ends with nothing waiting", async () => {
+      const server = await holdThenFinish(running(), () => {}, "next step");
+      await waitFor(() => expect(server.posts).toHaveLength(1));
+      expect(server.posts[0].body.message).toBe("next step");
+      expect(server.posts[0].body).not.toHaveProperty("confirmation_id");
+    });
+
+    it("isn't sent when the turn ended at an agent's prompt: an \"ok\" must not approve it", async () => {
+      const server = await holdThenFinish(running(), (conv) => {
+        conv.tasks = [
+          {
+            id: "t1",
+            workspace_id: "ws-1",
+            kind: "agent",
+            agent_type: "claude-code",
+            status: "needs_attention",
+            created_at: T0,
+            updated_at: "2026-10-05T10:00:30Z",
+            attention: { kind: "permission", title: "Bash command", detail: "rm -rf build", selected: 0 },
+          },
+        ];
+      });
+      expect(await screen.findByText(/Not sent: something in this conversation needs your answer first/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("ok");
+      expect(screen.getByRole("region", { name: "claude-code needs your approval" })).toBeInTheDocument();
+      expect(server.posts).toHaveLength(0);
+    });
+
+    it("isn't sent when the turn ended with an offer waiting", async () => {
+      const server = await holdThenFinish(running(), (conv) => {
+        conv.confirmations = [
+          {
+            id: "conf-9",
+            dispatch_id: "d1",
+            kind: "run_command",
+            command: "kubectl -n staging rollout restart deploy/ledger-api",
+            status: "pending",
+            created_at: T0,
+            expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+          },
+        ];
+        conv.messages = [
+          userMsg("m1", "deploy it", "d1"),
+          { id: "m2", role: "assistant", content: "done with that", task_id: "", dispatch_id: "d1", created_at: T0 },
+        ];
+      }, "yes");
+      expect(await screen.findByText(/Not sent/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("yes");
+      expect(server.posts).toHaveLength(0);
+    });
+
+    it("isn't sent when the turn failed", async () => {
+      const conv = running();
+      const user = userEvent.setup();
+      const server = fakeServer(conv);
+      renderPage();
+      await screen.findByRole("status", { name: /turn in progress/i });
+      await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "and then this");
+      await user.click(screen.getByRole("button", { name: "Send when done" }));
+      conv.dispatches = [
+        { dispatch_id: "d1", conversation_id: "abc123", status: "failed", error_class: "timeout", error: "took too long", created_at: T0 },
+      ];
+      act(() => stream.push({ dispatch_id: "d1", status: "failed", error_class: "timeout", updated_at: T0 } satisfies DispatchUpdateEvent));
+      expect(await screen.findByText(/Not sent/)).toBeInTheDocument();
+      expect(server.posts).toHaveLength(0);
+    });
   });
 });

@@ -60,6 +60,7 @@ export function useApiClient() {
       unpinHostKey: (targetId: string) => guarded((t) => api.unpinHostKey(t, targetId)),
       testTarget: (targetId: string) => guarded((t) => api.testTarget(t, targetId)),
       probeTarget: (targetId: string) => guarded((t) => api.probeTarget(t, targetId)),
+      getTaskPane: (taskId: string, since?: string) => guarded((t) => api.getTaskPane(t, taskId, since)),
       listSessions: () => guarded((t) => api.listSessions(t)),
       deleteSession: (id: string) => guarded((t) => api.deleteSession(t, id)),
       getDeepHealth: () => guarded((t) => api.getDeepHealth(t)),

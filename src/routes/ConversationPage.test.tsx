@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
-import { ConversationDetailPage } from "./ConversationDetailPage";
+import { ConversationPage } from "./ConversationPage";
 
 const stream = vi.hoisted(() => ({
   state: { event: null, dispatchEvent: null, connected: false } as Record<string, unknown>,
@@ -26,7 +26,7 @@ function page(queryClient: QueryClient, conversationId = "abc123") {
       <MemoryRouter initialEntries={[`/conversations/${conversationId}`]}>
         <AuthProvider>
           <Routes>
-            <Route path="/conversations/:id" element={<ConversationDetailPage />} />
+            <Route path="/conversations/:id" element={<ConversationPage />} />
           </Routes>
         </AuthProvider>
       </MemoryRouter>
@@ -34,11 +34,15 @@ function page(queryClient: QueryClient, conversationId = "abc123") {
   );
 }
 
+// The thread. The header repeats the first message as the title, so
+// message text is looked up here.
+const log = () => within(screen.getByRole("log", { name: "Messages" }));
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-describe("ConversationDetailPage", () => {
+describe("ConversationPage", () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
@@ -70,8 +74,8 @@ describe("ConversationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("hi there")).toBeInTheDocument();
-    expect(await screen.findByText("hello back")).toBeInTheDocument();
+    expect(await log().findByText("hi there")).toBeInTheDocument();
+    expect(await log().findByText("hello back")).toBeInTheDocument();
     expect(screen.queryByText(/LOOM-31/)).not.toBeInTheDocument();
   });
 
@@ -131,7 +135,7 @@ describe("ConversationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/Alpha Workspace/)).toBeInTheDocument();
+    expect(await screen.findByText("workspace: Alpha Workspace")).toBeInTheDocument();
     expect(screen.queryByText(/ws-a/)).not.toBeInTheDocument();
   });
 
@@ -161,7 +165,7 @@ describe("ConversationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/e2e_new/)).toBeInTheDocument();
+    expect(await screen.findByText("workspace: e2e_new")).toBeInTheDocument();
     expect(listCalls).toBe(2);
   });
 
@@ -222,7 +226,7 @@ describe("ConversationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/no messages/i)).toBeInTheDocument();
+    expect(await screen.findByText("Start the conversation")).toBeInTheDocument();
     expect(screen.queryByText(/LOOM-31/)).not.toBeInTheDocument();
     expect(screen.queryByText(/isn't available yet/)).not.toBeInTheDocument();
   });
@@ -267,16 +271,16 @@ describe("ConversationDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("hi there")).toBeInTheDocument();
+    expect(await log().findByText("hi there")).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "what's up");
     await user.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(await screen.findByText("what's up")).toBeInTheDocument();
+    expect(await log().findByText("what's up")).toBeInTheDocument();
 
     resolveDispatch(jsonResponse({ reply: "not much" }));
 
-    expect(await screen.findByText("not much")).toBeInTheDocument();
+    expect(await log().findByText("not much")).toBeInTheDocument();
 
     await waitFor(() => expect(getCalls).toBeGreaterThanOrEqual(2));
 
@@ -391,7 +395,8 @@ describe("ConversationDetailPage", () => {
           command: "df -h",
           status,
           created_at: "2026-10-05T09:00:01Z",
-          expires_at: "2026-10-05T09:15:01Z",
+          // Still open: the card goes inert at expires_at.
+          expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
         },
       ],
     };
@@ -466,11 +471,11 @@ describe("ConversationDetailPage", () => {
       throw new Error(`unexpected fetch: ${url}`);
     });
     renderPage();
-    expect(await screen.findByText("hello")).toBeInTheDocument();
+    expect(await log().findByText("hello")).toBeInTheDocument();
     await waitFor(() => expect(scrolled).toHaveBeenCalled());
   });
 
-  it("disables the input while a dispatch is in flight so a second submit can't race the first", async () => {
+  it("keeps the composer open while a message sends, but never sends a second one over it", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();
 
@@ -517,20 +522,22 @@ describe("ConversationDetailPage", () => {
     await user.type(input, "first message");
     await user.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(await screen.findByText("first message")).toBeInTheDocument();
-    await waitFor(() => expect(input).toBeDisabled());
+    expect(await log().findByText("first message")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sending…" })).toBeDisabled();
 
-    // Typing/submitting while the first dispatch is still pending must not
-    // fire a second one — the input is disabled, so this is a no-op.
+    // The next message can be written while the first is on its way
+    // (principles 6), but Enter doesn't send it over the first.
+    expect(input).not.toBeDisabled();
     await user.type(input, "second message");
     await user.keyboard("{Enter}");
 
     expect(dispatchCalls).toBe(1);
-    expect(screen.queryByText("second message")).not.toBeInTheDocument();
+    expect(log().queryByText("second message")).not.toBeInTheDocument();
+    expect(input).toHaveValue("second message");
 
     resolveDispatch(jsonResponse({ reply: "ack" }));
 
-    expect(await screen.findByText("ack")).toBeInTheDocument();
+    expect(await log().findByText("ack")).toBeInTheDocument();
     await waitFor(() => expect(dispatchCalls).toBe(1));
   });
 
@@ -660,7 +667,7 @@ describe("ConversationDetailPage", () => {
     await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "hello?");
     await user.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(await screen.findByText("hello?")).toBeInTheDocument();
+    expect(await log().findByText("hello?")).toBeInTheDocument();
     expect(await screen.findByText("dispatch failed")).toBeInTheDocument();
   });
 
@@ -701,6 +708,7 @@ describe("ConversationDetailPage", () => {
     await waitFor(() => expect(dispatchCalls).toBe(1));
     await waitFor(() => expect(composer).toHaveValue(""));
   });
+
   // LOOM-97: a needs_attention task's prompt is shown as a card whose
   // buttons answer it with an ordinary chat message.
   async function answerFromCard(click: (user: ReturnType<typeof userEvent.setup>) => Promise<void>) {
@@ -730,8 +738,7 @@ describe("ConversationDetailPage", () => {
       throw new Error(`unexpected fetch: ${method} ${url}`);
     });
     renderPage();
-    expect(await screen.findByRole("region", { name: /agent needs attention/i })).toBeInTheDocument();
-    expect(screen.getByText("claude-code needs your approval")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "claude-code needs your approval" })).toBeInTheDocument();
     expect(screen.getByText("rm -rf build")).toBeInTheDocument();
     await click(user);
     await waitFor(() => expect(bodies).toHaveLength(1));
@@ -744,7 +751,7 @@ describe("ConversationDetailPage", () => {
   });
 
   it("picks a prompt's option by number from its card", async () => {
-    const body = await answerFromCard((user) => user.click(screen.getByRole("button", { name: /3\. No/ })));
+    const body = await answerFromCard((user) => user.click(screen.getByRole("button", { name: /^3\s*No$/ })));
     expect(body.message).toBe("3");
   });
 
@@ -755,6 +762,7 @@ describe("ConversationDetailPage", () => {
     });
     expect(body.message).toBe("use make clean");
   });
+
   it("focuses the composer when a conversation opens", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {

@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
 import { attachCommand } from "../lib/attach";
-import { AttachInfo } from "./AttachInfo";
+import { AttachCommand } from "./AttachCommand";
 
 function renderComponent(taskId = "task-1") {
   const queryClient = new QueryClient({
@@ -15,7 +15,7 @@ function renderComponent(taskId = "task-1") {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <MemoryRouter>
-          <AttachInfo taskId={taskId} />
+          <AttachCommand taskId={taskId} />
         </MemoryRouter>
       </AuthProvider>
     </QueryClientProvider>,
@@ -26,7 +26,7 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-describe("AttachInfo", () => {
+describe("AttachCommand", () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
@@ -62,6 +62,16 @@ describe("AttachInfo", () => {
     await user.click(screen.getByRole("button", { name: /^copy$/i }));
 
     expect(await screen.findByText(/copied/i)).toBeInTheDocument();
+  });
+
+  it("says when it couldn't load the command, beside the button rather than inside it", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async () => jsonResponse({ error: "no such task" }, 404));
+    const user = userEvent.setup();
+    renderComponent();
+    await user.click(screen.getByRole("button", { name: /show attach command/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load it");
+    expect(screen.getByRole("button", { name: /show attach command/i })).toBeEnabled();
   });
 
   it("names Loomux's tmux socket, and runs it as-is on the local target", () => {

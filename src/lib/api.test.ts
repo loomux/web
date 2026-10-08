@@ -181,6 +181,7 @@ describe("api", () => {
     ["listSessions", () => api.listSessions("t"), "GET", "/api/v1/sessions"],
     ["deleteSession", () => api.deleteSession("t", "s1"), "DELETE", "/api/v1/sessions/s1"],
     ["getDeepHealth", () => api.getDeepHealth("t"), "GET", "/api/v1/health/deep"],
+    ["getTaskPane", () => api.getTaskPane("t", "task1"), "GET", "/api/v1/tasks/task1/pane"],
   ] as const)("%s calls %s %s", async (_name, call, method, path) => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     await call();
@@ -198,7 +199,7 @@ describe("api", () => {
         "listCredentials", "listTargets", "listWorkspaces", "login", "logout", "rollbackWeb", "setCredentialValue",
         "setWorkspaceStatus", "updateTarget", "updateWeb",
         "getTaskTranscript", "getConversationEvents", "scanHostKey", "pinHostKey", "unpinHostKey", "testTarget",
-        "probeTarget", "listSessions", "deleteSession", "getDeepHealth",
+        "probeTarget", "listSessions", "deleteSession", "getDeepHealth", "getTaskPane",
       ].sort(),
     );
   });
