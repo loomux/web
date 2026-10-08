@@ -382,7 +382,9 @@ export interface RouterSettings {
   tiers: RouterTier[];
 }
 
-// PUT /settings/router/{tier}: no api_key keeps the stored key.
+// PUT /settings/router/{tier}: no api_key keeps the stored key, but only
+// while provider and base_url stay as stored. base_url must be https
+// (http only to localhost); an anthropic tier may leave it empty.
 export interface RouterTierRequest {
   provider?: string;
   base_url: string;
@@ -390,8 +392,12 @@ export interface RouterTierRequest {
   api_key?: string;
 }
 
+// A failure is described by the provider's HTTP status (absent when none
+// came back) and a class, never by the provider's own response.
 export interface RouterTierTest {
   ok: boolean;
+  status?: number;
+  error_class?: "auth_failed" | "not_found" | "bad_request" | "rate_limited" | "provider_error" | "timeout" | "unreachable";
   error?: string;
   model: string;
   source: string;

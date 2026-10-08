@@ -23,7 +23,7 @@ function renderIt() {
 
 function settings(): RouterSettings {
   return {
-    providers: ["openai"],
+    providers: ["openai", "anthropic"],
     tiers: [
       {
         tier: "primary",
@@ -145,5 +145,54 @@ describe("RouterModel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("no LOOMUX_MASTER_KEY");
     expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
     expect(container.innerHTML).not.toContain(KEY);
+  });
+
+  it("asks for the key again when the base URL or provider changes", async () => {
+    const puts: Record<string, unknown>[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(settings().tiers[0]), { status: 200 });
+      }
+      if (String(input).includes("/audit")) return new Response(JSON.stringify({ entries: [] }), { status: 200 });
+      return new Response(JSON.stringify(settings()), { status: 200 });
+    }) as typeof fetch;
+    renderIt();
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    const url = screen.getByLabelText("Base URL");
+    await userEvent.clear(url);
+    await userEvent.type(url, "https://elsewhere.example/v1");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter the API key again");
+    expect(puts).toEqual([]);
+
+    await userEvent.clear(url);
+    await userEvent.type(url, "https://api.example/v1");
+    await userEvent.selectOptions(screen.getByLabelText("Provider"), "anthropic");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(puts).toEqual([]);
+
+    // Anthropic with no base URL and a new key goes through.
+    await userEvent.clear(url);
+    await userEvent.type(screen.getByLabelText("API key"), KEY);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toEqual({ provider: "anthropic", base_url: "", model: "small-model", api_key: KEY });
+  });
+
+  it("shows a failed test by its status and class", async () => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return new Response(
+          JSON.stringify({ ok: false, status: 401, error_class: "auth_failed", error: "the provider refused the key (HTTP 401)", model: "m", source: "stored", duration_ms: 80 }),
+          { status: 200 },
+        );
+      }
+      if (String(input).includes("/audit")) return new Response(JSON.stringify({ entries: [] }), { status: 200 });
+      return new Response(JSON.stringify(settings()), { status: 200 });
+    }) as typeof fetch;
+    renderIt();
+    await userEvent.click(await screen.findByRole("button", { name: "Test" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Failed: the provider refused the key (HTTP 401)");
   });
 });

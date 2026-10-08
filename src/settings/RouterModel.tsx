@@ -55,16 +55,21 @@ function EditForm({ tier, providers, onDone }: { tier: RouterTier; providers: st
     onSettled: () => setKey(""),
   });
 
+  // The saved key is only kept for the endpoint it was entered for.
+  const moved = stored && (provider !== tier.provider || baseURL.trim() !== (tier.base_url ?? ""));
+  const keyNeeded = !stored || moved;
+  const anthropic = provider === "anthropic";
+
   function submit(e: FormEvent) {
     e.preventDefault();
     const body: RouterTierRequest = { provider, base_url: baseURL.trim(), model: model.trim() };
     if (key) body.api_key = key;
-    if (!body.base_url || !body.model) {
-      setError("Enter the base URL and the model.");
+    if ((!body.base_url && !anthropic) || !body.model) {
+      setError(anthropic ? "Enter the model." : "Enter the base URL and the model.");
       return;
     }
-    if (!stored && !body.api_key) {
-      setError("Enter the API key.");
+    if (keyNeeded && !body.api_key) {
+      setError(moved ? "Enter the API key again: the saved key isn't sent to a new provider or base URL." : "Enter the API key.");
       return;
     }
     setError(null);
@@ -96,10 +101,11 @@ function EditForm({ tier, providers, onDone }: { tier: RouterTier; providers: st
           className={`${INPUT} font-mono`}
           value={baseURL}
           onChange={(e) => setBaseURL(e.target.value)}
-          placeholder="https://api.groq.com/openai/v1"
+          placeholder={anthropic ? "Leave empty for Anthropic's API" : "https://api.groq.com/openai/v1"}
           spellCheck={false}
           inputMode="url"
         />
+        <p className="text-sm text-ink-3">https, or http to localhost.</p>
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-model`} className="font-bold text-ink">
@@ -118,9 +124,11 @@ function EditForm({ tier, providers, onDone }: { tier: RouterTier; providers: st
           className={INPUT}
           value={key}
           onChange={(e) => setKey(e.target.value)}
-          placeholder={stored ? "Leave empty to keep the saved key" : ""}
+          placeholder={keyNeeded ? "" : "Leave empty to keep the saved key"}
         />
-        <p className="text-sm text-ink-3">Never shown again once saved.</p>
+        <p className="text-sm text-ink-3">
+          {moved ? "Needed again for a new provider or base URL. " : ""}Never shown again once saved.
+        </p>
       </div>
       {error && (
         <p role="alert" className="text-bad">
