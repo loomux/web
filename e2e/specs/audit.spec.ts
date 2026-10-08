@@ -40,7 +40,8 @@ test("every main screen fits a phone, passes axe and keeps the nav reachable", a
 
 // Agent and router output is rendered as markdown: it must never run
 // script, load remote images or render raw HTML.
-test("hostile markdown in a reply renders inert", async ({ page }) => {
+test("hostile markdown in a reply renders inert", async ({ page, baseURL }) => {
+  const origin = new URL(baseURL!).origin;
   const dialogs: string[] = [];
   page.on("dialog", (d) => {
     dialogs.push(d.message());
@@ -48,7 +49,7 @@ test("hostile markdown in a reply renders inert", async ({ page }) => {
   });
   const external: string[] = [];
   page.on("request", (r) => {
-    if (!r.url().startsWith("http://127.0.0.1")) external.push(r.url());
+    if (new URL(r.url()).origin !== origin) external.push(r.url());
   });
   await login(page);
   await newConversation(page);
@@ -77,6 +78,7 @@ test("a failed send gives the draft back", async ({ page }) => {
   test.fail(true, "LOOM-139 finding F10: the optimistic message sticks and the draft is lost");
   await login(page);
   await newConversation(page);
+  await expect(page.getByPlaceholder("Message the agent fleet…")).toBeVisible();
   await page.route("**/api/v1/dispatch", (route) => route.abort("connectionreset"));
   await send(page, "answer: this send will fail");
   await expect(page.getByPlaceholder("Message the agent fleet…")).toHaveValue("answer: this send will fail", { timeout: 5_000 });
@@ -97,6 +99,9 @@ test("the conversation stream backs off while the server is unreachable", async 
   });
   await page.reload();
   await expect(page.getByText("Reconnecting…")).toBeVisible({ timeout: 10_000 });
+  // The precondition holds even with the bug, so test.fail() can only
+  // be satisfied by the bound below.
+  expect(attempts).toBeGreaterThan(0);
   attempts = 0;
   await page.waitForTimeout(12_000);
   // With backoff from 1s doubling, 12s holds at most ~4 attempts.
@@ -108,7 +113,7 @@ test("an impossible date in /today/:date is refused", async ({ page }) => {
   test.fail(true, "LOOM-139 finding F32: 2026-13-45 renders as February 14");
   await login(page);
   await page.goto("/today/2026-13-45");
-  await page.waitForTimeout(800);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(/February/);
 });
 
