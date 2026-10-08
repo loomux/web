@@ -63,6 +63,11 @@ export function TestSteps({ steps }: { steps: TestStep[] }) {
   );
 }
 
+// Whether the server gave steps (LOOM-138) and one of them didn't pass.
+function stepFailed(r: TargetTestResult) {
+  return !!r.steps && r.steps.some((s) => s.status !== "ok");
+}
+
 function unavailable(err: unknown) {
   return err instanceof ApiError && err.status === 501;
 }
@@ -88,10 +93,10 @@ export function HealthActions({ target }: { target: Target }) {
       </div>
       {test.data && (
         <div role="status" className="flex flex-col gap-2">
-          <p className={`text-sm font-bold ${test.data.reachable ? "text-good" : "text-bad"}`}>
-            {test.data.steps && !test.data.reachable ? "The connection test stopped here:" : testText(test.data)}
+          <p className={`text-sm font-bold ${test.data.reachable && !stepFailed(test.data) ? "text-good" : "text-bad"}`}>
+            {stepFailed(test.data) ? "The connection test stopped here:" : testText(test.data)}
           </p>
-          {test.data.steps && !test.data.reachable && <TestSteps steps={test.data.steps} />}
+          {stepFailed(test.data) && <TestSteps steps={test.data.steps!} />}
         </div>
       )}
       {test.isError && (

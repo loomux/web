@@ -1,7 +1,7 @@
 ### Added
 
 - Machines with a key of their own (LOOM-138). This needs a server with
-  LOOM-138; on an older server nothing changes.
+  LOOM-138; on an older server, or one without SSH keys, nothing changes.
   - Registering a machine over SSH now defaults to a key Loomux makes for
     it, through the server's proxy or straight to the host.
   - A machine's page has a "Signing in" section. It shows the checklist

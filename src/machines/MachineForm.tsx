@@ -45,13 +45,17 @@ export function ConnectionFields({
   values,
   onChange,
   isNew,
+  managedAvailable = false,
 }: {
   values: TargetFormValues;
   onChange: (patch: Partial<TargetFormValues>) => void;
   isNew: boolean;
+  // The server can keep a key for a new machine (LOOM-138).
+  managedAvailable?: boolean;
 }) {
   const id = useId();
   const remote = values.kind === "remote";
+  const managedEdit = !isNew && remote && values.ssh_access === "managed";
   return (
     <Section title="Connection">
       <Field id={`${id}-name`} label="Name" hint="What you'll call it in chat, like atlas or my laptop.">
@@ -91,7 +95,10 @@ export function ConnectionFields({
           </Field>
         </div>
       )}
-      {remote && isNew && (
+      {managedEdit && (
+        <p className="text-sm text-ink-2">Changing the host or port means you pin its host key again: the new address is checked like a new machine.</p>
+      )}
+      {remote && isNew && managedAvailable && (
         <div className="flex flex-col gap-1">
           <span className="font-bold text-ink">How Loomux signs in</span>
           <Segmented

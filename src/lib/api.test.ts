@@ -221,6 +221,15 @@ describe("migrateSSH", () => {
     expect(r.status).toBe(status);
     expect(r.result.problems).toEqual(["ProxyJump"]);
   });
+  it("returns the body of a 500 that carries one", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...plan, problems: ["could not be put back"] }), { status: 500 }));
+    const r = await api.migrateSSH("t", "x1", { dry_run: false });
+    expect(r.status).toBe(500);
+  });
+  it("throws on a 502 {error} (the SSH config couldn't be read)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "could not read the SSH config" }), { status: 502 }));
+    await expect(api.migrateSSH("t", "x1", { dry_run: true })).rejects.toMatchObject({ status: 502 });
+  });
   it("throws on an {error} answer", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "another target is being migrated" }), { status: 409 }));
     await expect(api.migrateSSH("t", "x1", { dry_run: false })).rejects.toMatchObject({ status: 409, message: "another target is being migrated" });

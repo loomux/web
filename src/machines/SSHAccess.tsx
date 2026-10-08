@@ -13,8 +13,23 @@ import { TestSteps } from "./Health";
 // through the deployment's SSH config can be moved to a key of its own,
 // with nothing changed on the machine.
 export function SSHAccess({ target }: { target: Target }) {
-  if (target.ssh_mode === "managed") return <ManagedAccess target={target} />;
-  if (target.ssh_mode === "config") return <ConfigAccess target={target} />;
+  // Kept here, not in ConfigAccess: a successful move turns the machine
+  // managed, and the "moved" note has to outlive that switch.
+  const [moved, setMoved] = useState(false);
+  if (target.ssh_mode === "managed") {
+    return (
+      <>
+        {moved && (
+          <p role="status" className="flex items-center gap-2 font-bold text-good">
+            <StatusShapeIcon shape="check" tone="good" />
+            Moved: it now signs in with a key of its own, and its test passed.
+          </p>
+        )}
+        <ManagedAccess target={target} />
+      </>
+    );
+  }
+  if (target.ssh_mode === "config") return <ConfigAccess target={target} onMoved={() => setMoved(true)} />;
   return <p className="text-sm text-ink-2">Signs in the way the server's SSH config says.</p>;
 }
 
@@ -39,13 +54,15 @@ function ManagedAccess({ target }: { target: Target }) {
     },
   });
   const key = target.ssh_key;
-  const current = target.ready ? STEPS.length : Math.max(0, STEPS.findIndex((s) => s.key === target.next_step));
+  // A step this client doesn't know (a newer server's) highlights none.
+  const known = STEPS.findIndex((s) => s.key === target.next_step);
+  const current = target.ready ? STEPS.length : known;
 
   return (
     <div className="flex flex-col gap-4">
       <ol aria-label="Getting it ready" className="flex flex-col gap-2">
         {STEPS.map((s, i) => {
-          const done = i < current;
+          const done = current >= 0 && i < current;
           const now = i === current;
           return (
             <li key={s.key} aria-current={now ? "step" : undefined} className="flex items-start gap-2">
@@ -67,6 +84,7 @@ function ManagedAccess({ target }: { target: Target }) {
           Ready: Loomux can work here.
         </p>
       )}
+      {!target.ready && known < 0 && <p className="text-sm text-ink-2">Not ready yet: test the connection, under Health.</p>}
 
       {key && key.public_key ? (
         <div className="flex flex-col gap-2">
@@ -121,20 +139,23 @@ function migrateError(err: unknown): string {
   return err instanceof Error ? err.message : "Something went wrong.";
 }
 
-function ConfigAccess({ target }: { target: Target }) {
+function ConfigAccess({ target, onMoved }: { target: Target; onMoved: () => void }) {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
   const [confirm, setConfirm] = useState(false);
   const check = useMutation({ mutationFn: () => apiClient.migrateSSH(target.id, { dry_run: true }) });
   const apply = useMutation({
     mutationFn: () => apiClient.migrateSSH(target.id, { dry_run: false }),
+    onSuccess: (r) => {
+      if (r.result.applied) onMoved();
+    },
     onSettled: () => {
       setConfirm(false);
       void queryClient.invalidateQueries({ queryKey: ["targets"] });
     },
   });
   const plan = check.data?.result;
-  const outcome = apply.data?.result;
+  const outcome = apply.data;
 
   return (
     <div className="flex flex-col gap-3">
@@ -161,13 +182,19 @@ function ConfigAccess({ target }: { target: Target }) {
             </Button>
           </div>
         ) : (
-          <div className="flex gap-2">
-            <Button size="sm" variant="primary" isPending={apply.isPending} pendingLabel="Moving and testing…" onPress={() => apply.mutate()}>
-              Move and test it
-            </Button>
-            <Button size="sm" variant="quiet" onPress={() => setConfirm(false)}>
-              Not now
-            </Button>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-ink">
+              Loomux takes over the key file shown above and trusts the host keys listed above, as the server's SSH config does today,
+              then tests the machine.
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="primary" isPending={apply.isPending} pendingLabel="Moving and testing…" onPress={() => apply.mutate()}>
+                Move and test it
+              </Button>
+              <Button size="sm" variant="quiet" onPress={() => setConfirm(false)}>
+                Not now
+              </Button>
+            </div>
           </div>
         )
       )}
@@ -176,7 +203,7 @@ function ConfigAccess({ target }: { target: Target }) {
           {migrateError(apply.error)}
         </p>
       )}
-      {outcome && <MigrationOutcome result={outcome} />}
+      {outcome && <MigrationOutcome status={outcome.status} result={outcome.result} />}
     </div>
   );
 }
@@ -231,7 +258,10 @@ function FragmentRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MigrationOutcome({ result }: { result: MigrateSSHResult }) {
+// What a move came to, by the answer's status: applied (200), put back
+// after a failed test (502), stopped part-way (500), or not done — a
+// conflict, possibly a target edited while it was tested (409).
+function MigrationOutcome({ status, result }: { status: number; result: MigrateSSHResult }) {
   if (result.applied) {
     return (
       <p role="status" className="flex items-center gap-2 font-bold text-good">
@@ -243,7 +273,13 @@ function MigrationOutcome({ result }: { result: MigrateSSHResult }) {
   return (
     <div role="alert" className="flex flex-col gap-2 text-sm">
       <p className="font-bold text-bad">
-        {result.rolled_back ? "Its test failed, so it's back on the SSH config, as before." : "It wasn't moved."}
+        {result.rolled_back
+          ? "Its test failed, so it's back on the SSH config, as before."
+          : status === 500
+            ? "Stopped part-way: check this machine's settings and host key before using it."
+            : status === 409 && result.test
+              ? "Its test failed, but it was changed while the move was being tested, so it was left as it is now."
+              : "It wasn't moved."}
       </p>
       {result.problems.length > 0 && (
         <ul className="list-disc pl-5 text-bad">

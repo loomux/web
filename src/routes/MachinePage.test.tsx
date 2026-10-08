@@ -397,9 +397,11 @@ describe("Signing in", () => {
 
   it("registers a machine with a key of its own by default", async () => {
     const calls = serve(kestrel(), {
+      "GET /ssh-keys": () => jsonResponse({ ssh_keys: [] }),
       "POST /targets": (body) => jsonResponse({ ...wyzer(), id: "t-new", name: String(body?.name) }, 201),
     });
     const router = renderAt("/machines/new");
+    await screen.findByRole("radio", { name: "A key of its own" });
     await userEvent.type(screen.getByLabelText("Name"), "wyzer");
     await userEvent.type(screen.getByLabelText("Host"), "wyzer.tail78a87c.ts.net");
     await userEvent.type(screen.getByLabelText("User"), "orski");
@@ -410,8 +412,12 @@ describe("Signing in", () => {
   });
 
   it("refuses an alias as a managed machine's host before sending anything, but not for the SSH config", async () => {
-    const calls = serve(kestrel(), { "POST /targets": () => jsonResponse({ ...kestrel(), id: "t-new" }, 201) });
+    const calls = serve(kestrel(), {
+      "GET /ssh-keys": () => jsonResponse({ ssh_keys: [] }),
+      "POST /targets": () => jsonResponse({ ...kestrel(), id: "t-new" }, 201),
+    });
     renderAt("/machines/new");
+    await screen.findByRole("radio", { name: "A key of its own" });
     await userEvent.type(screen.getByLabelText("Name"), "w");
     await userEvent.type(screen.getByLabelText("Host"), "my_alias");
     await userEvent.type(screen.getByLabelText("User"), "orski");
@@ -442,5 +448,119 @@ describe("Machines list and signing in", () => {
     serve(kestrel({ ssh_mode: "config" }));
     renderAt("/machines");
     expect(await screen.findByRole("region", { name: "kestrel" })).toHaveTextContent("Signs in through the server's SSH config");
+  });
+});
+
+describe("Signing in, edge cases (#89 review)", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    localStorage.clear();
+  });
+
+  it("offers no key of its own on a server without SSH keys, and registers through the SSH config", async () => {
+    const calls = serve(kestrel(), {
+      "POST /targets": () => jsonResponse({ ...kestrel(), id: "t-new" }, 201),
+    });
+    const router = renderAt("/machines/new");
+    await userEvent.type(screen.getByLabelText("Name"), "box");
+    await userEvent.type(screen.getByLabelText("Host"), "my_alias");
+    await userEvent.type(screen.getByLabelText("User"), "dev");
+    await waitFor(() => expect(calls.some((c) => c.url === "/ssh-keys")).toBe(true));
+    expect(screen.queryByRole("radio", { name: "A key of its own" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/machines/t-new"));
+    const body = calls.find((c) => c.method === "POST")!.body!;
+    expect(body.generate_ssh_key).toBeUndefined();
+    expect(body.ssh_proxy).toBeUndefined();
+  });
+
+  it("says to use the SSH config when the server can't store keys", async () => {
+    serve(kestrel(), {
+      "GET /ssh-keys": () => jsonResponse({ ssh_keys: [] }),
+      "POST /targets": () => jsonResponse({ error: "storing SSH keys needs LOOMUX_MASTER_KEY, which this server doesn't have" }, 503),
+    });
+    renderAt("/machines/new");
+    await screen.findByRole("radio", { name: "A key of its own" });
+    await userEvent.type(screen.getByLabelText("Name"), "box");
+    await userEvent.type(screen.getByLabelText("Host"), "box.example");
+    await userEvent.type(screen.getByLabelText("User"), "dev");
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/server's SSH config/);
+  });
+
+  it("highlights no step it doesn't know, and says to test", async () => {
+    serve(wyzer({ next_step: "something_new" }));
+    renderAt("/machines/t-kestrel");
+    const steps = await screen.findByRole("list", { name: "Getting it ready" });
+    expect(within(steps).queryAllByRole("listitem").some((li) => li.getAttribute("aria-current") === "step")).toBe(false);
+    expect(screen.getByRole("region", { name: "Signing in" })).toHaveTextContent("Not ready yet");
+  });
+
+  it("keeps saying a machine moved after it turns managed", async () => {
+    let migrated = false;
+    serve(kestrel({ ssh_mode: "config" }), {
+      "GET /targets": () => jsonResponse({ targets: [migrated ? wyzer({ ready: true, next_step: null }) : kestrel({ ssh_mode: "config" })] }),
+      "POST /targets/t-kestrel/migrate-ssh": (body) => {
+        if (body?.dry_run) return jsonResponse(PLAN);
+        migrated = true;
+        return jsonResponse({ ...PLAN, dry_run: false, applied: true });
+      },
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Check moving it to a key of its own" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Move it" }));
+    expect(screen.getByText(/trusts the host keys listed above/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Move and test it" }));
+    await screen.findByRole("list", { name: "Getting it ready" }); // now managed
+    expect(screen.getByText(/Moved: it now signs in with a key of its own/)).toBeInTheDocument();
+  });
+
+  it.each([
+    [500, "the migrated target failed its test and could not be put back: check it", "Stopped part-way"],
+    [409, "the migrated target failed its test, but was changed while it ran, so it was left as it is now", "changed while the move was being tested"],
+  ] as const)("says what happened when a move ends %i", async (status, problem, want) => {
+    serve(kestrel({ ssh_mode: "config" }), {
+      "POST /targets/t-kestrel/migrate-ssh": (body) =>
+        body?.dry_run
+          ? jsonResponse(PLAN)
+          : jsonResponse(
+              { ...PLAN, dry_run: false, problems: [problem], test: { target_id: "t-kestrel", reachable: false, latency_ms: 0, host_key_problem: false, steps: AUTH_FAILED_STEPS } },
+              status,
+            ),
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Check moving it to a key of its own" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Move it" }));
+    await userEvent.click(screen.getByRole("button", { name: "Move and test it" }));
+    expect(await screen.findByText(new RegExp(want))).toBeInTheDocument();
+    expect(screen.queryByText("It wasn't moved.")).not.toBeInTheDocument();
+  });
+
+  it("warns that changing a managed machine's address means pinning again, and saves without touching its key", async () => {
+    const calls = serve(wyzer());
+    renderAt("/machines/t-kestrel");
+    expect(await screen.findByText(/pin its host key again/)).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText("User"));
+    await userEvent.type(screen.getByLabelText("User"), "dev");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PUT")).toBeDefined());
+    const body = calls.find((c) => c.method === "PUT")!.body!;
+    expect(body.ssh_proxy).toBe("default");
+    expect(body.ssh_key_id).toBeUndefined();
+    expect(body.generate_ssh_key).toBeUndefined();
+  });
+
+  it("shows the steps when tmux failed on a reachable machine", async () => {
+    serve(wyzer(), {
+      "POST /targets/t-kestrel/test": () =>
+        jsonResponse({
+          target_id: "t-kestrel", reachable: true, latency_ms: 12, host_key_problem: false,
+          steps: [{ name: "connect", status: "ok" }, { name: "host_key", status: "ok" }, { name: "auth", status: "ok" }, { name: "tmux", status: "failed", error: "tmux not found" }],
+        }),
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Test connection" }));
+    expect(await screen.findByRole("list", { name: "Connection test steps" })).toHaveTextContent("tmux not found");
   });
 });
