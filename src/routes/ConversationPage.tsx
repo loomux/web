@@ -96,7 +96,7 @@ function Bubble({ m }: { m: DisplayMessage }) {
           <time
             dateTime={new Date(m.createdAt).toISOString()}
             title={new Date(m.createdAt).toLocaleString()}
-            className={`mt-1 block text-xs ${mine ? "text-right text-accent-ink/75" : "text-ink-3"}`}
+            className={`mt-1 block text-xs ${mine ? "text-right text-accent-ink" : "text-ink-3"}`}
           >
             {formatRelativeTime(m.createdAt)}
           </time>

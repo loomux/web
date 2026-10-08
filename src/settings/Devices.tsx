@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LoginSession } from "../lib/api";
 import { formatRelativeTime } from "../lib/time";
@@ -14,6 +15,7 @@ function when(iso: string) {
 function SessionRow({ s }: { s: LoginSession }) {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
   const revoke = useMutation({
     mutationFn: () => apiClient.deleteSession(s.id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["sessions"] }),
@@ -31,10 +33,21 @@ function SessionRow({ s }: { s: LoginSession }) {
           </p>
         )}
       </div>
-      {!s.current && (
-        <Button size="sm" variant="danger" isPending={revoke.isPending} pendingLabel="Signing out…" onPress={() => revoke.mutate()}>
+      {!s.current && !confirm && (
+        <Button size="sm" variant="danger" onPress={() => setConfirm(true)}>
           Log out this device
         </Button>
+      )}
+      {!s.current && confirm && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-ink">It'll need the password to sign in again.</span>
+          <Button size="sm" variant="danger" isPending={revoke.isPending} pendingLabel="Signing out…" onPress={() => revoke.mutate()}>
+            Yes, log it out
+          </Button>
+          <Button size="sm" variant="quiet" onPress={() => setConfirm(false)}>
+            Keep it
+          </Button>
+        </div>
       )}
     </li>
   );

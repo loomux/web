@@ -36,14 +36,6 @@ const definitions = new Set([
   "../lib/theme.ts",
 ]);
 
-// Screens the redesign hasn't rebuilt yet (build-plan §6). Each PR that
-// replaces one removes it here; the list only shrinks.
-const legacy = new Set([
-  "../components/RouteErrorBoundary.tsx",
-  "../components/VersionBanner.tsx",
-  "../routes/LoginPage.tsx",
-]);
-
 const PALETTE =
   "white|black|(?:neutral|gray|slate|zinc|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3}";
 const UTILITY =
@@ -60,15 +52,8 @@ describe("token boundary", () => {
     expect(styles["../index.css"]).toContain("@theme");
   });
 
-  it("lists only legacy files that exist and still need converting", () => {
-    for (const file of legacy) {
-      expect(Object.keys(sources)).toContain(file);
-      expect(code(sources[file]), `${file} is clean: remove it from the legacy list`).toMatch(LITERAL);
-    }
-  });
-
   for (const [file, text] of Object.entries(sources)) {
-    if (definitions.has(file) || legacy.has(file)) continue;
+    if (definitions.has(file)) continue;
     it(`${file} takes its colours from the tokens`, () => {
       expect(code(text)).not.toMatch(LITERAL);
     });

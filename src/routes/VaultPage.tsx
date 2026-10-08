@@ -40,7 +40,12 @@ function AddForm({ workspaces, onDone }: { workspaces: { id: string; name: strin
       void queryClient.invalidateQueries({ queryKey: ["credentials"] });
       onDone();
     },
-    onError: (err) => setError(message(err)),
+    onError: (err) => {
+      // A refusal (bad name, duplicate) keeps the value to retry; a server
+      // failure clears it, so a secret doesn't sit in the page.
+      if (!(err instanceof ApiError) || err.status >= 500) setValue("");
+      setError(message(err));
+    },
   });
 
   function submit(e: FormEvent) {
@@ -232,7 +237,8 @@ export function VaultPage() {
   );
   const names = useMemo(() => new Map(workspaces.map((w) => [w.id, w.name] as const)), [workspaces]);
   const scopeOf = (c: Credential) => {
-    const ws = c.workspace_id ? `Only in ${names.get(c.workspace_id) ?? "a deleted workspace"}` : "";
+    if (c.workspace_id && !names.has(c.workspace_id)) return "Only in a deleted workspace, so no agent gets it. You can delete it";
+    const ws = c.workspace_id ? `Only in ${names.get(c.workspace_id)}` : "";
     const ag = c.agent_type ? `only for ${c.agent_type}` : "";
     if (ws && ag) return `${ws}, ${ag}`;
     if (ws) return ws;

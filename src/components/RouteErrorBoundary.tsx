@@ -56,13 +56,12 @@ export class RouteErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-3 p-4 text-center">
-          <p className="text-neutral-600 dark:text-neutral-400">
-            Something went wrong loading this page.
-          </p>
+        <div role="alert" className="flex min-h-svh flex-col items-center justify-center gap-3 bg-ground p-4 text-center">
+          <p className="font-bold text-ink">Something went wrong loading this page.</p>
+          <p className="text-ink-2">Reloading usually fixes it.</p>
           <button
             onClick={() => window.location.reload()}
-            className="rounded bg-neutral-900 px-4 py-2 text-sm text-white dark:bg-neutral-100 dark:text-neutral-900"
+            className="min-h-11 rounded-control bg-accent px-4 font-bold text-accent-ink hover:bg-accent-hover"
           >
             Reload
           </button>
