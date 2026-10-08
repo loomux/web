@@ -8,6 +8,8 @@ import {
   targetFormFromTarget,
   toTargetRequest,
   validateTargetRequest,
+  validManagedHost,
+  EMPTY_TARGET_FORM,
   type TargetFormValues,
 } from "./targets";
 
@@ -46,6 +48,8 @@ function form(overrides: Partial<TargetFormValues> = {}): TargetFormValues {
     require_confirmation: false,
     relay: "",
     ssh_port: "",
+    ssh_access: "config",
+    ssh_proxy: "",
     ...overrides,
   };
 }
@@ -66,6 +70,8 @@ describe("targetFormFromTarget", () => {
       require_confirmation: true,
       relay: "",
       ssh_port: "",
+      ssh_access: "config",
+      ssh_proxy: "",
     });
   });
 
@@ -306,5 +312,59 @@ describe("relay and SSH port", () => {
 
   it("reads an unknown stored relay as the default", () => {
     expect(targetFormFromTarget(makeTarget({ relay: "everything" })).relay).toBe("");
+  });
+});
+
+// LOOM-138: how Loomux signs in to a machine.
+describe("SSH access", () => {
+  it("defaults a new machine to a Loomux key, through the server's proxy", () => {
+    expect(EMPTY_TARGET_FORM.ssh_access).toBe("managed");
+    expect(EMPTY_TARGET_FORM.ssh_proxy).toBe("");
+  });
+
+  it("asks for a key of its own when registering a managed machine", () => {
+    expect(toTargetRequest(form({ ssh_access: "managed" }), { isNew: true })).toMatchObject({ generate_ssh_key: true, ssh_proxy: "default" });
+    expect(toTargetRequest(form({ ssh_access: "managed", ssh_proxy: "none" }), { isNew: true })).toMatchObject({ ssh_proxy: "none" });
+  });
+
+  it("sends nothing about keys for the SSH config or a local machine", () => {
+    for (const req of [
+      toTargetRequest(form({ ssh_access: "config" }), { isNew: true }),
+      toTargetRequest(form({ kind: "local", ssh_access: "managed" }), { isNew: true }),
+    ]) {
+      expect(req.generate_ssh_key).toBeUndefined();
+      expect(req.ssh_key_id).toBeUndefined();
+      expect(req.ssh_proxy).toBeUndefined();
+    }
+  });
+
+  it("keeps a managed machine's key on an edit, and its proxy choice", () => {
+    const req = toTargetRequest(form({ ssh_access: "managed", ssh_proxy: "none" }));
+    expect(req.generate_ssh_key).toBeUndefined();
+    expect(req.ssh_key_id).toBeUndefined(); // omitted: the server keeps it
+    expect(req.ssh_proxy).toBe("none");
+  });
+
+  it("reads the access back from a stored machine", () => {
+    expect(targetFormFromTarget(makeTarget({ ssh_mode: "managed", ssh_proxy: "none" }))).toMatchObject({ ssh_access: "managed", ssh_proxy: "none" });
+    expect(targetFormFromTarget(makeTarget({ ssh_mode: "config", ssh_proxy: "default" }))).toMatchObject({ ssh_access: "config", ssh_proxy: "" });
+    // Older servers say nothing: the SSH config.
+    expect(targetFormFromTarget(makeTarget())).toMatchObject({ ssh_access: "config" });
+  });
+
+  it("holds a managed machine's host to a real name or address, as the server does", () => {
+    for (const host of ["wyzer", "wyzer.tail78a87c.ts.net", "10.0.0.7", "fd7a:115c:a1e0::1", "a-b.c-d"]) {
+      expect(validManagedHost(host), host).toBe(true);
+    }
+    for (const host of ["a_b", "a;id", "$(id)", "%h", "-x", "a..b", ".a", "a.", "a b", "[::1]", "a:22", "é.example", "a".repeat(64)]) {
+      expect(validManagedHost(host), host).toBe(false);
+    }
+    const managed = toTargetRequest(form({ ssh_access: "managed", host: "a_b" }), { isNew: true });
+    expect(validateTargetRequest(managed)).toBe(
+      "host must be a host name (letters, digits and -, dot-separated) or an IP address for a target with a Loomux SSH key",
+    );
+    expect(validateTargetRequest(toTargetRequest(form({ ssh_access: "managed", host: "a_b" })), { managed: true })).not.toBeNull();
+    // An alias stays fine for the SSH config.
+    expect(validateTargetRequest(toTargetRequest(form({ host: "a_b" }), { isNew: true }))).toBeNull();
   });
 });

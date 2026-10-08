@@ -15,6 +15,7 @@ import { useDocumentTitle } from "../lib/useDocumentTitle";
 import { HealthActions, HealthSummary } from "../machines/Health";
 import { HostKeys } from "../machines/HostKeys";
 import { ConnectionFields, PolicyFields, RelayFields } from "../machines/MachineForm";
+import { SSHAccess } from "../machines/SSHAccess";
 import { Button } from "../ui/Button";
 
 // One machine (/machines/:id): checks and host key, which act at once, and
@@ -57,7 +58,7 @@ export function MachinePage() {
   function submit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
-    const problem = validateTargetRequest(toTargetRequest(values));
+    const problem = validateTargetRequest(toTargetRequest(values), { managed: target?.ssh_mode === "managed" });
     if (problem) {
       setFormError(problem);
       return;
@@ -106,6 +107,15 @@ export function MachinePage() {
             Host key
           </h2>
           <HostKeys target={target} />
+        </section>
+      )}
+
+      {target.kind === "remote" && (
+        <section aria-labelledby="signin" className="mt-5 flex flex-col gap-3 rounded-card border border-line bg-surface p-4 md:p-5">
+          <h2 id="signin" className="text-lg font-extrabold text-ink">
+            Signing in
+          </h2>
+          <SSHAccess key={target.id} target={target} />
         </section>
       )}
 

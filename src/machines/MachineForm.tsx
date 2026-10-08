@@ -45,13 +45,17 @@ export function ConnectionFields({
   values,
   onChange,
   isNew,
+  managedAvailable = false,
 }: {
   values: TargetFormValues;
   onChange: (patch: Partial<TargetFormValues>) => void;
   isNew: boolean;
+  // The server can keep a key for a new machine (LOOM-138).
+  managedAvailable?: boolean;
 }) {
   const id = useId();
   const remote = values.kind === "remote";
+  const managedEdit = !isNew && remote && values.ssh_access === "managed";
   return (
     <Section title="Connection">
       <Field id={`${id}-name`} label="Name" hint="What you'll call it in chat, like atlas or my laptop.">
@@ -90,6 +94,36 @@ export function ConnectionFields({
             />
           </Field>
         </div>
+      )}
+      {managedEdit && (
+        <p className="text-sm text-ink-2">Changing the host or port means you pin its host key again: the new address is checked like a new machine.</p>
+      )}
+      {remote && isNew && managedAvailable && (
+        <div className="flex flex-col gap-1">
+          <span className="font-bold text-ink">How Loomux signs in</span>
+          <Segmented
+            label="How Loomux signs in"
+            options={[
+              { key: "managed", label: "A key of its own" },
+              { key: "config", label: "The server's SSH config" },
+            ]}
+            value={values.ssh_access}
+            onChange={(k) => onChange({ ssh_access: k })}
+          />
+          <span className="text-sm text-ink-2">
+            {values.ssh_access === "managed"
+              ? "Loomux makes a key for this machine. You add its public key to the user's authorized_keys, and the host must be the machine's real name or address."
+              : "Signs in the way the deployment's SSH config says, for a host set up there."}
+          </span>
+        </div>
+      )}
+      {remote && values.ssh_access === "managed" && (
+        <Switch
+          label="Through the server's proxy"
+          description="On: connect through the proxy the server is set up with (LOOMUX_SSH_PROXY), such as a Tailscale sidecar. Off: connect straight to the host."
+          isSelected={values.ssh_proxy !== "none"}
+          onChange={(on) => onChange({ ssh_proxy: on ? "" : "none" })}
+        />
       )}
       <Field id={`${id}-root`} label="Workspace folder (optional)" hint="Where new workspaces go. Blank: loomux-workspaces in the user's home.">
         <input

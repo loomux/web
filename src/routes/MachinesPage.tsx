@@ -18,6 +18,13 @@ import { StatusShapeIcon } from "../ui/StatusMark";
 // something on their machine, so they're listed there; settings, host
 // keys and checks are one tap into a machine.
 
+// A managed machine not ready yet (LOOM-138): what to do next, on its page.
+const NEXT_STEP: Record<string, string> = {
+  pin_host_key: "Setup: trust its host key",
+  authorize_key: "Setup: let Loomux in",
+  test_connection: "Setup: test the connection",
+};
+
 function MachineCard({
   target,
   workspaces,
@@ -57,6 +64,18 @@ function MachineCard({
           <li className="flex items-center gap-1.5">
             <StatusShapeIcon shape={pinned ? "check" : "diamond-open"} tone={pinned ? "good" : "mari"} />
             {pinned ? "Host key pinned" : "Host key not pinned"}
+          </li>
+        )}
+        {remote && target.ssh_mode === "managed" && !target.ready && target.next_step && (
+          <li className="flex items-center gap-1.5">
+            <StatusShapeIcon shape="diamond" tone="mari" />
+            {NEXT_STEP[target.next_step] ?? "Not ready yet"}
+          </li>
+        )}
+        {remote && target.ssh_mode === "config" && (
+          <li className="flex items-center gap-1.5">
+            <StatusShapeIcon shape="square" tone="muted" />
+            Signs in through the server's SSH config
           </li>
         )}
       </ul>
