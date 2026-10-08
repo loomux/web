@@ -153,7 +153,9 @@ export function TodayPage() {
             </div>
             {weave.omitted > 0 && (
               <p className="mt-3 text-sm text-ink-3">
-                {weave.omitted} more conversation{weave.omitted === 1 ? "" : "s"} that day aren't drawn; they're in the list below.
+                {isToday
+                  ? `${weave.omitted} more conversation${weave.omitted === 1 ? "" : "s"} today aren't drawn; they're in the list below.`
+                  : `Showing the 60 most recently active conversations. ${weave.omitted} more aren't drawn, and some from that day may have moved on since; the list below has them all.`}
               </p>
             )}
           </>
