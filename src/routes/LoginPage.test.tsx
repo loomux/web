@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "../lib/auth";
@@ -54,6 +54,40 @@ describe("LoginPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Invalid password. Check it and try again.");
     expect(localStorage.getItem("loomux.token")).toBeNull();
+  });
+
+  it("keeps this browser's device token and sends it with the next login, across a logout", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ token: "tok-1", device: "dev-1" }), { status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <LoginPage />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await userEvent.type(screen.getByLabelText(/password/i), "hunter2");
+    await userEvent.click(screen.getByRole("button", { name: /log in/i }));
+    await waitFor(() => expect(localStorage.getItem("loomux.device")).toBe("dev-1"));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ password: "hunter2" });
+
+    localStorage.removeItem("loomux.token"); // as logout does; the device stays
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ token: "tok-2", device: "dev-1" }), { status: 200 }));
+    cleanup();
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <LoginPage />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await userEvent.type(screen.getByLabelText(/password/i), "hunter2");
+    await userEvent.click(screen.getByRole("button", { name: /log in/i }));
+    await waitFor(() => expect(localStorage.getItem("loomux.token")).toBe("tok-2"));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ password: "hunter2", device: "dev-1" });
   });
 
   it("returns to the page that asked for a login, not the Inbox", async () => {
