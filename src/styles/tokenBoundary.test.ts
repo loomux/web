@@ -42,11 +42,8 @@ const legacy = new Set([
   "../components/RouteErrorBoundary.tsx",
   "../components/VersionBanner.tsx",
   "../components/WebClientUpdate.tsx",
-  "../lib/targets.ts",
   "../routes/CredentialsPage.tsx",
   "../routes/LoginPage.tsx",
-  "../routes/TargetsPage.tsx",
-  "../routes/WorkspacesPage.tsx",
 ]);
 
 const PALETTE =

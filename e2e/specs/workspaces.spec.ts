@@ -20,13 +20,15 @@ test("provision a workspace with an agent, follow up, then archive, reopen and d
   await expect(page.getByText(/e2e agent reply: .*second turn/)).toBeVisible({ timeout: 45_000 });
   await turnDone(page);
 
+  // Workspaces are listed under the machine they live on.
   await page.getByRole("link", { name: "Machines" }).click();
-  const row = page.getByRole("listitem").filter({ hasText: name });
-  await expect(row.getByText("target: local")).toBeVisible();
+  const machine = page.getByRole("region", { name: "local", exact: true });
+  const row = machine.getByRole("listitem").filter({ hasText: name });
+  await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Archive" }).click();
-  await expect(row.getByText("archived")).toBeVisible();
+  await expect(row.getByText("Archived", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Reopen" }).click();
-  await expect(row.getByText("idle")).toBeVisible();
+  await expect(row.getByText("Idle", { exact: true })).toBeVisible();
 
   await row.getByRole("button", { name: "Delete" }).click();
   await expect(row.getByText(/files on the machine are kept/i)).toBeVisible();

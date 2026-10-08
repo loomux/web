@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Target } from "./api";
 import {
+  defaultRelay,
   compareTargets,
   describePolicy,
   formatDestination,
-  kindBadgeClasses,
-  matchesKindFilter,
   targetFormFromTarget,
   toTargetRequest,
   validateTargetRequest,
@@ -45,6 +44,8 @@ function form(overrides: Partial<TargetFormValues> = {}): TargetFormValues {
     allow_provision: true,
     allow_shell: true,
     require_confirmation: false,
+    relay: "",
+    ssh_port: "",
     ...overrides,
   };
 }
@@ -63,6 +64,8 @@ describe("targetFormFromTarget", () => {
       allow_provision: false,
       allow_shell: true,
       require_confirmation: true,
+      relay: "",
+      ssh_port: "",
     });
   });
 
@@ -249,6 +252,10 @@ describe("compareTargets", () => {
 });
 
 describe("formatDestination", () => {
+  it("adds a port that isn't the SSH config's", () => {
+    expect(formatDestination({ kind: "remote", host: "kestrel.corp.example", user: "ci", ssh_port: 2222 })).toBe("ci@kestrel.corp.example:2222");
+  });
+
   it("reads user@host for a remote target", () => {
     expect(formatDestination({ kind: "remote", host: "h", user: "u" })).toBe("u@h");
   });
@@ -264,31 +271,40 @@ describe("formatDestination", () => {
   });
 });
 
-describe("kindBadgeClasses", () => {
-  it("colours remote and local differently", () => {
-    expect(kindBadgeClasses("remote")).toContain("bg-blue-100");
-    expect(kindBadgeClasses("local")).toContain("bg-neutral-200");
-    expect(kindBadgeClasses("future-kind")).toContain("bg-neutral-100");
-  });
-});
-
-describe("matchesKindFilter", () => {
-  it("passes everything for all", () => {
-    expect(matchesKindFilter("remote", "all")).toBe(true);
-    expect(matchesKindFilter("local", "all")).toBe(true);
-  });
-
-  it("matches on exact kind otherwise", () => {
-    expect(matchesKindFilter("remote", "remote")).toBe(true);
-    expect(matchesKindFilter("local", "remote")).toBe(false);
-  });
-});
-
 describe("describePolicy", () => {
   it("summarises a non-default policy and says nothing for the default", () => {
-    expect(describePolicy(makeTarget())).toBe("work machine · no new workspaces · only claude-code · asks before new work");
+    expect(describePolicy(makeTarget())).toBe("Work machine, no new workspaces, only claude-code, asks before new work.");
     expect(
       describePolicy(makeTarget({ purpose: "", allowed_agent_types: [], allow_provision: true, require_confirmation: false })),
     ).toBe("");
+  });
+});
+
+describe("relay and SSH port", () => {
+  it("defaults relay to nothing for a work machine and everything otherwise", () => {
+    expect(defaultRelay("work")).toBe("none");
+    expect(defaultRelay("")).toBe("full");
+    expect(defaultRelay("personal")).toBe("full");
+  });
+
+  it("round-trips relay and the SSH port", () => {
+    const f = targetFormFromTarget(makeTarget({ relay: "last_message", ssh_port: 2222 }));
+    expect(f).toMatchObject({ relay: "last_message", ssh_port: "2222" });
+    expect(toTargetRequest(f)).toMatchObject({ relay: "last_message", ssh_port: 2222 });
+  });
+
+  it("sends port 0 (the SSH config's) when blank, and for a local target", () => {
+    expect(toTargetRequest(form({ ssh_port: " " })).ssh_port).toBe(0);
+    expect(toTargetRequest(form({ kind: "local", ssh_port: "22" })).ssh_port).toBe(0);
+  });
+
+  it("rejects a port that isn't one", () => {
+    expect(validateTargetRequest(toTargetRequest(form({ ssh_port: "70000" })))).toMatch(/ssh_port/);
+    expect(validateTargetRequest(toTargetRequest(form({ ssh_port: "ab" })))).toMatch(/ssh_port/);
+    expect(validateTargetRequest(toTargetRequest(form({ ssh_port: "2222" })))).toBeNull();
+  });
+
+  it("reads an unknown stored relay as the default", () => {
+    expect(targetFormFromTarget(makeTarget({ relay: "everything" })).relay).toBe("");
   });
 });
