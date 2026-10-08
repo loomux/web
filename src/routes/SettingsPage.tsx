@@ -1,5 +1,6 @@
 import { WebClientUpdate } from "../components/WebClientUpdate";
 import { Devices } from "../settings/Devices";
+import { RouterModel } from "../settings/RouterModel";
 import { useThemePreference, type ThemePreference } from "../lib/theme";
 import { Segmented } from "../ui/Segmented";
 
@@ -9,8 +10,8 @@ const THEMES: { key: ThemePreference; label: string }[] = [
   { key: "dark", label: "Dark" },
 ];
 
-// Settings (build-plan §4): appearance, the devices signed in, and the web
-// client's version.
+// Settings (build-plan §4): appearance, the router model (LOOM-185), the
+// devices signed in, and the web client's version.
 export function SettingsPage() {
   const [theme, setTheme] = useThemePreference();
   return (
@@ -23,6 +24,10 @@ export function SettingsPage() {
         <p className="mt-1 mb-4 text-sm text-ink-2">Saved on this device only.</p>
         <Segmented label="Theme" options={THEMES} value={theme} onChange={setTheme} />
       </section>
+      {/* Hides itself on servers without router settings. */}
+      <div className="mt-6">
+        <RouterModel />
+      </div>
       <div className="mt-6">
         <Devices />
       </div>

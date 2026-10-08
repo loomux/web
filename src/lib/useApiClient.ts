@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { api, ApiError, type CredentialRequest, type TargetRequest } from "./api";
+import { api, ApiError, type CredentialRequest, type RouterTierRequest, type TargetRequest } from "./api";
 import { useAuth } from "./authContext";
 
 // Binds every token-requiring `api` call to the current session token and
@@ -66,6 +66,11 @@ export function useApiClient() {
       migrateSSH: (targetId: string, body: { dry_run: boolean; key_file?: string }) =>
         guarded((t) => api.migrateSSH(t, targetId, body)),
       getTaskPane: (taskId: string, since?: string) => guarded((t) => api.getTaskPane(t, taskId, since)),
+      getRouterSettings: () => guarded((t) => api.getRouterSettings(t)),
+      setRouterTier: (tier: string, body: RouterTierRequest) => guarded((t) => api.setRouterTier(t, tier, body)),
+      clearRouterTier: (tier: string) => guarded((t) => api.clearRouterTier(t, tier)),
+      testRouterTier: (tier: string) => guarded((t) => api.testRouterTier(t, tier)),
+      listRouterSettingsChanges: () => guarded((t) => api.listRouterSettingsChanges(t)),
       listSessions: () => guarded((t) => api.listSessions(t)),
       deleteSession: (id: string) => guarded((t) => api.deleteSession(t, id)),
       getDeepHealth: () => guarded((t) => api.getDeepHealth(t)),
