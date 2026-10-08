@@ -191,7 +191,7 @@ export function validateTargetRequest(req: TargetRequest): string | null {
   }
 
   const port = req.ssh_port ?? 0;
-  if (!Number.isInteger(port) || port < 0 || port > 65535) return "ssh_port must be a number from 1 to 65535";
+  if (!Number.isInteger(port) || port < 0 || port > 65535) return "ssh_port must be blank, or a number from 1 to 65535";
 
   if (req.relay !== undefined && !RELAYS.includes(req.relay as Relay)) {
     return 'relay must be empty, "full", "last_message" or "none"';

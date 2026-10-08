@@ -198,4 +198,30 @@ describe("Machines", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/machines/t-new"));
     expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ name: "atlas", kind: "remote", host: "atlas.lab.example", user: "dev", ssh_port: 0, relay: "" });
   });
+
+  it("says the list failed instead of showing the empty state", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ error: "boom" }, 500)) as typeof fetch;
+    renderAt("/machines");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load your machines");
+    expect(screen.queryByText("No machines yet.")).not.toBeInTheDocument();
+  });
+
+  it("checks a remote machine has a host before sending anything", async () => {
+    const calls = serve(kestrel());
+    renderAt("/machines/new");
+    await userEvent.type(screen.getByLabelText("Name"), "atlas");
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("host and user are required for a remote target");
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("shows the server's refusal of a duplicate name", async () => {
+    serve(kestrel(), { "POST /targets": () => jsonResponse({ error: "a target named atlas already exists" }, 409) });
+    renderAt("/machines/new");
+    await userEvent.type(screen.getByLabelText("Name"), "atlas");
+    await userEvent.type(screen.getByLabelText("Host"), "atlas.lab.example");
+    await userEvent.type(screen.getByLabelText("User"), "dev");
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("a target named atlas already exists");
+  });
 });
