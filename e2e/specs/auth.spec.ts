@@ -38,3 +38,30 @@ test("an unknown address shows a way home", async ({ page }) => {
   await page.getByRole("link", { name: "Go to the Inbox" }).click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+// LOOM-151: someone else's failed logins don't hold off a browser that
+// has logged in before: it sends its device token and has its own
+// backoff. (Without the token this login would get 429 for a second or
+// two.)
+test("someone else's failed logins don't lock this browser out", async ({ page, request }) => {
+  await login(page);
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  for (const guess of ["stranger-1", "stranger-2"]) {
+    const res = await request.post("/api/v1/login", { data: { password: guess } });
+    expect([401, 429]).toContain(res.status());
+  }
+  const blocked = await request.post("/api/v1/login", { data: { password: process.env.E2E_PASSWORD } });
+  expect(blocked.status()).toBe(429);
+
+  await login(page);
+
+  // Leave no global backoff for the next spec's device-less API logins:
+  // wait it out (a 429 records no failure, so polling is safe).
+  await expect
+    .poll(async () => (await request.post("/api/v1/login", { data: { password: process.env.E2E_PASSWORD } })).status(), {
+      timeout: 10_000,
+    })
+    .toBe(200);
+});

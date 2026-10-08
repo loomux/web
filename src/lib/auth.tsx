@@ -8,6 +8,18 @@ import { AuthContext } from "./authContext";
 // docs/design/web-client-design.md "Auth flow" for the full reasoning.
 const STORAGE_KEY = "loomux.token";
 export const SIGNED_OUT_KEY = "loomux.signedOut";
+// This browser's device token (LOOM-151): kept across logouts, since
+// it's what lets the server tell this browser's login attempts from a
+// stranger's. It's never a session and never skips the password.
+export const DEVICE_KEY = "loomux.device";
+
+function readDevice(): string | null {
+  try {
+    return localStorage.getItem(DEVICE_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
@@ -15,7 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback(async (password: string) => {
-    const { token: newToken } = await api.login(password);
+    const { token: newToken, device } = await api.login(password, readDevice());
+    if (device) {
+      try {
+        localStorage.setItem(DEVICE_KEY, device);
+      } catch {
+        // next login just shares the global backoff
+      }
+    }
     localStorage.setItem(STORAGE_KEY, newToken);
     setToken(newToken);
   }, []);

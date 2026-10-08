@@ -456,10 +456,13 @@ export interface WebVersionResponse {
 }
 
 export const api = {
-  login: (password: string) =>
-    request<{ token: string }>("/login", null, {
+  // device (LOOM-151): the token an earlier login on this browser got
+  // back. The server throttles a known device's failed logins on their
+  // own, so other people's failures can't lock this browser out.
+  login: (password: string, device?: string | null) =>
+    request<{ token: string; device?: string }>("/login", null, {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(device ? { password, device } : { password }),
     }),
 
   logout: (token: string) =>
