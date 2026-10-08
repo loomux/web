@@ -117,10 +117,9 @@ test("an impossible date in /today/:date is refused", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(/February/);
 });
 
-// F04: the app shell must ship browser hardening headers (it holds the
+// LOOM-143: the app shell ships browser hardening headers (it holds the
 // bearer token in localStorage).
 test("the app shell is served with CSP and framing protection", async ({ request }) => {
-  test.fail(true, "LOOM-139 finding F04: no CSP, frame-ancestors or nosniff");
   const res = await request.get("/");
   const h = res.headers();
   expect(h["content-security-policy"] ?? "").toContain("frame-ancestors");
