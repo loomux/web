@@ -46,34 +46,41 @@ function normalizeTask<T extends { status: string }>(t: T): T {
   return typeof t.status === "string" ? { ...t, status: normalizeStatus(t.status) } : t;
 }
 
+async function send(path: string, token: string | null, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${API_BASE}${path}`, { ...init, headers });
+}
+
 async function request<T>(
   path: string,
   token: string | null,
   init?: RequestInit,
 ): Promise<T> {
-  const headers = new Headers(init?.headers);
-  headers.set("Content-Type", "application/json");
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await send(path, token, init);
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
-
-  if (!res.ok) {
-    let message = res.statusText;
-    let dispatchId: string | undefined;
-    let code: string | undefined;
-    try {
-      const body = (await res.json()) as ErrorResponse;
-      if (body.error) message = body.error;
-      dispatchId = body.dispatch_id;
-      if (typeof body.code === "string" && body.code) code = body.code;
-    } catch {
-      // body wasn't JSON (or was empty) — fall back to statusText
-    }
-    throw new ApiError(res.status, message, dispatchId, code);
-  }
+  if (!res.ok) throw await apiError(res);
 
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+// The ApiError a failed response stands for: its {error} message, or the
+// status text when the body isn't one.
+async function apiError(res: Response): Promise<ApiError> {
+  let message = res.statusText;
+  let dispatchId: string | undefined;
+  let code: string | undefined;
+  try {
+    const body = (await res.json()) as ErrorResponse;
+    if (body.error) message = body.error;
+    dispatchId = body.dispatch_id;
+    if (typeof body.code === "string" && body.code) code = body.code;
+  } catch {
+    // body wasn't JSON (or was empty) — fall back to statusText
+  }
+  return new ApiError(res.status, message, dispatchId, code);
 }
 
 export interface WorkspaceSummary {
@@ -234,6 +241,19 @@ export interface Target {
   relay_effective?: string;
   // 0: the SSH config's port.
   ssh_port?: number;
+  // How Loomux signs in (LOOM-138): "managed" with a key of its own and no
+  // SSH config, or "config" through the deployment's mounted SSH config.
+  // Absent from older servers, which only have the latter.
+  ssh_mode?: "managed" | "config";
+  // A managed target's key, public parts only; null otherwise.
+  ssh_key?: TargetSSHKey | null;
+  // "default" (the server's proxy) or "none" (managed targets only).
+  ssh_proxy?: string;
+  // Ready: the latest probe after the last change reached it and ran tmux.
+  // Otherwise next_step says what to do: "pin_host_key", "authorize_key"
+  // or "test_connection".
+  ready?: boolean;
+  next_step?: string | null;
   // Host keys this target is checked against (LOOM-114); empty: the SSH
   // known_hosts.
   pinned_host_keys?: HostKey[];
@@ -246,6 +266,51 @@ export interface Target {
 export interface HostKey {
   type: string;
   fingerprint: string;
+}
+
+export interface TargetSSHKey {
+  id: string;
+  name: string;
+  type: string;
+  fingerprint: string;
+  // The authorized_keys line to add on the machine.
+  public_key: string;
+}
+
+// GET/POST /ssh-keys (LOOM-138): Loomux's own SSH keys, public parts only.
+export interface SSHKey extends TargetSSHKey {
+  // "generated", "target" (made for one machine) or "imported".
+  origin: string;
+  created_at: string;
+  used_by: string[];
+}
+
+// POST /targets/{id}/test's per-step result (LOOM-138).
+export interface TestStep {
+  name: "connect" | "host_key" | "auth" | "tmux" | string;
+  status: "ok" | "failed" | "skipped" | string;
+  error?: string;
+}
+
+// POST /targets/{id}/migrate-ssh (LOOM-138): moving a machine off the
+// deployment's SSH config to a key of Loomux's own.
+export interface MigrateSSHResult {
+  target_id: string;
+  dry_run: boolean;
+  can_apply: boolean;
+  problems: string[];
+  plan: {
+    host: string;
+    ssh_port: number;
+    user: string;
+    ssh_proxy: string;
+    key: { type: string; fingerprint: string; source_file: string; existing_key_id: string } | null;
+    host_keys: HostKey[];
+  };
+  applied: boolean;
+  rolled_back: boolean;
+  test: TargetTestResult | null;
+  target: Target | null;
 }
 
 export interface TargetHealth {
@@ -275,6 +340,8 @@ export interface TargetTestResult {
   latency_ms: number;
   error?: string;
   host_key_problem: boolean;
+  // Absent from older servers.
+  steps?: TestStep[];
 }
 
 export interface TargetAgent {
@@ -398,6 +465,12 @@ export interface TargetRequest {
   require_confirmation?: boolean;
   relay?: string;
   ssh_port?: number;
+  // LOOM-138: sign in with this Loomux key ("" back to the SSH config), or
+  // with a new one made for the machine; and whether through the server's
+  // proxy ("default") or not ("none").
+  ssh_key_id?: string;
+  generate_ssh_key?: boolean;
+  ssh_proxy?: string;
 }
 
 export interface AttachTargetInfo {
@@ -598,6 +671,29 @@ export const api = {
 
   testTarget: (token: string, targetId: string) =>
     request<TargetTestResult>(`/targets/${encodeURIComponent(targetId)}/test`, token, { method: "POST" }),
+
+  listSSHKeys: (token: string) => request<{ ssh_keys: SSHKey[] }>("/ssh-keys", token),
+
+  createSSHKey: (token: string, name: string) =>
+    request<SSHKey>("/ssh-keys", token, { method: "POST", body: JSON.stringify({ name }) }),
+
+  // 409 while a machine uses it.
+  deleteSSHKey: (token: string, id: string) =>
+    request<void>(`/ssh-keys/${encodeURIComponent(id)}`, token, { method: "DELETE" }),
+
+  // A plan that can't be applied (409) or whose test failed and was rolled
+  // back (502) is a result like any other; an {error} answer is an ApiError.
+  migrateSSH: async (token: string, targetId: string, body: { dry_run: boolean; key_file?: string }) => {
+    const res = await send(`/targets/${encodeURIComponent(targetId)}/migrate-ssh`, token, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    if (res.ok || res.status === 409 || res.status === 502 || res.status === 500) {
+      const result = (await res.clone().json().catch(() => null)) as MigrateSSHResult | null;
+      if (result && typeof result.target_id === "string") return { status: res.status, result };
+    }
+    throw await apiError(res);
+  },
 
   probeTarget: (token: string, targetId: string) =>
     request<TargetProbeResult>(`/targets/${encodeURIComponent(targetId)}/probe`, token, { method: "POST" }),

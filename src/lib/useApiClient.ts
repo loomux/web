@@ -60,6 +60,11 @@ export function useApiClient() {
       unpinHostKey: (targetId: string) => guarded((t) => api.unpinHostKey(t, targetId)),
       testTarget: (targetId: string) => guarded((t) => api.testTarget(t, targetId)),
       probeTarget: (targetId: string) => guarded((t) => api.probeTarget(t, targetId)),
+      listSSHKeys: () => guarded((t) => api.listSSHKeys(t)),
+      createSSHKey: (name: string) => guarded((t) => api.createSSHKey(t, name)),
+      deleteSSHKey: (id: string) => guarded((t) => api.deleteSSHKey(t, id)),
+      migrateSSH: (targetId: string, body: { dry_run: boolean; key_file?: string }) =>
+        guarded((t) => api.migrateSSH(t, targetId, body)),
       getTaskPane: (taskId: string, since?: string) => guarded((t) => api.getTaskPane(t, taskId, since)),
       listSessions: () => guarded((t) => api.listSessions(t)),
       deleteSession: (id: string) => guarded((t) => api.deleteSession(t, id)),

@@ -86,6 +86,13 @@ export interface TargetFormValues {
   relay: Relay;
   // Blank: the SSH config's port.
   ssh_port: string;
+  // How Loomux signs in (LOOM-138): "managed", with a key of its own and no
+  // SSH config, or "config", through the deployment's mounted SSH config.
+  // Chosen when registering; a config machine moves to managed by
+  // migrating (Machines › the machine).
+  ssh_access: "managed" | "config";
+  // A managed machine: "" through the server's proxy, "none" directly.
+  ssh_proxy: "" | "none";
 }
 
 export const EMPTY_TARGET_FORM: TargetFormValues = {
@@ -102,6 +109,8 @@ export const EMPTY_TARGET_FORM: TargetFormValues = {
   require_confirmation: false,
   relay: "",
   ssh_port: "",
+  ssh_access: "managed",
+  ssh_proxy: "",
 };
 
 // Pre-fills the edit form from a stored row. workspace_root and the policy
@@ -124,6 +133,8 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
     require_confirmation: target.require_confirmation ?? false,
     relay: RELAYS.includes(target.relay as Relay) ? (target.relay as Relay) : "",
     ssh_port: target.ssh_port ? String(target.ssh_port) : "",
+    ssh_access: target.ssh_mode === "managed" ? "managed" : "config",
+    ssh_proxy: target.ssh_proxy === "none" ? "none" : "",
   };
 }
 
@@ -131,9 +142,18 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
 // local target carries neither host nor user. Blanking them here (rather
 // than rejecting) is what lets switching kind to "local" in the form Just
 // Work instead of tripping the server's "must be empty" rule.
-export function toTargetRequest(values: TargetFormValues): TargetRequest {
+//
+// A managed machine (LOOM-138) asks for a key of its own when it's
+// registered, and sends its proxy choice; an edit leaves ssh_key_id out,
+// which keeps the key it has.
+export function toTargetRequest(values: TargetFormValues, opts: { isNew?: boolean } = {}): TargetRequest {
   const local = values.kind === "local";
+  const managed = !local && values.ssh_access === "managed";
+  const access: Partial<TargetRequest> = managed
+    ? { ...(opts.isNew ? { generate_ssh_key: true } : {}), ssh_proxy: values.ssh_proxy === "none" ? "none" : "default" }
+    : {};
   return {
+    ...access,
     name: values.name.trim(),
     kind: values.kind,
     host: local ? "" : values.host.trim(),
@@ -171,7 +191,28 @@ function cleanAbsPath(p: string): string {
 // Mirrors registry.Target.Validate, rule for rule and message for message,
 // so the client rejects what the server would reject and the operator sees
 // the same wording either way. Returns null when the request is valid.
-export function validateTargetRequest(req: TargetRequest): string | null {
+// Mirrors registry.validManagedHost: a managed machine's host is its real
+// name or address (no SSH config alias resolves it, and ssh puts it into
+// the proxy command), so only an RFC 1123 host name or an IP address.
+export function validManagedHost(host: string): boolean {
+  if (validIP(host)) return true;
+  if (host.length === 0 || host.length > 253) return false;
+  return host.split(".").every((label) => /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label));
+}
+
+function validIP(host: string): boolean {
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return host.split(".").every((o) => Number(o) <= 255 && String(Number(o)) === o);
+  if (!host.includes(":") || !/^[0-9A-Fa-f:.]+$/.test(host)) return false;
+  try {
+    new URL(`http://[${host}]/`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// opts.managed: an edit of a managed machine, whose request doesn't say so.
+export function validateTargetRequest(req: TargetRequest, opts: { managed?: boolean } = {}): string | null {
   if (req.name.trim() === "") return "name is required";
 
   if (req.kind === "local") {
@@ -184,6 +225,11 @@ export function validateTargetRequest(req: TargetRequest): string | null {
     }
   } else {
     return 'kind must be "local" or "remote"';
+  }
+
+  const managed = opts.managed || req.generate_ssh_key === true || !!req.ssh_key_id;
+  if (managed && req.kind === "remote" && !validManagedHost(req.host)) {
+    return "host must be a host name (letters, digits and -, dot-separated) or an IP address for a target with a Loomux SSH key";
   }
 
   if (!isPermissionMode(normalizePermissionMode(req.permission_mode))) {

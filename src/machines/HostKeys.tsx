@@ -94,7 +94,9 @@ export function HostKeys({ target }: { target: Target }) {
       ) : (
         <p className="flex items-center gap-2 font-bold text-mari-ink">
           <StatusShapeIcon shape="diamond-open" tone="mari" />
-          Not pinned. Loomux trusts whatever the SSH known_hosts says for this machine.
+          {target.ssh_mode === "managed"
+            ? "Not pinned. Loomux won't connect until you pin this machine's host key."
+            : "Not pinned. Loomux trusts whatever the SSH known_hosts says for this machine."}
         </p>
       )}
 

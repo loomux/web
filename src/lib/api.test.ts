@@ -182,6 +182,10 @@ describe("api", () => {
     ["deleteSession", () => api.deleteSession("t", "s1"), "DELETE", "/api/v1/sessions/s1"],
     ["getDeepHealth", () => api.getDeepHealth("t"), "GET", "/api/v1/health/deep"],
     ["getTaskPane", () => api.getTaskPane("t", "task1"), "GET", "/api/v1/tasks/task1/pane"],
+    ["listSSHKeys", () => api.listSSHKeys("t"), "GET", "/api/v1/ssh-keys"],
+    ["createSSHKey", () => api.createSSHKey("t", "k"), "POST", "/api/v1/ssh-keys"],
+    ["deleteSSHKey", () => api.deleteSSHKey("t", "k1"), "DELETE", "/api/v1/ssh-keys/k1"],
+    ["migrateSSH", () => api.migrateSSH("t", "x1", { dry_run: true }).catch(() => undefined), "POST", "/api/v1/targets/x1/migrate-ssh"],
   ] as const)("%s calls %s %s", async (_name, call, method, path) => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     await call();
@@ -200,7 +204,26 @@ describe("api", () => {
         "setWorkspaceStatus", "updateTarget", "updateWeb",
         "getTaskTranscript", "getConversationEvents", "scanHostKey", "pinHostKey", "unpinHostKey", "testTarget",
         "probeTarget", "listSessions", "deleteSession", "getDeepHealth", "getTaskPane",
+        "listSSHKeys", "createSSHKey", "deleteSSHKey", "migrateSSH",
       ].sort(),
     );
   });
 });
+
+// LOOM-138: migrate-ssh answers a plan it couldn't apply (409), or one
+// whose test failed and was rolled back (502), with its own body: those
+// come back as results, not errors. Anything else is an ApiError.
+describe("migrateSSH", () => {
+  const plan = { target_id: "x1", dry_run: false, can_apply: false, problems: ["ProxyJump"], plan: { host: "h", ssh_port: 22, user: "u", ssh_proxy: "none", key: null, host_keys: [] }, applied: false, rolled_back: false, test: null, target: null };
+  it.each([200, 409, 502])("returns the body on %i", async (status) => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(plan), { status }));
+    const r = await api.migrateSSH("t", "x1", { dry_run: false });
+    expect(r.status).toBe(status);
+    expect(r.result.problems).toEqual(["ProxyJump"]);
+  });
+  it("throws on an {error} answer", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "another target is being migrated" }), { status: 409 }));
+    await expect(api.migrateSSH("t", "x1", { dry_run: false })).rejects.toMatchObject({ status: 409, message: "another target is being migrated" });
+  });
+});
+

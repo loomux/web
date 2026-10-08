@@ -8,7 +8,8 @@ import { ConnectionFields, PolicyFields, RelayFields } from "../machines/Machine
 import { Button } from "../ui/Button";
 
 // Registering a machine (/machines/new). On success it opens the machine,
-// where its host key can be scanned and pinned and the connection tested.
+// where its host key can be scanned and pinned, its key authorized (one
+// with a key of its own, LOOM-138) and the connection tested.
 export function MachineNewPage() {
   useDocumentTitle("Register machine");
   const apiClient = useApiClient();
@@ -19,7 +20,7 @@ export function MachineNewPage() {
   const onChange = (p: Partial<TargetFormValues>) => setValues((v) => ({ ...v, ...p }));
 
   const create = useMutation({
-    mutationFn: () => apiClient.createTarget(toTargetRequest(values)),
+    mutationFn: () => apiClient.createTarget(toTargetRequest(values, { isNew: true })),
     onSuccess: async (t) => {
       await queryClient.invalidateQueries({ queryKey: ["targets"] });
       navigate(`/machines/${t.id}`);
@@ -30,7 +31,7 @@ export function MachineNewPage() {
   function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    const problem = validateTargetRequest(toTargetRequest(values));
+    const problem = validateTargetRequest(toTargetRequest(values, { isNew: true }));
     if (problem) {
       setError(problem);
       return;
@@ -44,7 +45,7 @@ export function MachineNewPage() {
         <span aria-hidden="true">‹&nbsp;</span>Machines
       </Link>
       <h1 className="text-[1.75rem] font-extrabold text-ink">Register machine</h1>
-      <p className="text-ink-2">After registering, you can check its host key and test the connection.</p>
+      <p className="text-ink-2">After registering, you check its host key, let it in if it uses a key of its own, and test the connection.</p>
       <form onSubmit={submit} aria-label="Register machine" className="mt-6 flex flex-col gap-5">
         <ConnectionFields values={values} onChange={onChange} isNew />
         <PolicyFields values={values} onChange={onChange} />

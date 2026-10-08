@@ -225,3 +225,222 @@ describe("Machines", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("a target named atlas already exists");
   });
 });
+
+// LOOM-138: machines that sign in with a key of their own.
+const KEY = {
+  id: "k-wyzer",
+  name: "wyzer",
+  type: "ssh-ed25519",
+  fingerprint: "SHA256:h0B6Z2+ALrf1Lw8zMJd3YcIfoWghKezavKnUwNyYk0w",
+  public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKD6FO loomux-wyzer",
+};
+
+function wyzer(over: Partial<Target> = {}): Target {
+  return kestrel({
+    id: "t-kestrel",
+    host: "wyzer.tail78a87c.ts.net",
+    user: "orski",
+    ssh_port: 0,
+    ssh_mode: "managed",
+    ssh_key: KEY,
+    ssh_proxy: "default",
+    pinned_host_keys: [{ type: "ssh-ed25519", fingerprint: "SHA256:UE8eCo7w" }],
+    ready: false,
+    next_step: "authorize_key",
+    ...over,
+  });
+}
+
+const PLAN = {
+  target_id: "t-kestrel",
+  dry_run: true,
+  can_apply: true,
+  problems: [],
+  plan: {
+    host: "100.80.216.64",
+    ssh_port: 22,
+    user: "ci",
+    ssh_proxy: "default",
+    key: { type: "ssh-ed25519", fingerprint: "SHA256:mKCgsi83", source_file: "/home/loomux/.ssh/id_ed25519", existing_key_id: "" },
+    host_keys: [{ type: "ssh-ed25519", fingerprint: "SHA256:UE8eCo7w" }],
+  },
+  applied: false,
+  rolled_back: false,
+  test: null,
+  target: null,
+};
+
+const AUTH_FAILED_STEPS = [
+  { name: "connect", status: "ok" },
+  { name: "host_key", status: "ok" },
+  { name: "auth", status: "failed", error: "refused Loomux's SSH key (auth_failed)" },
+  { name: "tmux", status: "skipped" },
+];
+
+describe("Signing in", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    localStorage.clear();
+  });
+
+  it("shows a managed machine's next step and the line to add to authorized_keys", async () => {
+    serve(wyzer());
+    renderAt("/machines/t-kestrel");
+    const section = await screen.findByRole("region", { name: "Signing in" });
+    const steps = within(section).getByRole("list", { name: "Getting it ready" });
+    expect(within(steps).getByText("Trust its host key")).toHaveTextContent("(done)");
+    expect(within(steps).getByText("Let Loomux in").closest("li")).toHaveAttribute("aria-current", "step");
+    expect(within(section).getByLabelText("Line for authorized_keys")).toHaveTextContent(
+      "no-port-forwarding,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKD6FO loomux-wyzer",
+    );
+    expect(section).toHaveTextContent("orski");
+    expect(section).toHaveTextContent(KEY.fingerprint);
+    expect(section).not.toHaveTextContent(/private/i);
+  });
+
+  it("says an unpinned managed machine won't be connected to", async () => {
+    serve(wyzer({ pinned_host_keys: [], next_step: "pin_host_key" }));
+    renderAt("/machines/t-kestrel");
+    const hostKey = await screen.findByRole("region", { name: "Host key" });
+    expect(hostKey).toHaveTextContent("Loomux won't connect until you pin");
+    expect(hostKey).not.toHaveTextContent("known_hosts");
+  });
+
+  it("says a ready machine is ready", async () => {
+    serve(wyzer({ ready: true, next_step: null }));
+    renderAt("/machines/t-kestrel");
+    const section = await screen.findByRole("region", { name: "Signing in" });
+    expect(within(section).getByRole("status")).toHaveTextContent("Ready");
+  });
+
+  it("replaces the key only after a second yes, sending the whole record back", async () => {
+    const calls = serve(wyzer());
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Replace key" }));
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Replace it" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PUT")).toBeDefined());
+    expect(calls.find((c) => c.method === "PUT")!.body).toMatchObject({
+      generate_ssh_key: true,
+      name: "kestrel",
+      host: "wyzer.tail78a87c.ts.net",
+      user: "orski",
+      purpose: "work",
+      ssh_proxy: "default",
+    });
+  });
+
+  it("shows the connection test step by step", async () => {
+    serve(wyzer(), {
+      "POST /targets/t-kestrel/test": () =>
+        jsonResponse({ target_id: "t-kestrel", reachable: false, latency_ms: 0, host_key_problem: false, error: "x", steps: AUTH_FAILED_STEPS }),
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Test connection" }));
+    const steps = await screen.findByRole("list", { name: "Connection test steps" });
+    expect(steps).toHaveTextContent("Reach the machineok");
+    expect(steps).toHaveTextContent("Sign infailed");
+    expect(steps).toHaveTextContent("refused Loomux's SSH key");
+    expect(steps).toHaveTextContent("Run tmuxnot tried");
+  });
+
+  it("checks moving a config machine to a key of its own, then moves it after a second yes", async () => {
+    const calls = serve(kestrel({ ssh_mode: "config" }), {
+      "POST /targets/t-kestrel/migrate-ssh": (body) =>
+        body?.dry_run
+          ? jsonResponse(PLAN)
+          : jsonResponse({ ...PLAN, dry_run: false, applied: true, target: wyzer({ ready: true, next_step: null }) }),
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Check moving it to a key of its own" }));
+    const section = screen.getByRole("region", { name: "Signing in" });
+    expect(await within(section).findByText("Ready to move.")).toBeInTheDocument();
+    expect(section).toHaveTextContent("ci@100.80.216.64");
+    expect(section).toHaveTextContent("/home/loomux/.ssh/id_ed25519");
+    expect(section).toHaveTextContent("SHA256:UE8eCo7w");
+    expect(calls.filter((c) => c.url.endsWith("/migrate-ssh")).map((c) => c.body)).toEqual([{ dry_run: true }]);
+    await userEvent.click(within(section).getByRole("button", { name: "Move it" }));
+    await userEvent.click(within(section).getByRole("button", { name: "Move and test it" }));
+    expect(await within(section).findByRole("status")).toHaveTextContent("Moved");
+    expect(calls.filter((c) => c.url.endsWith("/migrate-ssh")).map((c) => c.body)).toEqual([{ dry_run: true }, { dry_run: false }]);
+  });
+
+  it("says what stops a move, and offers none", async () => {
+    serve(kestrel({ ssh_mode: "config" }), {
+      "POST /targets/t-kestrel/migrate-ssh": () =>
+        jsonResponse({ ...PLAN, can_apply: false, problems: ["the SSH config reaches it through ProxyJump bastion"] }),
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Check moving it to a key of its own" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("ProxyJump bastion");
+    expect(screen.queryByRole("button", { name: "Move it" })).not.toBeInTheDocument();
+  });
+
+  it("says a failed move was put back, with the test's steps", async () => {
+    serve(kestrel({ ssh_mode: "config" }), {
+      "POST /targets/t-kestrel/migrate-ssh": (body) =>
+        body?.dry_run
+          ? jsonResponse(PLAN)
+          : jsonResponse(
+              { ...PLAN, dry_run: false, rolled_back: true, test: { target_id: "t-kestrel", reachable: false, latency_ms: 0, host_key_problem: false, steps: AUTH_FAILED_STEPS } },
+              502,
+            ),
+    });
+    renderAt("/machines/t-kestrel");
+    await userEvent.click(await screen.findByRole("button", { name: "Check moving it to a key of its own" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Move it" }));
+    await userEvent.click(screen.getByRole("button", { name: "Move and test it" }));
+    expect(await screen.findByText(/back on the SSH config, as before/)).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Connection test steps" })).toHaveTextContent("Sign infailed");
+  });
+
+  it("registers a machine with a key of its own by default", async () => {
+    const calls = serve(kestrel(), {
+      "POST /targets": (body) => jsonResponse({ ...wyzer(), id: "t-new", name: String(body?.name) }, 201),
+    });
+    const router = renderAt("/machines/new");
+    await userEvent.type(screen.getByLabelText("Name"), "wyzer");
+    await userEvent.type(screen.getByLabelText("Host"), "wyzer.tail78a87c.ts.net");
+    await userEvent.type(screen.getByLabelText("User"), "orski");
+    await userEvent.click(screen.getByRole("switch", { name: /Through the server's proxy/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/machines/t-new"));
+    expect(calls.find((c) => c.method === "POST")!.body).toMatchObject({ generate_ssh_key: true, ssh_proxy: "none", host: "wyzer.tail78a87c.ts.net" });
+  });
+
+  it("refuses an alias as a managed machine's host before sending anything, but not for the SSH config", async () => {
+    const calls = serve(kestrel(), { "POST /targets": () => jsonResponse({ ...kestrel(), id: "t-new" }, 201) });
+    renderAt("/machines/new");
+    await userEvent.type(screen.getByLabelText("Name"), "w");
+    await userEvent.type(screen.getByLabelText("Host"), "my_alias");
+    await userEvent.type(screen.getByLabelText("User"), "orski");
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("for a target with a Loomux SSH key");
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+    await userEvent.click(screen.getByRole("radio", { name: "The server's SSH config" }));
+    await userEvent.click(screen.getByRole("button", { name: "Register machine" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "POST")).toBeDefined());
+    expect(calls.find((c) => c.method === "POST")!.body!.generate_ssh_key).toBeUndefined();
+  });
+});
+
+describe("Machines list and signing in", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    localStorage.clear();
+  });
+
+  it("says what a managed machine still needs, and which machines use the server's SSH config", async () => {
+    serve(wyzer());
+    renderAt("/machines");
+    expect(await screen.findByRole("region", { name: "kestrel" })).toHaveTextContent("Setup: let Loomux in");
+  });
+
+  it("marks a machine on the server's SSH config", async () => {
+    serve(kestrel({ ssh_mode: "config" }));
+    renderAt("/machines");
+    expect(await screen.findByRole("region", { name: "kestrel" })).toHaveTextContent("Signs in through the server's SSH config");
+  });
+});

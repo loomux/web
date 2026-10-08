@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, type Target, type TargetAgent, type TargetTestResult } from "../lib/api";
+import { ApiError, type Target, type TargetAgent, type TargetTestResult, type TestStep } from "../lib/api";
 import { formatRelativeTime } from "../lib/time";
 import { useApiClient } from "../lib/useApiClient";
 import { Button } from "../ui/Button";
@@ -36,6 +36,33 @@ function testText(r: TargetTestResult) {
   return `Couldn't connect${r.error ? `: ${r.error}` : "."}`;
 }
 
+const STEP_NAMES: Record<string, string> = {
+  connect: "Reach the machine",
+  host_key: "Its host key",
+  auth: "Sign in",
+  tmux: "Run tmux",
+};
+
+// A connection test step by step (LOOM-138): which one failed, and why.
+export function TestSteps({ steps }: { steps: TestStep[] }) {
+  return (
+    <ol aria-label="Connection test steps" className="flex flex-col gap-1 text-sm">
+      {steps.map((s) => (
+        <li key={s.name} className="flex flex-wrap items-start gap-x-2">
+          <StatusShapeIcon
+            shape={s.status === "ok" ? "check" : s.status === "failed" ? "cross" : "ring"}
+            tone={s.status === "ok" ? "good" : s.status === "failed" ? "bad" : "muted"}
+            className="mt-0.5 size-3.5"
+          />
+          <span className={`font-bold ${s.status === "skipped" ? "text-ink-3" : "text-ink"}`}>{STEP_NAMES[s.name] ?? s.name}</span>
+          <span className="text-ink-2">{s.status === "ok" ? "ok" : s.status === "failed" ? "failed" : "not tried"}</span>
+          {s.error && <span className="basis-full pl-5 text-bad">{s.error}</span>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function unavailable(err: unknown) {
   return err instanceof ApiError && err.status === 501;
 }
@@ -60,9 +87,12 @@ export function HealthActions({ target }: { target: Target }) {
         </Button>
       </div>
       {test.data && (
-        <p role="status" className={`text-sm font-bold ${test.data.reachable ? "text-good" : "text-bad"}`}>
-          {testText(test.data)}
-        </p>
+        <div role="status" className="flex flex-col gap-2">
+          <p className={`text-sm font-bold ${test.data.reachable ? "text-good" : "text-bad"}`}>
+            {test.data.steps && !test.data.reachable ? "The connection test stopped here:" : testText(test.data)}
+          </p>
+          {test.data.steps && !test.data.reachable && <TestSteps steps={test.data.steps} />}
+        </div>
       )}
       {test.isError && (
         <p role="alert" className="text-sm text-bad">
