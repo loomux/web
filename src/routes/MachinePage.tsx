@@ -115,7 +115,7 @@ export function MachinePage() {
           <h2 id="signin" className="text-lg font-extrabold text-ink">
             Signing in
           </h2>
-          <SSHAccess target={target} />
+          <SSHAccess key={target.id} target={target} />
         </section>
       )}
 

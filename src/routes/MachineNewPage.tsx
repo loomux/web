@@ -69,7 +69,13 @@ export function MachineNewPage() {
           </p>
         )}
         <div className="flex gap-3 pb-8">
-          <Button type="submit" variant="primary" isPending={create.isPending} pendingLabel="Registering…">
+          <Button
+            type="submit"
+            variant="primary"
+            isDisabled={sshKeys.isPending}
+            isPending={create.isPending}
+            pendingLabel="Registering…"
+          >
             Register machine
           </Button>
           <Button variant="quiet" onPress={() => navigate("/machines")}>
