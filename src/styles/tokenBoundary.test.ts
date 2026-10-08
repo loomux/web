@@ -41,8 +41,6 @@ const definitions = new Set([
 const legacy = new Set([
   "../components/RouteErrorBoundary.tsx",
   "../components/VersionBanner.tsx",
-  "../components/WebClientUpdate.tsx",
-  "../routes/CredentialsPage.tsx",
   "../routes/LoginPage.tsx",
 ]);
 
