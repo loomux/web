@@ -41,6 +41,7 @@ Needs Docker and Node. CI runs it as the `e2e` job.
 | `chat` | a direct answer; an exact command order runs and shows its output and exit status |
 | `offers` | an offered command: Approve runs it, Deny runs nothing |
 | `workspaces` | provision a workspace with an agent, a follow-up turn, then Archive, Reopen, Delete (with its confirmation) |
+| `audit` | LOOM-139: every main screen at phone size in both themes (no sideways scroll, axe clean); hostile markdown renders inert; and `test.fail()` cases pinning open bugs (failed send loses the draft, stream reconnect without backoff, impossible `/today/:date`, no CSP) |
 | `credentials` | add, replace and delete a credential; its value never appears |
 
 Not covered: **restart mid-turn**. The local target's tmux runs inside the
