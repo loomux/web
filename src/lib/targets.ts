@@ -55,13 +55,17 @@ function wirePermissionMode(v: PermissionMode): string {
 // read as "", the one option the form offers for it).
 export type TargetPurpose = "" | "work";
 
-export type KindFilterKey = "all" | TargetKind;
+// What the router models may see of a target's work (operations.md "What
+// the router models see"); "" is the purpose's default.
+export type Relay = "" | "full" | "last_message" | "none";
 
-export const KIND_FILTER_OPTIONS: { key: KindFilterKey; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "remote", label: "Remote" },
-  { key: "local", label: "Local" },
-];
+const RELAYS: Relay[] = ["", "full", "last_message", "none"];
+
+// The default relay for a purpose, as the server applies it: nothing for
+// a work machine, everything otherwise.
+export function defaultRelay(purpose: string): Exclude<Relay, ""> {
+  return purpose === "work" ? "none" : "full";
+}
 
 // What the register/edit form holds. Every field is a string because they
 // are all bound to text inputs; `toTargetRequest` turns this into the wire
@@ -79,6 +83,9 @@ export interface TargetFormValues {
   allow_provision: boolean;
   allow_shell: boolean;
   require_confirmation: boolean;
+  relay: Relay;
+  // Blank: the SSH config's port.
+  ssh_port: string;
 }
 
 export const EMPTY_TARGET_FORM: TargetFormValues = {
@@ -93,6 +100,8 @@ export const EMPTY_TARGET_FORM: TargetFormValues = {
   allow_provision: true,
   allow_shell: true,
   require_confirmation: false,
+  relay: "",
+  ssh_port: "",
 };
 
 // Pre-fills the edit form from a stored row. workspace_root and the policy
@@ -113,6 +122,8 @@ export function targetFormFromTarget(target: Target): TargetFormValues {
     allow_provision: target.allow_provision ?? true,
     allow_shell: target.allow_shell ?? true,
     require_confirmation: target.require_confirmation ?? false,
+    relay: RELAYS.includes(target.relay as Relay) ? (target.relay as Relay) : "",
+    ssh_port: target.ssh_port ? String(target.ssh_port) : "",
   };
 }
 
@@ -137,6 +148,8 @@ export function toTargetRequest(values: TargetFormValues): TargetRequest {
     allow_provision: values.allow_provision,
     allow_shell: values.allow_shell,
     require_confirmation: values.require_confirmation,
+    relay: values.relay,
+    ssh_port: local || values.ssh_port.trim() === "" ? 0 : Number(values.ssh_port.trim()),
   };
 }
 
@@ -177,6 +190,13 @@ export function validateTargetRequest(req: TargetRequest): string | null {
     return 'permission_mode must be empty, "auto", "accept_edits" or "manual"';
   }
 
+  const port = req.ssh_port ?? 0;
+  if (!Number.isInteger(port) || port < 0 || port > 65535) return "ssh_port must be a number from 1 to 65535";
+
+  if (req.relay !== undefined && !RELAYS.includes(req.relay as Relay)) {
+    return 'relay must be empty, "full", "last_message" or "none"';
+  }
+
   const root = req.workspace_root ?? "";
   if (root !== "") {
     if (!root.startsWith("/")) return "workspace_root must be an absolute path";
@@ -200,18 +220,7 @@ export function compareTargets(
   return byName !== 0 ? byName : a.id.localeCompare(b.id);
 }
 
-export function kindBadgeClasses(kind: string): string {
-  switch (kind) {
-    case "remote":
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200";
-    case "local":
-      return "bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200";
-    default:
-      return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
-  }
-}
-
-// A one-line summary of a target's non-default policy, or "" for the
+// A one-sentence summary of a target's non-default policy, or "" for the
 // default (allow everything).
 export function describePolicy(target: Target): string {
   const parts: string[] = [];
@@ -222,16 +231,16 @@ export function describePolicy(target: Target): string {
     parts.push("only " + target.allowed_agent_types.join(", "));
   }
   if (target.require_confirmation) parts.push("asks before new work");
-  return parts.join(" · ");
+  if (parts.length === 0) return "";
+  const text = parts.join(", ");
+  return `${text[0].toUpperCase()}${text.slice(1)}.`;
 }
 
-// "remote" targets read as user@host; a local target has no destination.
-export function formatDestination(target: Pick<Target, "kind" | "host" | "user">): string {
+// "remote" targets read as user@host (and :port when not the SSH
+// config's); a local target has no destination.
+export function formatDestination(target: Pick<Target, "kind" | "host" | "user"> & { ssh_port?: number }): string {
   if (target.kind === "local") return "this host";
-  if (target.user && target.host) return `${target.user}@${target.host}`;
-  return target.host || target.user || "—";
-}
-
-export function matchesKindFilter(kind: string, filter: KindFilterKey): boolean {
-  return filter === "all" || kind === filter;
+  const port = target.ssh_port ? `:${target.ssh_port}` : "";
+  if (target.user && target.host) return `${target.user}@${target.host}${port}`;
+  return (target.host || target.user || "—") + (target.host ? port : "");
 }

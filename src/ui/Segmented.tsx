@@ -28,7 +28,7 @@ export function Segmented<K extends string>({
         const [first] = keys;
         if (first !== undefined) onChange(String(first) as K);
       }}
-      className="inline-flex rounded-control border border-line bg-surface-2 p-1 gap-1"
+      className="inline-flex max-w-full flex-wrap rounded-control border border-line bg-surface-2 p-1 gap-1"
     >
       {options.map((o) => (
         <ToggleButton

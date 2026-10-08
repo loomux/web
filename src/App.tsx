@@ -15,6 +15,8 @@ const InboxPage = lazy(() => import("./routes/InboxPage").then((m) => ({ default
 const TodayPage = lazy(() => import("./routes/TodayPage").then((m) => ({ default: m.TodayPage })));
 const ConversationPage = lazy(() => import("./routes/ConversationPage").then((m) => ({ default: m.ConversationPage })));
 const MachinesPage = lazy(() => import("./routes/MachinesPage").then((m) => ({ default: m.MachinesPage })));
+const MachinePage = lazy(() => import("./routes/MachinePage").then((m) => ({ default: m.MachinePage })));
+const MachineNewPage = lazy(() => import("./routes/MachineNewPage").then((m) => ({ default: m.MachineNewPage })));
 const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import("./routes/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const CredentialsPage = lazy(() =>
@@ -45,14 +47,16 @@ export function App() {
               <Route path="/today" element={<TodayPage />} />
               <Route path="/today/:date" element={<TodayPage />} />
               <Route path="/conversations/:id" element={<ConversationPage />} />
-              <Route path="/machines" element={<RouteTitle title="Machines"><MachinesPage /></RouteTitle>} />
+              <Route path="/machines" element={<MachinesPage />} />
+              <Route path="/machines/new" element={<MachineNewPage />} />
+              <Route path="/machines/:id" element={<MachinePage />} />
               <Route path="/vault" element={<RouteTitle title="Vault"><CredentialsPage /></RouteTitle>} />
               <Route path="/settings" element={<RouteTitle title="Settings"><SettingsPage /></RouteTitle>} />
 
               {/* Old addresses keep working. */}
               <Route path="/conversations" element={<KeepQueryRedirect to="/today" hash="#all" />} />
               <Route path="/targets" element={<KeepQueryRedirect to="/machines" />} />
-              <Route path="/targets/:id" element={<KeepQueryRedirect to="/machines" />} />
+              <Route path="/targets/:id" element={<KeepQueryRedirect to="/machines/:id" />} />
               <Route path="/workspaces" element={<KeepQueryRedirect to="/machines" />} />
               <Route path="/credentials" element={<KeepQueryRedirect to="/vault" />} />
 
