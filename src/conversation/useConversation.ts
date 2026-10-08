@@ -76,10 +76,15 @@ export function useConversation(conversationId: string | null) {
     enabled: !!conversationId,
     retry: false,
     // The stream says when a turn moves on; without it, look every few
-    // seconds while one is in flight.
+    // seconds while one is in flight. With it, still look every 5 s as a
+    // safety net: a stream that connects just before a quick turn ends can
+    // record that end on its first poll without sending it (server
+    // api/dispatch.go sendDispatchUpdates), and the turn would look
+    // stuck forever.
     refetchInterval: (query) => {
       const inFlight = query.state.data?.dispatches?.some((d) => !isTerminalDispatch(d.status));
-      return (inFlight || followed) && !connected ? 3000 : false;
+      if (!inFlight && !followed) return false;
+      return connected ? 5000 : 3000;
     },
   });
 

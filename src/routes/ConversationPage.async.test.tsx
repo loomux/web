@@ -363,6 +363,24 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     expect(await screen.findByText(/already finished/i)).toBeInTheDocument();
   });
 
+  // The stream can miss the end of a quick turn (it records jobs already
+  // finished on its first poll without sending them), so the page keeps
+  // looking every few seconds while a turn is in flight, connected or not.
+  it("notices a turn's end the stream never reported", async () => {
+    const conv = {
+      messages: [userMsg("m1", "answer: the sky is blue", "d1")] as unknown[],
+      tasks: [] as unknown[],
+      dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "running", created_at: T0, started_at: T0 }] as unknown[],
+    };
+    fakeServer(conv);
+    renderPage();
+    await screen.findByRole("status", { name: /turn in progress/i });
+    conv.dispatches = [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: T0 }];
+    conv.messages = [...conv.messages, { id: "m2", role: "assistant", content: "e2e answer: the sky is blue", task_id: "", created_at: T0 }];
+    expect(await screen.findByText("e2e answer: the sky is blue", {}, { timeout: 7000 })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument();
+  }, 10_000);
+
   // "Send when done" holds a message during a turn. The server reads the
   // next message as the answer to whatever is waiting, so a held message
   // only goes if the finished turn left nothing to answer.

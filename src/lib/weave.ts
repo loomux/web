@@ -107,7 +107,9 @@ export function stitchFromEvent(conversationId: string, e: ConversationEvent, la
         ...base,
         kind: "command",
         start: at - e.duration_ms,
-        label: e.outcome ? `Ran ${e.command ?? "a command"}: ${e.outcome}` : `Ran ${e.command ?? "a command"}`,
+        // "exit 0" reads as "exit code 0", like the task list: the reply
+        // already says "exit 0" in the agent's words.
+        label: `Ran ${e.command ?? "a command"}${e.outcome ? ` (${e.outcome.replace(/^exit (\d+)$/, "exit code $1")})` : ""}`,
       };
     case "offer":
       return { ...base, kind: "offer", label: e.command ? `Offered: ${e.command}` : "Offered to do something" };
