@@ -153,9 +153,12 @@ describe("InboxPage", () => {
   });
 
   it("says when everything is answered", async () => {
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) =>
-      String(input) === "/api/v1/conversations" ? jsonResponse({ conversations: [] }) : jsonResponse({ workspaces: [] }),
-    ) as typeof fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") return jsonResponse({ conversations: [] });
+      if (url === "/api/v1/targets") return jsonResponse({ targets: [] });
+      return jsonResponse({ workspaces: [] });
+    }) as typeof fetch;
     renderInbox();
     expect(await screen.findByText("You're all caught up.")).toBeInTheDocument();
     expect(screen.getByText("Nothing needs you right now.")).toBeInTheDocument();

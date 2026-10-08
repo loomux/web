@@ -21,6 +21,8 @@ export interface DisplayMessage {
   failed?: Dispatch;
   // The offer this reply made, awaiting or given an answer (LOOM-123).
   confirmation?: Confirmation;
+  // The turn (dispatch) this message belongs to.
+  dispatchId?: string;
 }
 
 // useWorkspaceNameById maps workspace ids to names. A workspace this
@@ -74,10 +76,15 @@ export function useConversation(conversationId: string | null) {
     enabled: !!conversationId,
     retry: false,
     // The stream says when a turn moves on; without it, look every few
-    // seconds while one is in flight.
+    // seconds while one is in flight. With it, still look every 5 s as a
+    // safety net: a stream that connects just before a quick turn ends can
+    // record that end on its first poll without sending it (server
+    // api/dispatch.go sendDispatchUpdates), and the turn would look
+    // stuck forever.
     refetchInterval: (query) => {
       const inFlight = query.state.data?.dispatches?.some((d) => !isTerminalDispatch(d.status));
-      return (inFlight || followed) && !connected ? 3000 : false;
+      if (!inFlight && !followed) return false;
+      return connected ? 5000 : 3000;
     },
   });
 
@@ -234,6 +241,7 @@ export function useConversation(conversationId: string | null) {
       text: m.content,
       key: m.id,
       createdAt: m.created_at,
+      dispatchId: m.dispatch_id,
       failed: m.role === "user" && m.dispatch_id ? failedById.get(m.dispatch_id) : undefined,
       confirmation:
         m.role === "assistant" && m.dispatch_id ? confirmationByDispatch.get(m.dispatch_id) : undefined,

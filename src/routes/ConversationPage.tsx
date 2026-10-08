@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { MessageContent } from "../components/MessageContent";
 import { Composer } from "../conversation/Composer";
 import { TaskList } from "../conversation/TaskList";
 import { TurnCard } from "../conversation/TurnCard";
+import { TurnSteps } from "../conversation/TurnSteps";
 import { useConversation, type DisplayMessage } from "../conversation/useConversation";
 import { DecisionCard } from "../inbox/DecisionCard";
 import type { Confirmation, Dispatch } from "../lib/api";
@@ -11,7 +13,9 @@ import { isTerminalDispatch } from "../lib/dispatchTurn";
 import type { ConversationDetail, Decision, DecisionKind } from "../lib/needsYou";
 import { offerAction, offerHeading } from "../lib/offerText";
 import { formatRelativeTime } from "../lib/time";
+import { useApiClient } from "../lib/useApiClient";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
+import { stitchFromEvent, type Stitch } from "../lib/weave";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/icons";
 import { Sheet } from "../ui/Sheet";
@@ -157,6 +161,38 @@ export function ConversationPage() {
 
   const workspaceName = (wid: string | undefined) => (wid ? c.workspaceNameById.get(wid) : undefined);
 
+  // Each turn's steps, from the audit trail (GET /conversations/{id}/events),
+  // read again whenever the thread moves on.
+  const apiClient = useApiClient();
+  const { data: eventsData } = useQuery({
+    queryKey: ["events", conversationId, lastKey ?? "", c.inFlight],
+    queryFn: () => apiClient.getConversationEvents(conversationId!),
+    enabled: !!conversationId && !!c.history,
+    retry: false,
+  });
+  const { data: targetsData } = useQuery({ queryKey: ["targets"], queryFn: apiClient.listTargets });
+  const stepsByTurn = new Map<string, Stitch[]>();
+  for (const e of eventsData?.events ?? []) {
+    if (!e.dispatch_id) continue;
+    const st = stitchFromEvent(conversationId!, e, () => "", {
+      workspace: workspaceName,
+      target: (tid) => targetsData?.targets.find((t) => t.id === tid)?.name,
+    });
+    if (st) stepsByTurn.set(e.dispatch_id, [...(stepsByTurn.get(e.dispatch_id) ?? []), st]);
+  }
+
+  // /conversations/<id>?turn=<dispatch> (a stitch in Today) opens at that turn.
+  const [search] = useSearchParams();
+  const turnParam = search.get("turn");
+  const jumped = useRef<string | null>(null);
+  const turnFound = !!turnParam && c.messages.some((m) => m.dispatchId === turnParam);
+  useEffect(() => {
+    if (!turnParam || !turnFound || jumped.current === turnParam) return;
+    jumped.current = turnParam;
+    stick.current = false;
+    document.getElementById(`turn-${turnParam}`)?.scrollIntoView?.({ block: "center" });
+  }, [turnParam, turnFound]);
+
   // The latest task's own decision (an agent's prompt, a wait for your
   // reply, a takeover), shown at the end until it's answered.
   const latest = c.latestTask;
@@ -232,8 +268,15 @@ export function ConversationPage() {
               const conf = m.confirmation;
               const open = conf?.status === "pending";
               return (
-                <div key={m.key} className="flex flex-col gap-3">
+                <div
+                  key={m.key}
+                  id={m.role === "user" && m.dispatchId ? `turn-${m.dispatchId}` : undefined}
+                  className={`flex flex-col gap-3 ${
+                    m.role === "user" && m.dispatchId && m.dispatchId === turnParam ? "-mx-2 rounded-card bg-accent-soft/60 px-2 py-2" : ""
+                  }`}
+                >
                   <Bubble m={m} />
+                  {m.role === "user" && m.dispatchId && <TurnSteps steps={stepsByTurn.get(m.dispatchId) ?? []} />}
                   {conf && open && (
                     <DecisionCard
                       decision={{ key: `offer:${conf.id}`, kind: "offer", conversationId: conversationId!, since: conf.created_at, confirmation: conf }}

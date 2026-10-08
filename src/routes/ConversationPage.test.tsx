@@ -775,4 +775,56 @@ describe("ConversationPage", () => {
     const composer = await screen.findByPlaceholderText(/message the agent fleet/i);
     await waitFor(() => expect(composer).toHaveFocus());
   });
+
+  // Weave's turn rail: each turn's steps from the audit trail, and a link
+  // from Today (?turn=) that opens the conversation at that turn.
+  it("shows each turn's steps, and opens at the turn a link names", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const scrolled: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id);
+    };
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          tasks: [],
+          messages: [
+            { id: "m1", role: "user", content: "add rate limiting", dispatch_id: "d1", created_at: "2026-10-08T09:00:00Z" },
+            { id: "m2", role: "assistant", content: "done", dispatch_id: "d1", created_at: "2026-10-08T09:05:00Z" },
+          ],
+          dispatches: [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: "2026-10-08T09:00:00Z" }],
+        });
+      }
+      if (url === "/api/v1/conversations/abc123/events") {
+        return jsonResponse({
+          conversation_id: "abc123",
+          events: [
+            { id: "e1", dispatch_id: "d1", kind: "decision", target_id: "t-atlas", created_at: "2026-10-08T09:00:01Z", duration_ms: 0 },
+            { id: "e2", dispatch_id: "d1", kind: "agent_turn", workspace_id: "ws-1", created_at: "2026-10-08T09:05:00Z", duration_ms: 252_000 },
+          ],
+        });
+      }
+      if (url === "/api/v1/targets") return jsonResponse({ targets: [{ id: "t-atlas", name: "atlas" }] });
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [{ id: "ws-1", name: "ledger-api", target_id: "t-atlas", status: "active" }] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/conversations/abc123?turn=d1"]}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/conversations/:id" element={<ConversationPage />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const steps = await screen.findByRole("list", { name: "Turn steps" });
+    expect(steps).toHaveTextContent("Routed to atlas");
+    expect(steps).toHaveTextContent("Agent turn, 4m 12s");
+    await waitFor(() => expect(scrolled).toContain("turn-d1"));
+  });
 });

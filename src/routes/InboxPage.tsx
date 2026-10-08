@@ -8,6 +8,8 @@ import { conversationStatus } from "../lib/status";
 import { formatRelativeTime } from "../lib/time";
 import { useApiClient } from "../lib/useApiClient";
 import { useNeedsYou } from "../lib/useNeedsYou";
+import { useDayWeave } from "../lib/useDayWeave";
+import { DayStrip } from "../today/DayStrip";
 import type { ConversationSummary } from "../lib/api";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/icons";
@@ -15,8 +17,8 @@ import { StatusMark } from "../ui/StatusMark";
 
 // The Inbox, home on both devices (principles 1): every decision waiting on
 // the user, answerable in place, then what's working and what just
-// finished. Desktop puts the activity beside the queue; a phone stacks it
-// under. (The Day strip above the queue arrives with Today, PR 5.)
+// finished, under a strip of the day so far. Desktop puts the activity
+// beside the queue; a phone stacks it under.
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -44,6 +46,20 @@ export function InboxPage() {
   const needsYou = useNeedsYou();
   const [answered, setAnswered] = useState<{ decision: Decision; outcome: Answered }[]>([]);
   const [showSnoozed, setShowSnoozed] = useState(false);
+  const [olderOpen, setOlderOpen] = useState(false);
+  const [today] = useState(() => new Date());
+  const day = useDayWeave(today);
+
+  // A knot in the day strip jumps to its card (opening the older fold if
+  // that's where it is).
+  function showDecision(key: string) {
+    if (needsYou.older.some((d) => d.key === key)) setOlderOpen(true);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`decision-${key}`);
+      el?.scrollIntoView?.({ block: "center" });
+      el?.focus({ preventScroll: true });
+    });
+  }
 
   const { data: list, dataUpdatedAt } = useQuery({ queryKey: ["conversations"], queryFn: apiClient.listConversations });
   const { data: workspacesData } = useQuery({ queryKey: ["workspaces"], queryFn: apiClient.listWorkspaces });
@@ -92,6 +108,12 @@ export function InboxPage() {
         </Button>
       </header>
 
+      {day.weave && (day.weave.lanes.length > 0 || day.weave.knots.length > 0) && (
+        <div className="mt-5">
+          <DayStrip weave={day.weave} now={day.now} onKnot={showDecision} />
+        </div>
+      )}
+
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section aria-labelledby="needs-you" className="flex min-w-0 flex-col gap-4">
           <h2 id="needs-you" className="flex items-center gap-2 text-lg font-extrabold text-ink">
@@ -119,7 +141,11 @@ export function InboxPage() {
           )}
 
           {needsYou.older.length > 0 && (
-            <details className="group rounded-card border border-line bg-surface-2">
+            <details
+              open={olderOpen}
+              onToggle={(e) => setOlderOpen(e.currentTarget.open)}
+              className="group rounded-card border border-line bg-surface-2"
+            >
               <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-bold text-ink">
                 <Icon name="diamond" className="size-3.5 text-mari" />
                 Older, still waiting ({needsYou.older.length})

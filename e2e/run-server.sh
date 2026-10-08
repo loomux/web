@@ -15,6 +15,9 @@ NAME="${E2E_CONTAINER:-loomux-e2e}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "$root/dist/index.html" ] || { echo "run-server: build the web client first (npm run build)" >&2; exit 1; }
 
+# Always the newest image: :main moves with every server merge, and a stale
+# local copy hides what CI (which pulls fresh) sees.
+docker pull -q "$IMAGE" >/dev/null
 hash="$(printf '%s' "$E2E_PASSWORD" | docker run --rm -i "$IMAGE" -hash-password | tail -n 1)"
 data="$(mktemp -d)"
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$data"' EXIT INT TERM
