@@ -359,6 +359,60 @@ export interface TargetProbeResult {
   agents: TargetAgent[];
 }
 
+// A router model tier (server LOOM-185, docs/design/router-settings.md):
+// stored through Settings over the server's environment, or the
+// environment's. The key is write-only: only its fingerprint and, for a
+// long key, its last four characters ever come back.
+export interface RouterTier {
+  tier: "primary" | "escalation";
+  // "none": escalation configured nowhere (off).
+  source: "stored" | "env" | "none";
+  provider?: string;
+  base_url?: string;
+  model?: string;
+  key_fingerprint?: string;
+  key_last4?: string;
+  set_at?: string;
+  env_configured: boolean;
+  stored_unreadable: boolean;
+}
+
+export interface RouterSettings {
+  providers: string[];
+  tiers: RouterTier[];
+}
+
+// PUT /settings/router/{tier}: no api_key keeps the stored key, but only
+// while provider and base_url stay as stored. base_url must be https
+// (http only to localhost); an anthropic tier may leave it empty.
+export interface RouterTierRequest {
+  provider?: string;
+  base_url: string;
+  model: string;
+  api_key?: string;
+}
+
+// A failure is described by the provider's HTTP status (absent when none
+// came back) and a class, never by the provider's own response.
+export interface RouterTierTest {
+  ok: boolean;
+  status?: number;
+  error_class?: "auth_failed" | "not_found" | "bad_request" | "rate_limited" | "provider_error" | "timeout" | "unreachable";
+  error?: string;
+  model: string;
+  source: string;
+  duration_ms: number;
+}
+
+export interface RouterSettingsChange {
+  id: string;
+  tier: string;
+  action: "set" | "clear";
+  fields: string[];
+  actor: string;
+  created_at: string;
+}
+
 // A signed-in device (GET /sessions).
 export interface LoginSession {
   id: string;
@@ -709,6 +763,22 @@ export const api = {
       throw err;
     }
   },
+
+  getRouterSettings: (token: string) => request<RouterSettings>("/settings/router", token),
+
+  setRouterTier: (token: string, tier: string, body: RouterTierRequest) =>
+    request<RouterTier>(`/settings/router/${encodeURIComponent(tier)}`, token, { method: "PUT", body: JSON.stringify(body) }),
+
+  // 204: back to the environment's settings (escalation off without them).
+  clearRouterTier: (token: string, tier: string) =>
+    request<void>(`/settings/router/${encodeURIComponent(tier)}`, token, { method: "DELETE" }),
+
+  // 200 whether or not the provider answered; ok says which.
+  testRouterTier: (token: string, tier: string) =>
+    request<RouterTierTest>(`/settings/router/${encodeURIComponent(tier)}/test`, token, { method: "POST" }),
+
+  listRouterSettingsChanges: (token: string) =>
+    request<{ entries: RouterSettingsChange[] }>("/settings/router/audit?limit=20", token),
 
   listSessions: (token: string) => request<{ sessions: LoginSession[] }>("/sessions", token),
 
