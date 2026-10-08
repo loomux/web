@@ -40,6 +40,7 @@ docker run --rm --name "$NAME" --network host \
   -e LOOMUX_ROUTER_PRIMARY_API_KEY=e2e \
   -e LOOMUX_ROUTER_PRIMARY_MODEL=e2e \
   -e LOOMUX_WEB_UPDATES=off \
+  -e LOOMUX_LOCAL_TARGETS=on \
   -e LOOMUX_AGENT_PROFILES='{"claude-code":{"pre_trust":false}}' \
   "$IMAGE" &
 wait $!

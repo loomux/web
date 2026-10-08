@@ -31,7 +31,10 @@ Needs Docker and Node. CI runs it as the `e2e` job.
   Stop hook does for Loomux (saves the reply beside the marker, touches
   the marker).
 - **A local target** named `local`, inside the container, registered by
-  the tests through the API.
+  the tests through the API. The image turns local targets off by default
+  (loomux/server LOOM-141: a local agent runs as the server's own user),
+  so `run-server.sh` sets `LOOMUX_LOCAL_TARGETS=on` for this throwaway
+  server.
 
 ## What's covered
 
