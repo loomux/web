@@ -1,0 +1,3 @@
+### Added
+
+- The Router model form's Model field lists the provider's models (LOOM-191): type to filter and pick one, or type any name, since some endpoints don't list their models. The saved endpoint's models are listed with its saved key as soon as the form opens. For a new provider, base URL or key, a List models button sends the key being entered for the endpoint as it is then; nothing is sent while you type, and changing the endpoint afterwards asks you to list again. The field says when it's loading or couldn't be read. Needs a server with LOOM-191; on an older one the field says the list couldn't be read and works as before.

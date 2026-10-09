@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { api, ApiError, type CredentialRequest, type RouterTierRequest, type TargetRequest } from "./api";
+import { api, ApiError, type CredentialRequest, type RouterModelsRequest, type RouterTierRequest, type TargetRequest } from "./api";
 import { useAuth } from "./authContext";
 
 // Binds every token-requiring `api` call to the current session token and
@@ -70,6 +70,7 @@ export function useApiClient() {
       setRouterTier: (tier: string, body: RouterTierRequest) => guarded((t) => api.setRouterTier(t, tier, body)),
       clearRouterTier: (tier: string) => guarded((t) => api.clearRouterTier(t, tier)),
       testRouterTier: (tier: string) => guarded((t) => api.testRouterTier(t, tier)),
+      listRouterModels: (tier: string, body: RouterModelsRequest) => guarded((t) => api.listRouterModels(t, tier, body)),
       listRouterSettingsChanges: () => guarded((t) => api.listRouterSettingsChanges(t)),
       listSessions: () => guarded((t) => api.listSessions(t)),
       deleteSession: (id: string) => guarded((t) => api.deleteSession(t, id)),

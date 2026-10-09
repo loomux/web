@@ -84,7 +84,7 @@ describe("RouterModel", () => {
 
     // A keyless save keeps the stored key: no api_key is sent.
     await userEvent.click(within(primary).getByRole("button", { name: "Edit" }));
-    const model = screen.getByLabelText("Model");
+    const model = screen.getByRole("combobox", { name: "Model" });
     await userEvent.clear(model);
     await userEvent.type(model, "bigger-model");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -194,5 +194,101 @@ describe("RouterModel", () => {
     renderIt();
     await userEvent.click(await screen.findByRole("button", { name: "Test" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Failed: the provider refused the key (HTTP 401)");
+  });
+
+  // LOOM-191: the model field lists the provider's models, filters as you
+  // type, and still takes any name.
+  describe("model picker", () => {
+    type Call = { url: string; body: Record<string, unknown> };
+    function serveModels(answer: (body: Record<string, unknown>) => unknown) {
+      const calls: Call[] = [];
+      globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/models")) {
+          const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+          calls.push({ url, body });
+          return new Response(JSON.stringify(answer(body)), { status: 200 });
+        }
+        if (url.includes("/audit")) return new Response(JSON.stringify({ entries: [] }), { status: 200 });
+        return new Response(JSON.stringify(settings()), { status: 200 });
+      }) as typeof fetch;
+      return calls;
+    }
+    const listed = { ok: true, cached: false, models: [{ id: "claude-haiku-x" }, { id: "llama-70b" }, { id: "small-model" }, { id: "small-model-2" }] };
+
+    it("lists the saved endpoint's models with its saved key, and filters as you type", async () => {
+      const calls = serveModels(() => listed);
+      renderIt();
+      await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      expect(await screen.findByText("4 models listed. Type to filter, or enter any name.")).toBeInTheDocument();
+      expect(calls).toEqual([{ url: "/api/v1/settings/router/primary/models", body: {} }]);
+
+      const box = screen.getByRole("combobox", { name: "Model" });
+      await userEvent.clear(box);
+      await userEvent.type(box, "small");
+      const options = await screen.findAllByRole("option");
+      expect(options.map((o) => o.textContent)).toEqual(["small-model", "small-model-2"]);
+      await userEvent.click(options[1]);
+      expect(box).toHaveValue("small-model-2");
+    });
+
+    it("keeps any typed name, and says so when the list can't be read", async () => {
+      serveModels(() => ({ ok: false, models: [], status: 404, error_class: "not_found", error: "not found: check the base URL and the model (HTTP 404)", cached: false }));
+      renderIt();
+      await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      expect(await screen.findByText(/Couldn't list models: not found.*You can still type one\./)).toBeInTheDocument();
+      const box = screen.getByRole("combobox", { name: "Model" });
+      await userEvent.clear(box);
+      await userEvent.type(box, "my-private-model");
+      expect(box).toHaveValue("my-private-model");
+    });
+
+    // Review of #105: a key being typed is never sent while typing, so it
+    // can't go to a half-typed address; only List models sends it.
+    it("sends a typed key only on List models, for the endpoint as it is then", async () => {
+      const calls = serveModels(() => listed);
+      renderIt();
+      await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0].body).toEqual({});
+
+      // Key first, then the URL one character at a time: nothing is sent.
+      await userEvent.type(screen.getByLabelText("API key"), KEY);
+      const url = screen.getByLabelText("Base URL");
+      await userEvent.clear(url);
+      await userEvent.type(url, "https://api.openai.com/v1");
+      await new Promise((r) => setTimeout(r, 900));
+      expect(calls).toHaveLength(1);
+      expect(screen.getByText("List models to see this endpoint's models.")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "List models" }));
+      await waitFor(() => expect(calls).toHaveLength(2));
+      expect(calls[1].body).toEqual({ provider: "openai", base_url: "https://api.openai.com/v1", api_key: KEY });
+      expect(await screen.findByText(/4 models listed/)).toBeInTheDocument();
+      expect(document.body.textContent).not.toContain(KEY);
+
+      // Editing the endpoint again makes the list stale; still nothing sent.
+      await userEvent.type(url, "/x");
+      await userEvent.selectOptions(screen.getByLabelText("Provider"), "anthropic");
+      await new Promise((r) => setTimeout(r, 900));
+      expect(calls).toHaveLength(2);
+      expect(screen.getByText("The endpoint or key changed: List models again to see its models.")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "List models" }));
+      await waitFor(() => expect(calls).toHaveLength(3));
+      expect(calls[2].body).toEqual({ provider: "anthropic", base_url: "https://api.openai.com/v1/x", api_key: KEY });
+    });
+
+    it("asks for the key before listing a new endpoint", async () => {
+      const calls = serveModels(() => listed);
+      renderIt();
+      await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      await waitFor(() => expect(calls).toHaveLength(1));
+      const url = screen.getByLabelText("Base URL");
+      await userEvent.clear(url);
+      await userEvent.type(url, "https://elsewhere.example/v1");
+      expect(screen.getByText("Enter the API key, then List models, to see this endpoint's models.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "List models" })).not.toBeInTheDocument();
+      expect(calls).toHaveLength(1);
+    });
   });
 });

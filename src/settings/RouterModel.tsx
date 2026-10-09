@@ -4,6 +4,8 @@ import { ApiError, type RouterSettingsChange, type RouterTier, type RouterTierRe
 import { formatRelativeTime } from "../lib/time";
 import { useApiClient } from "../lib/useApiClient";
 import { Button } from "../ui/Button";
+import { ModelField } from "./ModelField";
+import { useModelList } from "./useModelList";
 
 // The router model's provider, model and key per tier (server LOOM-185,
 // docs/design/router-settings.md): saved in Loomux over the server's
@@ -59,6 +61,11 @@ function EditForm({ tier, providers, onDone }: { tier: RouterTier; providers: st
   const moved = stored && (provider !== tier.provider || baseURL.trim() !== (tier.base_url ?? ""));
   const keyNeeded = !stored || moved;
   const anthropic = provider === "anthropic";
+  // The tier's own endpoint can be listed with its saved key; another
+  // needs the key being typed (LOOM-191).
+  const ownEndpoint = tier.source !== "none" && provider === tier.provider && baseURL.trim() === (tier.base_url ?? "");
+  const models = useModelList(tier.tier, { provider, baseURL, key }, ownEndpoint);
+
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -107,12 +114,7 @@ function EditForm({ tier, providers, onDone }: { tier: RouterTier; providers: st
         />
         <p className="text-sm text-ink-3">https, or http to localhost.</p>
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-model`} className="font-bold text-ink">
-          Model
-        </label>
-        <input id={`${id}-model`} className={`${INPUT} font-mono`} value={model} onChange={(e) => setModel(e.target.value)} spellCheck={false} />
-      </div>
+      <ModelField value={model} onChange={setModel} list={models.list} canList={models.canList} onList={models.listNow} inputClassName={INPUT} />
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-key`} className="font-bold text-ink">
           API key
