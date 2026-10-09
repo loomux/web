@@ -151,4 +151,12 @@ describe("TodayPage", () => {
     renderToday("/today/2024-02-29");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/29 February|February 29/);
   });
+
+  it("says the list failed instead of showing the empty state", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ error: "boom" }, 500)) as typeof fetch;
+    renderToday();
+    const list = screen.getByRole("region", { name: "All conversations" });
+    expect(await within(list).findByRole("alert")).toHaveTextContent("Couldn't load your conversations");
+    expect(within(list).queryByText(/No conversations yet/)).not.toBeInTheDocument();
+  });
 });

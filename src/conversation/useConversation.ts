@@ -59,7 +59,7 @@ export function useConversation(conversationId: string | null) {
   // Task history plus the persisted per-turn transcript (LOOM-31) — a
   // fresh conversation 404s here until its first dispatch, which is
   // expected, not an error to surface.
-  const { event: liveTask, dispatchEvent, messageEvent, connected } = useConversationStream(conversationId);
+  const { event: liveTask, dispatchEvent, messageEvent, connected, refused: streamRefused } = useConversationStream(conversationId);
 
   // The dispatch this page started (or was pointed at by a 409) and is
   // following, until it ends (LOOM-81).
@@ -285,6 +285,7 @@ export function useConversation(conversationId: string | null) {
     refetchHistory,
     liveTask,
     connected,
+    streamRefused,
     active,
     inFlight,
     stage,

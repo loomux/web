@@ -13,7 +13,7 @@ import { RouteTitle } from "./shell/RouteTitle";
 const LoginPage = lazy(() => import("./routes/LoginPage").then((m) => ({ default: m.LoginPage })));
 const InboxPage = lazy(() => import("./routes/InboxPage").then((m) => ({ default: m.InboxPage })));
 const TodayPage = lazy(() => import("./routes/TodayPage").then((m) => ({ default: m.TodayPage })));
-const ConversationPage = lazy(() => import("./routes/ConversationPage").then((m) => ({ default: m.ConversationPage })));
+const ConversationRoute = lazy(() => import("./routes/ConversationPage").then((m) => ({ default: m.ConversationRoute })));
 const MachinesPage = lazy(() => import("./routes/MachinesPage").then((m) => ({ default: m.MachinesPage })));
 const MachinePage = lazy(() => import("./routes/MachinePage").then((m) => ({ default: m.MachinePage })));
 const MachineNewPage = lazy(() => import("./routes/MachineNewPage").then((m) => ({ default: m.MachineNewPage })));
@@ -45,7 +45,7 @@ export function App() {
               <Route path="/" element={<InboxTitle><InboxPage /></InboxTitle>} />
               <Route path="/today" element={<TodayPage />} />
               <Route path="/today/:date" element={<TodayPage />} />
-              <Route path="/conversations/:id" element={<ConversationPage />} />
+              <Route path="/conversations/:id" element={<ConversationRoute />} />
               <Route path="/machines" element={<MachinesPage />} />
               <Route path="/machines/new" element={<MachineNewPage />} />
               <Route path="/machines/:id" element={<MachinePage />} />
