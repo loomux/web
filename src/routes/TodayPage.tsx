@@ -176,7 +176,7 @@ export function TodayPage() {
             value={q}
             onChange={(e) => setParam("q", e.target.value)}
             placeholder="Search conversations"
-            className="min-h-11 min-w-0 flex-1 basis-60 rounded-control border border-line bg-surface px-3 text-ink placeholder:text-ink-3"
+            className="min-h-11 min-w-0 flex-1 basis-60 rounded-control border border-line-strong bg-surface px-3 text-ink placeholder:text-ink-3"
           />
           <Segmented label="Show" options={FILTERS} value={status} onChange={(k) => setParam("status", k === "all" ? "" : k)} />
         </div>
