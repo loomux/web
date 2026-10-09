@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { useNeedsYouCount } from "./lib/useNeedsYouCount";
@@ -32,8 +32,9 @@ function InboxTitle({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
+  const { pathname } = useLocation();
   return (
-    <RouteErrorBoundary>
+    <RouteErrorBoundary resetKey={pathname}>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/login" element={<RouteTitle title="Log in"><LoginPage /></RouteTitle>} />
