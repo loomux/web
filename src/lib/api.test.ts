@@ -191,6 +191,7 @@ describe("api", () => {
     ["setRouterTier", () => api.setRouterTier("t", "primary", { base_url: "u", model: "m" }), "PUT", "/api/v1/settings/router/primary"],
     ["clearRouterTier", () => api.clearRouterTier("t", "escalation"), "DELETE", "/api/v1/settings/router/escalation"],
     ["testRouterTier", () => api.testRouterTier("t", "primary"), "POST", "/api/v1/settings/router/primary/test"],
+    ["listRouterModels", () => api.listRouterModels("t", "primary", {}), "POST", "/api/v1/settings/router/primary/models"],
     ["listRouterSettingsChanges", () => api.listRouterSettingsChanges("t"), "GET", "/api/v1/settings/router/audit?limit=20"],
   ] as const)("%s calls %s %s", async (_name, call, method, path) => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
@@ -255,7 +256,7 @@ describe("api", () => {
         "getTaskTranscript", "getConversationEvents", "scanHostKey", "pinHostKey", "unpinHostKey", "testTarget",
         "probeTarget", "listSessions", "deleteSession", "getDeepHealth", "getTaskPane",
         "listSSHKeys", "createSSHKey", "deleteSSHKey", "migrateSSH",
-        "getRouterSettings", "setRouterTier", "clearRouterTier", "testRouterTier", "listRouterSettingsChanges",
+        "getRouterSettings", "setRouterTier", "clearRouterTier", "testRouterTier", "listRouterSettingsChanges", "listRouterModels",
       ].sort(),
     );
   });

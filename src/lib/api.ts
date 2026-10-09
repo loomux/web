@@ -404,6 +404,26 @@ export interface RouterTierTest {
   duration_ms: number;
 }
 
+// POST /settings/router/{tier}/models (server LOOM-191): what the tier's
+// provider lists. Empty means the tier's own endpoint and saved key;
+// another provider or base URL needs the key being entered, which is
+// used for that call only.
+export interface RouterModelsRequest {
+  provider?: string;
+  base_url?: string;
+  api_key?: string;
+}
+
+// Like RouterTierTest, a failure is its status and class only.
+export interface RouterModels {
+  ok: boolean;
+  models: { id: string; name?: string }[];
+  status?: number;
+  error_class?: string;
+  error?: string;
+  cached: boolean;
+}
+
 export interface RouterSettingsChange {
   id: string;
   tier: string;
@@ -777,6 +797,11 @@ export const api = {
   // 204: back to the environment's settings (escalation off without them).
   clearRouterTier: (token: string, tier: string) =>
     request<void>(`/settings/router/${encodeURIComponent(tier)}`, token, { method: "DELETE" }),
+
+  // 200 whether or not the provider answered; ok says which. A POST so a
+  // key being entered travels in the body, never the URL.
+  listRouterModels: (token: string, tier: string, body: RouterModelsRequest) =>
+    request<RouterModels>(`/settings/router/${encodeURIComponent(tier)}/models`, token, { method: "POST", body: JSON.stringify(body) }),
 
   // 200 whether or not the provider answered; ok says which.
   testRouterTier: (token: string, tier: string) =>
