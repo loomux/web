@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { Button as AriaButton } from "react-aria-components";
+import { useQueryClient } from "@tanstack/react-query";
 import { VersionBanner } from "../components/VersionBanner";
 import { useAuth } from "../lib/authContext";
 import { useNeedsYouCount } from "../lib/useNeedsYouCount";
@@ -56,7 +57,13 @@ function Brand() {
 }
 
 export function AppShell() {
-  const { logout } = useAuth();
+  const { logout: endSession } = useAuth();
+  const queryClient = useQueryClient();
+  // Nothing read during the session stays in memory after it.
+  const logout = () => {
+    endSession();
+    queryClient.clear();
+  };
   const navigate = useNavigate();
   const needsYou = useNeedsYouCount();
   const [moreOpen, setMoreOpen] = useState(false);

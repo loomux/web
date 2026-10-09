@@ -5,6 +5,13 @@ import { defineConfig } from "vitest/config";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    // Browsers older than light-dark() (Chrome 123, Firefox 120, Safari
+    // 17.5) are in this target, so the CSS minifier rewrites the colour
+    // tokens into a fallback that works without it (styles/tokens.css).
+    // Vite's own default, written out so a target bump can't drop that.
+    cssTarget: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
+  },
   server: {
     // Production serves the client and API from the same loomuxd origin
     // (docs/design/web-client-design.md "Hosting / serving integration"),

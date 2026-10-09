@@ -51,6 +51,15 @@ export interface Answered {
   label: string;
 }
 
+// Text that already ends a sentence gets no second full stop.
+function endsSentence(text: string): boolean {
+  return /[.!?…]["'”’)]*$/.test(text.trim());
+}
+
+function sentence(text: string): string {
+  return endsSentence(text) ? text.trim() : `${text.trim()}.`;
+}
+
 export function DecisionCard({
   decision: d,
   workspaceName,
@@ -163,6 +172,9 @@ export function DecisionCard({
         {attention?.title && <p className="font-bold text-ink">{attention.title}</p>}
         {attention?.detail && <CodeBlock>{attention.detail}</CodeBlock>}
         {attention?.question && <p className="text-ink">{attention.question}</p>}
+        {d.kind === "awaiting" && d.question && (
+          <p className="line-clamp-6 whitespace-pre-wrap break-words text-ink">{d.question}</p>
+        )}
         {d.kind === "prompt" && !attention && (
           <p className="text-ink-2">Its prompt couldn't be read here. Open the conversation, or attach to its terminal.</p>
         )}
@@ -176,10 +188,16 @@ export function DecisionCard({
             {workspace && (
               <>
                 In <b className="text-ink">{workspace}</b>
-                {d.confirmation?.agent_type ? `, ${d.confirmation.agent_type}` : ""}.{" "}
+                {d.confirmation?.agent_type ? `, ${d.confirmation.agent_type}` : ""}
+                {endsSentence(d.confirmation?.agent_type || workspace) ? " " : ". "}
               </>
             )}
-            {showSource && <>From {conversationLink}.</>}
+            {showSource && (
+              <>
+                From {conversationLink}
+                {endsSentence(d.preview || "") ? "" : "."}
+              </>
+            )}
           </p>
         )}
 
@@ -235,7 +253,7 @@ export function DecisionCard({
                 <Button
                   isDisabled={busy}
                   className="w-full !justify-start text-left whitespace-normal"
-                  onPress={() => send(String(o.n), `Answered: ${o.label}.`)}
+                  onPress={() => send(String(o.n), `Answered: ${sentence(o.label)}`)}
                 >
                   <span className="grid size-6 shrink-0 place-items-center rounded-md bg-accent-soft text-sm text-accent">{o.n}</span>
                   {o.label}

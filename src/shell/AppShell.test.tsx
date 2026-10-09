@@ -11,9 +11,8 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-function renderShell(initial = "/") {
+function renderShell(initial = "/", queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   localStorage.setItem("loomux.token", "tok-1");
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter(
     [
       { path: "/login", element: <p>login page</p> },
@@ -191,6 +190,17 @@ describe("AppShell", () => {
     // The shell itself has no guard here (ProtectedRoute does that in the
     // app), so just check the token is gone and we're still routed.
     expect(router.state.location.pathname).toBe("/");
+  });
+
+  // LOOM-175: what the session read doesn't outlive it.
+  it("clears what it had loaded when logging out", async () => {
+    serve([{ status: "needs_attention" }]);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderShell("/", queryClient);
+    await screen.findAllByText("1");
+    expect(queryClient.getQueryData(["conversations"])).toBeDefined();
+    await userEvent.click(within(navs().sidebar).getByRole("button", { name: "Log out" }));
+    expect(queryClient.getQueryData(["conversations"])).toBeUndefined();
   });
 });
 

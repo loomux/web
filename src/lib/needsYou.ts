@@ -38,6 +38,8 @@ export interface Decision {
   // and for a failed turn, the text (and offer) it carried.
   workspaceHint?: string;
   retryMessage?: string;
+  // What an agent waiting for a reply last said: its question.
+  question?: string;
 }
 
 // Offers first (they expire), then what agents are stuck on, then failures,
@@ -97,6 +99,10 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
       kind: taskKind,
       since: task.updated_at,
       task,
+      question:
+        taskKind === "awaiting"
+          ? detail.messages?.findLast((m) => m.role === "assistant" && m.task_id === task.id)?.content
+          : undefined,
     });
   }
 

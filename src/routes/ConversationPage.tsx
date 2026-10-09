@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MessageContent } from "../components/MessageContent";
 import { Composer } from "../conversation/Composer";
@@ -109,6 +109,7 @@ function Bubble({ m }: { m: DisplayMessage }) {
 export function ConversationPage() {
   const { id } = useParams<{ id: string }>();
   const conversationId = id ?? null;
+  const location = useLocation();
   const c = useConversation(conversationId);
   const [draft, setDraft] = useState("");
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -215,6 +216,21 @@ export function ConversationPage() {
   const tasks = c.history?.tasks ?? [];
   const loading = c.historyStatus === "pending";
   const loadFailed = c.historyStatus === "error" && !c.notFound;
+  // A new conversation has no history until its first message, so its 404
+  // is expected; the New conversation buttons say so in the navigation.
+  // Anything else that 404s doesn't exist.
+  const fresh = (location.state as { fresh?: boolean } | null)?.fresh === true;
+  if (c.notFound && !fresh && c.messages.length === 0 && !c.sending && !c.inFlight) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10 md:px-8">
+        <h1 className="text-[1.75rem] font-extrabold text-ink">Conversation not found</h1>
+        <p className="mt-2 text-ink-2">There's no conversation at this address. It may have been deleted, or the link is wrong.</p>
+        <Link to="/" className="mt-4 inline-block font-bold text-accent">
+          Go to the inbox
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100svh-var(--shell-bottom,0px))] min-w-0">

@@ -13,17 +13,18 @@ vi.mock("../lib/useConversationStream", () => ({
   useConversationStream: () => stream.state,
 }));
 
-function renderPage(conversationId = "abc123") {
+// fresh: opened from New conversation, so its 404 is expected.
+function renderPage(conversationId = "abc123", fresh = false) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(page(queryClient, conversationId));
+  return render(page(queryClient, conversationId, fresh));
 }
 
-function page(queryClient: QueryClient, conversationId = "abc123") {
+function page(queryClient: QueryClient, conversationId = "abc123", fresh = false) {
   return (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[`/conversations/${conversationId}`]}>
+      <MemoryRouter initialEntries={[{ pathname: `/conversations/${conversationId}`, state: fresh ? { fresh: true } : null }]}>
         <AuthProvider>
           <Routes>
             <Route path="/conversations/:id" element={<ConversationPage />} />
@@ -623,7 +624,7 @@ describe("ConversationPage", () => {
       throw new Error(`unexpected fetch: ${method} ${url}`);
     });
 
-    renderPage();
+    renderPage("abc123", true);
     const box = () => screen.getByPlaceholderText(/message the agent fleet/i);
     const messages = ["hi", "check disk on devbox", "yes", "now start claude in my project", "and memory?", "yes, go ahead"];
     for (const [i, text] of messages.entries()) {
@@ -827,5 +828,25 @@ describe("ConversationPage", () => {
     expect(steps).toHaveTextContent("Routed to atlas");
     expect(steps).toHaveTextContent("Agent turn, 4m 12s");
     await waitFor(() => expect(scrolled).toContain("turn-d1"));
+  });
+
+  // LOOM-175: an id that doesn't exist isn't a new conversation.
+  it("says a conversation that doesn't exist wasn't found", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async () => jsonResponse({ error: "no such conversation" }, 404)) as typeof fetch;
+    renderPage("no-such-id");
+    expect(await screen.findByRole("heading", { level: 1, name: "Conversation not found" })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/message the agent fleet/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to the inbox" })).toHaveAttribute("href", "/");
+  });
+
+  it("opens a new conversation from New conversation even though it has no history yet", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).endsWith("/workspaces") ? jsonResponse({ workspaces: [] }) : jsonResponse({ error: "no such conversation" }, 404),
+    ) as typeof fetch;
+    renderPage("brand-new", true);
+    expect(await screen.findByText("Start the conversation")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "New conversation" })).toBeInTheDocument();
   });
 });
