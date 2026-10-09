@@ -29,7 +29,7 @@ export function useConversationStream(conversationId: string | null): StreamStat
         else setMessageEvent(e.data);
       },
       onConnected: setConnected,
-      onUnauthorized: handleUnauthorized,
+      onUnauthorized: () => handleUnauthorized(token),
     });
   }, [conversationId, token, handleUnauthorized]);
 
