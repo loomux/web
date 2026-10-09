@@ -84,7 +84,7 @@ export function LoginPage() {
             autoFocus
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="min-h-12 rounded-control border border-line bg-surface-2 px-3 text-ink"
+            className="min-h-12 rounded-control border border-line-strong bg-surface-2 px-3 text-ink"
           />
         </div>
         {error && (

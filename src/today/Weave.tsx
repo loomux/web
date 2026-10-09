@@ -11,7 +11,8 @@ import { StitchGlyph, StitchMark } from "./StitchGlyph";
 // moved through; a stitch per step and a marigold knot per thing waiting
 // on you, with a dashed tail for how long. Every stitch and knot is a
 // link to that point in its conversation: hover or focus says what it
-// was, Enter opens it, Left and Right move along the lane.
+// was, Enter opens it, Left and Right move along the lane, Up and Down
+// to the next lane. The weave is one tab stop, not one per stitch.
 
 const LABEL_W = 196;
 const AXIS_H = 30;
@@ -40,6 +41,7 @@ export function Weave({ weave, isToday, now }: { weave: WeaveModel; isToday: boo
   const [width, setWidth] = useState(960);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const itemRefs = useRef(new Map<string, SVGGElement>());
+  const [active, setActive] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
@@ -92,6 +94,8 @@ export function Weave({ weave, isToday, now }: { weave: WeaveModel; isToday: boo
   const byLane = new Map<string, Item[]>();
   for (const it of items) byLane.set(it.laneId, [...(byLane.get(it.laneId) ?? []), it]);
   byLane.forEach((list) => list.sort((a, b) => a.x - b.x));
+  // The one item Tab lands on: the last one focused, else the first.
+  const tabStop = items.some((it) => it.key === active) ? active : items[0]?.key;
 
   function onKey(e: KeyboardEvent, it: Item) {
     if (e.key === "Enter" || e.key === " ") {
@@ -99,11 +103,19 @@ export function Weave({ weave, isToday, now }: { weave: WeaveModel; isToday: boo
       navigate(it.href);
       return;
     }
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    let next: Item;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      const lane = byLane.get(it.laneId)!;
+      const i = lane.indexOf(it) + (e.key === "ArrowRight" ? 1 : -1);
+      next = lane[Math.max(0, Math.min(lane.length - 1, i))];
+    } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      // The nearest item in time on the next lane that has any.
+      const lanes = weave.lanes.map((l) => l.id).filter((id) => byLane.has(id));
+      const j = lanes.indexOf(it.laneId) + (e.key === "ArrowDown" ? 1 : -1);
+      const lane = byLane.get(lanes[Math.max(0, Math.min(lanes.length - 1, j))])!;
+      next = lane.reduce((a, b) => (Math.abs(b.x - it.x) < Math.abs(a.x - it.x) ? b : a));
+    } else return;
     e.preventDefault();
-    const lane = byLane.get(it.laneId)!;
-    const i = lane.indexOf(it) + (e.key === "ArrowRight" ? 1 : -1);
-    const next = lane[Math.max(0, Math.min(lane.length - 1, i))];
     itemRefs.current.get(next.key)?.focus();
   }
 
@@ -199,13 +211,16 @@ export function Weave({ weave, isToday, now }: { weave: WeaveModel; isToday: boo
                 else itemRefs.current.delete(it.key);
               }}
               role="link"
-              tabIndex={0}
+              tabIndex={it.key === tabStop ? 0 : -1}
               aria-label={it.label}
               className="cursor-pointer outline-none focus-visible:[&>.hit]:stroke-[var(--focus)]"
               onClick={() => navigate(it.href)}
               onKeyDown={(e) => onKey(e, it)}
               onMouseEnter={() => show(it)}
-              onFocus={() => show(it)}
+              onFocus={() => {
+                setActive(it.key);
+                show(it);
+              }}
               onMouseLeave={() => setTip(null)}
               onBlur={() => setTip(null)}
             >
