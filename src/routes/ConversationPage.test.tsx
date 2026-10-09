@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
-import { ConversationPage } from "./ConversationPage";
+import { ConversationPage, ConversationRoute } from "./ConversationPage";
 
 const stream = vi.hoisted(() => ({
   state: { event: null, dispatchEvent: null, connected: false } as Record<string, unknown>,
@@ -763,6 +763,89 @@ describe("ConversationPage", () => {
       await user.click(screen.getByRole("button", { name: "Reply" }));
     });
     expect(body.message).toBe("use make clean");
+  });
+
+  // LOOM-173: the server reads the next message as the answer to a prompt
+  // any agent here is stopped at, before anything else. So that prompt is
+  // the card at the end, never another task's reply box, and it isn't
+  // offered again while the answer's turn runs.
+  function promptServer(conv: { tasks: unknown[]; dispatches?: unknown[] }) {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations/abc123") return jsonResponse({ conversation_id: "abc123", messages: [], ...conv });
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+      if (url.startsWith("/api/v1/tasks/")) return jsonResponse({ error: "nope" }, 404);
+      if (url.endsWith("/events")) return jsonResponse({ events: [] });
+      if (url === "/api/v1/targets") return jsonResponse({ targets: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+  }
+  const stopped = {
+    id: "t1", workspace_id: "ws-1", kind: "agent", agent_type: "claude-code", status: "needs_attention",
+    created_at: "2026-10-04T18:00:00Z", updated_at: "2026-10-04T18:00:00Z",
+    attention: { kind: "permission", title: "Bash command", detail: "rm -rf build", selected: 0 },
+  };
+
+  it("shows the prompt an agent is stopped at, not a later task's reply box", async () => {
+    promptServer({
+      tasks: [
+        stopped,
+        {
+          id: "t2", workspace_id: "ws-2", kind: "agent", agent_type: "codex", status: "awaiting_input",
+          created_at: "2026-10-04T18:01:00Z", updated_at: "2026-10-04T18:01:00Z",
+        },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByRole("region", { name: "claude-code needs your approval" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "codex is waiting for your reply" })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Type your reply…")).not.toBeInTheDocument();
+  });
+
+  it("doesn't offer a prompt again while the turn answering it runs", async () => {
+    promptServer({
+      tasks: [stopped],
+      dispatches: [{ dispatch_id: "d2", conversation_id: "abc123", status: "running", created_at: "2026-10-04T18:02:00Z" }],
+    });
+    renderPage();
+    expect(await screen.findByRole("region", { name: /turn in progress/i })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "claude-code needs your approval" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  });
+
+  // Moving from one conversation to another starts clean: the first
+  // one's draft doesn't follow.
+  it("starts clean on another conversation", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (/^\/api\/v1\/conversations\/[ab]$/.test(url)) return jsonResponse({ error: "no such conversation" }, 404);
+      if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+      if (url === "/api/v1/targets") return jsonResponse({ targets: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    function GoToB() {
+      const navigate = useNavigate();
+      return <button onClick={() => navigate("/conversations/b", { state: { fresh: true } })}>Go to b</button>;
+    }
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={[{ pathname: "/conversations/a", state: { fresh: true } }]}>
+          <AuthProvider>
+            <GoToB />
+            <Routes>
+              <Route path="/conversations/:id" element={<ConversationRoute />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const composer = await screen.findByPlaceholderText(/message the agent fleet/i);
+    await user.type(composer, "half-written for a");
+    await user.click(screen.getByRole("button", { name: "Go to b" }));
+    await waitFor(() => expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue(""));
   });
 
   it("focuses the composer when a conversation opens", async () => {
