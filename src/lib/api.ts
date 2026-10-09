@@ -533,6 +533,9 @@ export interface AttachTargetInfo {
   kind: string;
   host: string;
   user: string;
+  // 0: the SSH config's port. Absent from servers that don't send it;
+  // AttachCommand then takes it from the target list.
+  ssh_port?: number;
 }
 
 export interface AttachInfoResponse {
