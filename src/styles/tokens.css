@@ -5,7 +5,9 @@
 
    Each colour is light-dark(light value, dark value), resolved by the
    element's color-scheme: the OS setting by default, or the user's
-   explicit choice, which lib/theme.ts sets as data-theme on <html>. */
+   explicit choice, which lib/theme.ts sets as data-theme on <html>.
+   The build lowers light-dark() for browsers without it (cssTarget in
+   vite.config.ts; styles/lightDark.test.ts holds it to that). */
 
 :root {
   color-scheme: light dark;

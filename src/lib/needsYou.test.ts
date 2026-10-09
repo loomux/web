@@ -54,6 +54,21 @@ function detail(over: Partial<ConversationDetail> = {}): ConversationDetail {
 }
 
 describe("deriveDecisions", () => {
+  // LOOM-175: a card waiting for your reply shows what the agent asked.
+  it("carries an awaiting task's last message as its question", () => {
+    const msg = (id: string, role: "user" | "assistant", task_id: string, content: string) => ({ id, role, task_id, content, created_at: ago(MIN) });
+    const [d] = deriveDecisions(
+      summary(),
+      detail({
+        tasks: [task({ status: "awaiting_input" })],
+        messages: [msg("m1", "user", "k1", "fix it"), msg("m2", "assistant", "k1", "Which branch?"), msg("m3", "assistant", "other", "not this")],
+      }),
+      NOW,
+    );
+    expect(d.kind).toBe("awaiting");
+    expect(d.question).toBe("Which branch?");
+  });
+
   it("finds nothing in a finished conversation", () => {
     expect(deriveDecisions(summary(), detail({ tasks: [task()], dispatches: [dispatch()] }), NOW)).toEqual([]);
   });

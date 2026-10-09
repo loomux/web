@@ -90,7 +90,7 @@ function AddForm({ workspaces, onDone }: { workspaces: { id: string; name: strin
           <input
             id={`${id}-value`}
             type="password"
-            autoComplete="new-password"
+            autoComplete="off"
             className={INPUT}
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -189,7 +189,7 @@ function CredentialRow({ c, scope }: { c: Credential; scope: string }) {
             <label htmlFor={`${id}-new`} className="text-sm font-bold text-ink">
               New value
             </label>
-            <input id={`${id}-new`} type="password" autoComplete="new-password" className={INPUT} value={value} onChange={(e) => setValue(e.target.value)} />
+            <input id={`${id}-new`} type="password" autoComplete="off" className={INPUT} value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
           <Button type="submit" variant="primary" isDisabled={!value} isPending={replace.isPending} pendingLabel="Saving…">
             Save

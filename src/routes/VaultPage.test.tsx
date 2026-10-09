@@ -78,7 +78,7 @@ describe("VaultPage (LOOM-134)", () => {
     await user.type(within(form).getByLabelText("Value"), "sk-secret");
     expect(within(form).getByLabelText("Value")).toHaveAttribute("type", "password");
     // Browsers ignore "off" on password fields and offer the saved login.
-    expect(within(form).getByLabelText("Value")).toHaveAttribute("autocomplete", "new-password");
+    expect(within(form).getByLabelText("Value")).toHaveAttribute("autocomplete", "off");
     await user.click(within(form).getByRole("button", { name: "Save" }));
     const post = calls.find((c) => c.method === "POST");
     expect(JSON.parse(post!.body!)).toEqual({ name: "OPENAI_API_KEY", value: "sk-secret" });
@@ -116,5 +116,17 @@ describe("VaultPage (LOOM-134)", () => {
     expect(calls.some((c) => c.method === "DELETE")).toBe(false);
     await user.click(screen.getByRole("button", { name: "Delete GITHUB_TOKEN" }));
     expect(calls.find((c) => c.method === "DELETE")?.url).toBe("/api/v1/credentials/cred-1");
+  });
+
+  // LOOM-175: a secret is not the user's password: browsers shouldn't
+  // offer to save or generate one in its fields.
+  it("keeps the browser from treating secrets as passwords", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    fakeServer();
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Replace value" }));
+    expect(screen.getByLabelText("New value")).toHaveAttribute("autocomplete", "off");
+    expect(document.querySelector('[autocomplete="new-password"]')).toBeNull();
   });
 });

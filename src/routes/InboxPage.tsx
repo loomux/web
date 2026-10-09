@@ -49,7 +49,7 @@ export function InboxPage() {
   // The installed app's "New conversation" shortcut opens /?new=1.
   const wantsNew = search.get("new") === "1";
   useEffect(() => {
-    if (wantsNew) navigate(`/conversations/${newId()}`, { replace: true });
+    if (wantsNew) navigate(`/conversations/${newId()}`, { replace: true, state: { fresh: true } });
   }, [wantsNew, navigate]);
   const [answered, setAnswered] = useState<{ decision: Decision; outcome: Answered }[]>([]);
   const [showSnoozed, setShowSnoozed] = useState(false);
@@ -109,7 +109,7 @@ export function InboxPage() {
             {summary}
           </p>
         </div>
-        <Button variant="primary" onPress={() => navigate(`/conversations/${newId()}`)}>
+        <Button variant="primary" onPress={() => navigate(`/conversations/${newId()}`, { state: { fresh: true } })}>
           <Icon name="plus" />
           New conversation
         </Button>

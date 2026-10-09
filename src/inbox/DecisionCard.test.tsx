@@ -211,4 +211,14 @@ describe("DecisionCard", () => {
     setup(offerDecision());
     expect(screen.queryByRole("button", { name: "Snooze until tomorrow" })).not.toBeInTheDocument();
   });
+
+  // LOOM-175: the agent's question is on the card, and a preview that
+  // ends a sentence gets no second full stop.
+  it("shows what an agent waiting for a reply asked, without a double full stop", () => {
+    setup({ key: "a", kind: "awaiting", conversationId: "c1", since: iso(-MIN), preview: "Fix the build.", question: "Which branch should I use?" });
+    const card = screen.getByRole("region", { name: /waiting for your reply/ });
+    expect(card).toHaveTextContent("Which branch should I use?");
+    expect(card).toHaveTextContent("From Fix the build.");
+    expect(card.textContent).not.toContain("..");
+  });
 });

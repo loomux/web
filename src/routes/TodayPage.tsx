@@ -127,7 +127,7 @@ export function TodayPage() {
               : `${touched} conversation${touched === 1 ? "" : "s"} that day.`
             : ""}
         </p>
-        <Button variant="primary" onPress={() => navigate(`/conversations/${newId()}`)}>
+        <Button variant="primary" onPress={() => navigate(`/conversations/${newId()}`, { state: { fresh: true } })}>
           <Icon name="plus" />
           New conversation
         </Button>
