@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useApiClient } from "../lib/useApiClient";
 import { attachCommand } from "../lib/attach";
 import type { AttachInfoResponse } from "../lib/api";
@@ -7,8 +8,10 @@ import { CopyText } from "../ui/CopyText";
 // How to watch or drive a task's terminal yourself: the server's
 // attach_command (it names Loomux's own tmux server), wrapped in ssh for a
 // remote target. Fetched on demand; the client never opens SSH itself.
+// A server whose attach-info has no ssh_port: the target list's is used.
 export function AttachCommand({ taskId, label = "Show attach command" }: { taskId: string; label?: string }) {
   const apiClient = useApiClient();
+  const queryClient = useQueryClient();
   const [info, setInfo] = useState<AttachInfoResponse | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,7 +20,15 @@ export function AttachCommand({ taskId, label = "Show attach command" }: { taskI
     setLoading(true);
     setError(false);
     try {
-      setInfo(await apiClient.getAttachInfo(taskId));
+      const res = await apiClient.getAttachInfo(taskId);
+      if (res.target.kind !== "local" && res.target.ssh_port === undefined) {
+        const targets = await queryClient
+          .ensureQueryData({ queryKey: ["targets"], queryFn: apiClient.listTargets })
+          .catch(() => null);
+        const port = targets?.targets.find((t) => t.id === res.target.id)?.ssh_port;
+        if (port) res.target = { ...res.target, ssh_port: port };
+      }
+      setInfo(res);
     } catch {
       setError(true);
     } finally {

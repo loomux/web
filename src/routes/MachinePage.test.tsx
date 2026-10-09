@@ -489,6 +489,32 @@ describe("Signing in, edge cases (#89 review)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/server's SSH config/);
   });
 
+  // LOOM-183: a server that refuses local targets says local_targets false.
+  it.each([
+    [false, false],
+    [true, true],
+    [undefined, true],
+  ])("with local_targets %s, offers This host: %s", async (local_targets, offered) => {
+    const calls = serve(kestrel(), {
+      "GET /targets": () => jsonResponse({ targets: [kestrel()], ...(local_targets === undefined ? {} : { local_targets }) }),
+    });
+    renderAt("/machines/new");
+    await waitFor(() => expect(calls.some((c) => c.url === "/targets")).toBe(true));
+    if (offered) {
+      expect(await screen.findByRole("radio", { name: "This host" })).toBeInTheDocument();
+    } else {
+      await waitFor(() => expect(screen.queryByRole("radio", { name: "This host" })).not.toBeInTheDocument());
+      expect(screen.getByLabelText("Host")).toBeInTheDocument();
+    }
+  });
+
+  it("says only SSH machines can be registered when the server refuses local ones", async () => {
+    serve(kestrel(), { "GET /targets": () => jsonResponse({ targets: [], local_targets: false }) });
+    renderAt("/machines");
+    expect(await screen.findByText(/a machine over SSH\./)).toBeInTheDocument();
+    expect(screen.queryByText(/this host/)).not.toBeInTheDocument();
+  });
+
   it("highlights no step it doesn't know, and says to test", async () => {
     serve(wyzer({ next_step: "something_new" }));
     renderAt("/machines/t-kestrel");
