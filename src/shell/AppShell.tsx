@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { Button as AriaButton } from "react-aria-components";
 import { VersionBanner } from "../components/VersionBanner";
 import { useAuth } from "../lib/authContext";
@@ -61,9 +61,34 @@ export function AppShell() {
   const needsYou = useNeedsYouCount();
   const [moreOpen, setMoreOpen] = useState(false);
   const online = useOnline();
+  const mainRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  const navigationType = useNavigationType();
+  const shownPath = useRef(pathname);
+
+  // After moving to another screen, focus goes to it, not left on the old
+  // link: unless the screen placed focus itself (the composer), and not
+  // on first load or a redirect.
+  useEffect(() => {
+    if (shownPath.current === pathname) return;
+    shownPath.current = pathname;
+    const main = mainRef.current;
+    if (navigationType === "REPLACE" || !main || main.contains(document.activeElement)) return;
+    main.focus({ preventScroll: true });
+  }, [pathname, navigationType]);
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[15rem_1fr] [--shell-bottom:calc(4rem+env(safe-area-inset-bottom))] md:[--shell-bottom:0px]">
+      <a
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          mainRef.current?.focus();
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-control focus:bg-surface focus:px-4 focus:py-2.5 focus:font-bold focus:text-accent focus:shadow-2"
+      >
+        Skip to content
+      </a>
       <nav
         aria-label="Main"
         className="hidden md:flex sticky top-0 h-svh flex-col border-r border-line bg-surface px-3 pt-5 pb-4"
@@ -105,7 +130,7 @@ export function AppShell() {
           </div>
         )}
         <VersionBanner />
-        <main className="min-w-0 flex-1">
+        <main id="main" ref={mainRef} tabIndex={-1} className="min-w-0 flex-1">
           <Outlet />
         </main>
       </div>

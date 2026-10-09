@@ -157,7 +157,11 @@ export function MachinesPage() {
         {targets.data && sorted.length === 0 && (
           <div className="rounded-card border border-dashed border-line px-5 py-8 text-center">
             <p className="font-bold text-ink">No machines yet.</p>
-            <p className="mt-1 text-ink-2">Register one to give your agents somewhere to work: this host, or another over SSH.</p>
+            <p className="mt-1 text-ink-2">
+              {targets.data.local_targets === false
+                ? "Register one to give your agents somewhere to work: a machine over SSH."
+                : "Register one to give your agents somewhere to work: this host, or another over SSH."}
+            </p>
           </div>
         )}
         {sorted.map((t) => (

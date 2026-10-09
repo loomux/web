@@ -23,7 +23,14 @@ export function MachineNewPage() {
   // has no /ssh-keys, and would quietly ignore the request for a key.
   const sshKeys = useQuery({ queryKey: ["ssh-keys"], queryFn: apiClient.listSSHKeys, retry: false });
   const managedAvailable = sshKeys.isSuccess;
-  const values: TargetFormValues = managedAvailable ? form : { ...form, ssh_access: "config" };
+  // A server that refuses local targets says so; an older one doesn't.
+  const targets = useQuery({ queryKey: ["targets"], queryFn: apiClient.listTargets });
+  const localAvailable = targets.data?.local_targets !== false;
+  const values: TargetFormValues = {
+    ...form,
+    ...(managedAvailable ? {} : { ssh_access: "config" }),
+    ...(localAvailable ? {} : { kind: "remote" }),
+  };
 
   const create = useMutation({
     mutationFn: () => apiClient.createTarget(toTargetRequest(values, { isNew: true })),
@@ -60,7 +67,7 @@ export function MachineNewPage() {
       <h1 className="text-[1.75rem] font-extrabold text-ink">Register machine</h1>
       <p className="text-ink-2">After registering, you check its host key, let it in if it uses a key of its own, and test the connection.</p>
       <form onSubmit={submit} aria-label="Register machine" className="mt-6 flex flex-col gap-5">
-        <ConnectionFields values={values} onChange={onChange} isNew managedAvailable={managedAvailable} />
+        <ConnectionFields values={values} onChange={onChange} isNew managedAvailable={managedAvailable} localAvailable={localAvailable} />
         <PolicyFields values={values} onChange={onChange} />
         <RelayFields values={values} onChange={onChange} />
         {error && (

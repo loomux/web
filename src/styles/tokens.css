@@ -15,6 +15,8 @@
   --surface-2: light-dark(#f4f7fa, #17263e);
   --sunken: light-dark(#dfe6ed, #0a1120);
   --line: light-dark(#d2dbe4, #24344f);
+  /* Form control borders: 3:1 on every surface (WCAG 1.4.11). */
+  --line-strong: light-dark(#738396, #6a7a92);
 
   --ink: light-dark(#14202c, #e4ebf5);
   --ink-2: light-dark(#465668, #a2b1c5);
