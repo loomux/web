@@ -61,6 +61,9 @@ export function Composer({
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key !== "Enter") return;
+    // Enter that picks an IME candidate (Japanese, Chinese…) isn't a send;
+    // Safari reports it as keyCode 229 instead of isComposing.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.ctrlKey || e.metaKey || (!touch && !e.shiftKey)) {
       e.preventDefault();
       submit();
@@ -100,7 +103,7 @@ export function Composer({
           placeholder="Message the agent fleet…"
           enterKeyHint={touch ? "enter" : "send"}
           rows={1}
-          className="max-h-[200px] min-h-11 min-w-0 flex-1 resize-none rounded-control border border-line bg-surface-2 px-3 py-2.5 text-ink placeholder:text-ink-3"
+          className="max-h-[200px] min-h-11 min-w-0 flex-1 resize-none rounded-control border border-line-strong bg-surface-2 px-3 py-2.5 text-ink placeholder:text-ink-3"
         />
         <Button
           type="submit"

@@ -24,6 +24,7 @@ function renderShell(initial = "/", queryClient = new QueryClient({ defaultOptio
           { path: "/machines", element: <p>machines page</p> },
           { path: "/vault", element: <p>vault page</p> },
           { path: "/settings", element: <p>settings page</p> },
+          { path: "/composer", element: <textarea aria-label="Composer" autoFocus /> },
           { path: "/targets", element: <KeepQueryRedirect to="/machines" /> },
           { path: "/old/:id", element: <KeepQueryRedirect to="/new/:id" /> },
           { path: "/new/:id", element: <p>new page</p> },
@@ -153,6 +154,32 @@ describe("AppShell", () => {
       window.dispatchEvent(new Event("online"));
     });
     expect(screen.queryByText(/You're offline/)).not.toBeInTheDocument();
+  });
+
+  it("moves focus to the new screen after navigating, not on first load", async () => {
+    serve();
+    const router = renderShell();
+    await screen.findByText("inbox page");
+    expect(document.body).toHaveFocus();
+
+    await userEvent.click(within(navs().sidebar).getByRole("link", { name: "Today" }));
+    await screen.findByText("today page");
+    expect(screen.getByRole("main")).toHaveFocus();
+
+    // A screen that places focus itself keeps it.
+    await act(() => router.navigate("/composer"));
+    expect(screen.getByRole("textbox", { name: "Composer" })).toHaveFocus();
+  });
+
+  it("starts with a skip link to the content", async () => {
+    serve();
+    renderShell();
+    await screen.findByText("inbox page");
+    await userEvent.tab();
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    expect(skip).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("main")).toHaveFocus();
   });
 
   it("logs out from the sidebar", async () => {

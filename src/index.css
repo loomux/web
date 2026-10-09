@@ -26,6 +26,7 @@
   --color-surface-2: var(--surface-2);
   --color-sunken: var(--sunken);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
@@ -72,6 +73,11 @@ body {
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* The main region takes focus on navigation (AppShell); it's not a control. */
+main:focus-visible {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

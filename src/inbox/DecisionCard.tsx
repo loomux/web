@@ -273,7 +273,7 @@ export function DecisionCard({
               value={reply}
               onChange={(e) => setReply(e.target.value)}
               placeholder={attention ? "Or tell it what to do instead…" : "Type your reply…"}
-              className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-surface-2 px-3 text-ink placeholder:text-ink-3"
+              className="min-h-11 min-w-0 flex-1 rounded-control border border-line-strong bg-surface-2 px-3 text-ink placeholder:text-ink-3"
             />
             <Button type="submit" isDisabled={busy || !reply.trim()}>
               Reply

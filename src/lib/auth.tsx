@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "./api";
 import { AuthContext } from "./authContext";
 
@@ -50,9 +50,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  // Another tab logged in or out: follow it.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY || e.key === null) setToken(localStorage.getItem(STORAGE_KEY));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   // The server refused the session (expired, or revoked from another
-  // device): note it, so the login page can say why it's showing.
-  const handleUnauthorized = useCallback(() => {
+  // device): note it, so the login page can say why it's showing. A 401
+  // for a token that's since been replaced (a newer login, here or in
+  // another tab) is stale and leaves the new one alone.
+  const handleUnauthorized = useCallback((rejected: string) => {
+    if (localStorage.getItem(STORAGE_KEY) !== rejected) return;
     localStorage.removeItem(STORAGE_KEY);
     try {
       sessionStorage.setItem(SIGNED_OUT_KEY, "1");

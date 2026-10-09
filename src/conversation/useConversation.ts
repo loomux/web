@@ -151,6 +151,11 @@ export function useConversation(conversationId: string | null) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busy = sending || inFlight;
+  // The last message whose POST failed without an answer that it wasn't
+  // taken (a 5xx, a dropped connection), with its idempotency key: it
+  // may have reached the server, so sending the same message again
+  // reuses the key and can't start a second turn.
+  const unsent = useRef<{ text: string; confirmationId?: string; key: string } | null>(null);
 
   // send dispatches text as the conversation's next message — typed in
   // the composer, or an answer from the needs_attention card.
@@ -165,6 +170,9 @@ export function useConversation(conversationId: string | null) {
     setError(null);
     setPendingUser(text);
     setSending(true);
+    const u = unsent.current;
+    const key = u && u.text === text && u.confirmationId === confirmationId ? u.key : newId();
+    unsent.current = null;
     try {
       // The conversation's current workspace goes along as workspace_hint
       // (LOOM-87), so a follow-up lands back in it: its latest agent task's.
@@ -175,7 +183,7 @@ export function useConversation(conversationId: string | null) {
         conversationId,
         text,
         workspaceHint,
-        newId(),
+        key,
         confirmationId,
       );
       if (accepted.dispatch_id) setFollowed(accepted);
@@ -197,10 +205,19 @@ export function useConversation(conversationId: string | null) {
           "A turn is still running in this conversation. Your message wasn't sent; send it once that one finishes.",
         );
         void refetchHistory();
-      } else if (err instanceof ApiError && err.status === 503) {
-        setError("Loomux is restarting. Your message wasn't sent; try again in a moment.");
       } else {
-        setError(err instanceof Error ? err.message : "Dispatch failed");
+        // Not sent, as far as we know: take the optimistic copy back out
+        // and give the text back to send again.
+        if (!(err instanceof ApiError && err.code === "idempotency_conflict")) {
+          unsent.current = { text, confirmationId, key };
+        }
+        setPendingUser(null);
+        onRejected?.(text);
+        if (err instanceof ApiError && err.status === 503) {
+          setError("Loomux is restarting. Your message wasn't sent; try again in a moment.");
+        } else {
+          setError(`Your message wasn't sent: ${err instanceof Error ? err.message : "dispatch failed"}. Try again.`);
+        }
       }
     } finally {
       setSending(false);

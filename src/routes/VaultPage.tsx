@@ -16,7 +16,7 @@ import { Icon } from "../ui/icons";
 // What the server accepts as a name: it becomes an environment variable.
 const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-const INPUT = "min-h-11 w-full min-w-0 rounded-control border border-line bg-surface-2 px-3 text-ink placeholder:text-ink-3";
+const INPUT = "min-h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface-2 px-3 text-ink placeholder:text-ink-3";
 
 function message(err: unknown) {
   if (err instanceof ApiError && err.status === 404) return "This server has no vault set up.";

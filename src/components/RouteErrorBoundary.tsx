@@ -2,10 +2,14 @@ import { Component, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
+  // Clears the error when it changes (the app passes the pathname), so
+  // navigating away from a page that threw shows the new page.
+  resetKey?: string;
 }
 
 interface State {
   hasError: boolean;
+  resetKey?: string;
 }
 
 // Wraps the lazy-loaded routes. A failed chunk fetch (e.g. a tab left open
@@ -35,7 +39,11 @@ function reloadedRecently(): boolean {
 }
 
 export class RouteErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  state: State = { hasError: false, resetKey: this.props.resetKey };
+
+  static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
+    return props.resetKey === state.resetKey ? null : { hasError: false, resetKey: props.resetKey };
+  }
 
   static getDerivedStateFromError(): State {
     return { hasError: true };
