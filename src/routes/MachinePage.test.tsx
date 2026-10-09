@@ -206,6 +206,20 @@ describe("Machines", () => {
     expect(screen.queryByText("No machines yet.")).not.toBeInTheDocument();
   });
 
+  it("says the workspaces failed instead of showing none on each machine", async () => {
+    serve(kestrel(), { "GET /workspaces": () => jsonResponse({ error: "boom" }, 500) });
+    renderAt("/machines");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load the workspaces");
+    expect(screen.getByRole("region", { name: "kestrel" })).not.toHaveTextContent("None yet");
+  });
+
+  it("says a machine failed to load instead of that there's no such machine", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ error: "boom" }, 500)) as typeof fetch;
+    renderAt("/machines/t-kestrel");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load this machine");
+    expect(screen.queryByText("There's no such machine.")).not.toBeInTheDocument();
+  });
+
   it("checks a remote machine has a host before sending anything", async () => {
     const calls = serve(kestrel());
     renderAt("/machines/new");

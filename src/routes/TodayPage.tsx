@@ -96,7 +96,7 @@ function DayPage({ day }: { day: Date }) {
     setParams(next, { replace: true });
   };
 
-  const { data: list, isLoading: listLoading } = useQuery({ queryKey: ["conversations"], queryFn: apiClient.listConversations });
+  const { data: list, isLoading: listLoading, isError: listFailed } = useQuery({ queryKey: ["conversations"], queryFn: apiClient.listConversations });
   const { data: workspacesData } = useQuery({ queryKey: ["workspaces"], queryFn: apiClient.listWorkspaces });
   const workspaceName = useMemo(() => {
     const names = new Map((workspacesData?.workspaces ?? []).map((w) => [w.id, w.name] as const));
@@ -207,6 +207,10 @@ function DayPage({ day }: { day: Date }) {
         </div>
         {listLoading ? (
           <p className="mt-4 text-ink-3">Loading…</p>
+        ) : listFailed && !list ? (
+          <p role="alert" className="mt-4 rounded-card border border-bad/40 bg-bad-soft p-4 text-bad">
+            Couldn't load your conversations. Check that Loomux is reachable; this page retries on its own.
+          </p>
         ) : conversations.length === 0 ? (
           <p className="mt-4 text-ink-2">
             {q || status !== "all" ? "No conversations match. Clear the search or pick All." : "No conversations yet. Start one with New conversation."}

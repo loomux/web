@@ -120,6 +120,15 @@ describe("InboxPage", () => {
     expect(within(done).getByText("Why is the nightly backup job slow?")).toBeInTheDocument();
   });
 
+  it("says the conversations failed instead of that nothing is running", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ error: "boom" }, 500)) as typeof fetch;
+    renderInbox();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load your conversations");
+    const activity = screen.getByRole("complementary", { name: "Activity" });
+    expect(activity).not.toHaveTextContent("Nothing is running.");
+    expect(activity).not.toHaveTextContent("Nothing finished in the last day.");
+  });
+
   it("approves from the Inbox and leaves a note of what happened", async () => {
     const dispatched = serve();
     renderInbox();
