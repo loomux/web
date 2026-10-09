@@ -46,12 +46,15 @@ export function ConnectionFields({
   onChange,
   isNew,
   managedAvailable = false,
+  localAvailable = true,
 }: {
   values: TargetFormValues;
   onChange: (patch: Partial<TargetFormValues>) => void;
   isNew: boolean;
   // The server can keep a key for a new machine (LOOM-138).
   managedAvailable?: boolean;
+  // The server takes a machine on its own host (LOOM-183).
+  localAvailable?: boolean;
 }) {
   const id = useId();
   const remote = values.kind === "remote";
@@ -61,7 +64,7 @@ export function ConnectionFields({
       <Field id={`${id}-name`} label="Name" hint="What you'll call it in chat, like atlas or my laptop.">
         <input id={`${id}-name`} className={INPUT} value={values.name} onChange={(e) => onChange({ name: e.target.value })} required />
       </Field>
-      {isNew && (
+      {isNew && localAvailable && (
         <div className="flex flex-col gap-1">
           <span className="font-bold text-ink">Where it is</span>
           <Segmented
