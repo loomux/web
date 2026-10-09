@@ -2,10 +2,11 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { api, ApiError, normalizeStatus, openConversationStream, type StreamEvent } from "./api";
 
 type SSEOptions = { onmessage: (msg: { event: string; data: string }) => void };
-const sse = vi.hoisted(() => ({ options: null as SSEOptions | null }));
+const sse = vi.hoisted(() => ({ options: null as SSEOptions | null, onUrl: null as ((url: string) => void) | null }));
 vi.mock("@microsoft/fetch-event-source", () => ({
-  fetchEventSource: (_url: string, options: SSEOptions) => {
+  fetchEventSource: (url: string, options: SSEOptions) => {
     sse.options = options;
+    sse.onUrl?.(url);
     return new Promise(() => {});
   },
 }));
@@ -197,6 +198,50 @@ describe("api", () => {
     const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toBe(path);
     expect((init?.method ?? "GET").toUpperCase()).toBe(method);
+  });
+
+  // LOOM-167: an id is one path segment, whatever it holds.
+  const odd = "a/b?c#d%e";
+  const enc = "a%2Fb%3Fc%23d%25e";
+  it.each([
+    ["deleteWorkspace", () => api.deleteWorkspace("t", odd), `/api/v1/workspaces/${enc}`],
+    ["setWorkspaceStatus", () => api.setWorkspaceStatus("t", odd, "archived"), `/api/v1/workspaces/${enc}`],
+    ["getConversation", () => api.getConversation("t", odd), `/api/v1/conversations/${enc}`],
+    ["getDispatch", () => api.getDispatch("t", odd), `/api/v1/dispatches/${enc}`],
+    ["cancelDispatch", () => api.cancelDispatch("t", odd), `/api/v1/dispatches/${enc}/cancel`],
+    ["updateTarget", () => api.updateTarget("t", odd, { name: "n", kind: "local" } as never), `/api/v1/targets/${enc}`],
+    ["deleteTarget", () => api.deleteTarget("t", odd), `/api/v1/targets/${enc}`],
+    ["setCredentialValue", () => api.setCredentialValue("t", odd, "v"), `/api/v1/credentials/${enc}/value`],
+    ["deleteCredential", () => api.deleteCredential("t", odd), `/api/v1/credentials/${enc}`],
+    ["getAttachInfo", () => api.getAttachInfo("t", odd), `/api/v1/tasks/${enc}/attach-info`],
+    ["getTaskTranscript", () => api.getTaskTranscript("t", odd), `/api/v1/tasks/${enc}/transcript`],
+    ["getConversationEvents", () => api.getConversationEvents("t", odd), `/api/v1/conversations/${enc}/events`],
+    ["scanHostKey", () => api.scanHostKey("t", odd), `/api/v1/targets/${enc}/scan-host-key`],
+    ["pinHostKey", () => api.pinHostKey("t", odd, "SHA256:a"), `/api/v1/targets/${enc}/pin`],
+    ["unpinHostKey", () => api.unpinHostKey("t", odd), `/api/v1/targets/${enc}/pin`],
+    ["testTarget", () => api.testTarget("t", odd), `/api/v1/targets/${enc}/test`],
+    ["probeTarget", () => api.probeTarget("t", odd), `/api/v1/targets/${enc}/probe`],
+    ["deleteSession", () => api.deleteSession("t", odd), `/api/v1/sessions/${enc}`],
+    ["getTaskPane", () => api.getTaskPane("t", odd), `/api/v1/tasks/${enc}/pane`],
+    ["deleteSSHKey", () => api.deleteSSHKey("t", odd), `/api/v1/ssh-keys/${enc}`],
+    ["migrateSSH", () => api.migrateSSH("t", odd, { dry_run: true }).catch(() => undefined), `/api/v1/targets/${enc}/migrate-ssh`],
+    ["setRouterTier", () => api.setRouterTier("t", odd, { base_url: "u", model: "m" }), `/api/v1/settings/router/${enc}`],
+    ["clearRouterTier", () => api.clearRouterTier("t", odd), `/api/v1/settings/router/${enc}`],
+    ["testRouterTier", () => api.testRouterTier("t", odd), `/api/v1/settings/router/${enc}/test`],
+  ] as const)("%s encodes the id", async (_name, call, path) => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    await call();
+    const [url] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(path);
+  });
+
+  it("the stream encodes the conversation id", () => {
+    let url = "";
+    sse.onUrl = (u) => (url = u);
+    const stop = openConversationStream("t", odd, { onEvent: () => {}, onConnected: () => {}, onUnauthorized: () => {} });
+    stop();
+    sse.onUrl = null;
+    expect(url).toBe(`/api/v1/conversations/${enc}/stream`);
   });
 
   it("covers every client function", () => {
