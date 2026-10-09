@@ -110,7 +110,6 @@ test("the conversation stream backs off while the server is unreachable", async 
 
 // F32: an impossible date in the URL is not a real day.
 test("an impossible date in /today/:date is refused", async ({ page }) => {
-  test.fail(true, "LOOM-139 finding F32: 2026-13-45 renders as February 14");
   await login(page);
   await page.goto("/today/2026-13-45");
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
