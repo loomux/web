@@ -52,6 +52,8 @@ function waitingOnUser(history: ConversationDetail, now: number): boolean {
     undefined,
   );
   if (latest && TASK_DECISION[latest.status]) return true;
+  // A prompt takes the next message as its answer even when its task isn't the latest.
+  if (history.tasks.some((t) => t.status === "needs_attention" && t.attention)) return true;
   const last = history.dispatches?.reduce<Dispatch | undefined>(
     (best, d) => (!best || Date.parse(d.created_at) >= Date.parse(best.created_at) ? d : best),
     undefined,
@@ -104,6 +106,13 @@ function Bubble({ m }: { m: DisplayMessage }) {
       </div>
     </div>
   );
+}
+
+// The route's page, keyed by the conversation's id, so opening another
+// conversation starts clean: no draft, held message or turn carried over.
+export function ConversationRoute() {
+  const { id } = useParams<{ id: string }>();
+  return <ConversationPage key={id} />;
 }
 
 export function ConversationPage() {
@@ -195,11 +204,14 @@ export function ConversationPage() {
   }, [turnParam, turnFound]);
 
   // The latest task's own decision (an agent's prompt, a wait for your
-  // reply, a takeover), shown at the end until it's answered.
-  const latest = c.latestTask;
+  // reply, a takeover), shown at the end until it's answered, and not
+  // while a turn is on its way. A prompt an agent is stopped at comes
+  // first: the server reads the next message as its answer, before
+  // anything else (router Dispatch), so no other card may ask for one.
+  const latest = c.attentionTask ?? c.latestTask;
   const endKind = latest ? TASK_DECISION[latest.status] : undefined;
   const endDecision: Decision | null =
-    latest && endKind && c.pendingUser === null
+    latest && endKind && c.pendingUser === null && !c.inFlight
       ? {
           key: `task:${latest.id}:${latest.status}@${latest.updated_at}`,
           kind: endKind,

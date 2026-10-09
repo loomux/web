@@ -497,6 +497,29 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
       expect(server.posts).toHaveLength(0);
     });
 
+    // LOOM-173: the prompt takes the next message even when a later task
+    // is the latest.
+    it("isn't sent while an earlier task is stopped at a prompt", async () => {
+      const server = await holdThenFinish(running(), (conv) => {
+        conv.tasks = [
+          {
+            id: "t1",
+            workspace_id: "ws-1",
+            kind: "agent",
+            agent_type: "claude-code",
+            status: "needs_attention",
+            created_at: T0,
+            updated_at: T0,
+            attention: { kind: "permission", title: "Bash command", detail: "rm -rf build", selected: 0 },
+          },
+          { id: "t2", workspace_id: "ws-1", kind: "command", status: "completed", created_at: T0, updated_at: "2026-10-05T10:00:30Z" },
+        ];
+      });
+      expect(await screen.findByText(/Not sent/)).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "claude-code needs your approval" })).toBeInTheDocument();
+      expect(server.posts).toHaveLength(0);
+    });
+
     it("isn't sent when the turn ended with an offer waiting", async () => {
       const server = await holdThenFinish(running(), (conv) => {
         conv.confirmations = [
