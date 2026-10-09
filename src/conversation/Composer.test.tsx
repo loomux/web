@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { Composer } from "./Composer";
@@ -47,6 +47,20 @@ describe("Composer", () => {
     expect(box).toHaveFocus();
     await userEvent.type(box, "line one{Shift>}{Enter}{/Shift}line two{Enter}");
     expect(onSend).toHaveBeenCalledWith("line one\nline two");
+  });
+
+  // LOOM-169: Enter that confirms an IME candidate doesn't send.
+  it("doesn't send on Enter while an IME is composing", async () => {
+    pointer(false);
+    const onSend = vi.fn();
+    render(<Harness onSend={onSend} />);
+    const box = screen.getByRole("textbox", { name: "Message the agent fleet" });
+    await userEvent.type(box, "にほんご");
+    fireEvent.keyDown(box, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(box, { key: "Enter", keyCode: 229 });
+    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(onSend).toHaveBeenCalledWith("にほんご");
   });
 
   it("on a touch screen, Enter is a newline and Send is the button; it doesn't raise the keyboard by itself", async () => {
