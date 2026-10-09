@@ -17,7 +17,7 @@ export function useApiClient() {
         return await fn(token);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          handleUnauthorized();
+          handleUnauthorized(token);
         }
         throw err;
       }

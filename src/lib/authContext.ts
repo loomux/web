@@ -6,8 +6,9 @@ export interface AuthContextValue {
   token: string | null;
   login: (password: string) => Promise<void>;
   logout: () => void;
-  /** Called by the API layer on any 401 — clears the stale token. */
-  handleUnauthorized: () => void;
+  /** Called by the API layer on a 401 with the token that got it — clears
+   *  it, unless a newer login has replaced it since. */
+  handleUnauthorized: (rejected: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
