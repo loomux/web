@@ -86,7 +86,6 @@ test("a failed send gives the draft back", async ({ page }) => {
 // F20: while the server is down the stream must back off, not reconnect
 // every second for as long as the page is open.
 test("the conversation stream backs off while the server is unreachable", async ({ page }) => {
-  test.fail(true, "LOOM-139 finding F20: fixed 1s retry, no backoff");
   await login(page);
   await newConversation(page);
   await send(page, "answer: stream check");

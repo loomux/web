@@ -9,6 +9,8 @@ interface StreamState {
   // The latest `message_added` (LOOM-121): the transcript has a new message.
   messageEvent: MessageAddedEvent | null;
   connected: boolean;
+  // The server refused the stream (403, 404): it won't reconnect.
+  refused: boolean;
 }
 
 // Follows GET /conversations/{id}/stream (SSE) through the API client's
@@ -19,6 +21,8 @@ export function useConversationStream(conversationId: string | null): StreamStat
   const [dispatchEvent, setDispatchEvent] = useState<DispatchUpdateEvent | null>(null);
   const [messageEvent, setMessageEvent] = useState<MessageAddedEvent | null>(null);
   const [connected, setConnected] = useState(false);
+  // Which conversation's stream was refused, so another one starts clean.
+  const [refusedFor, setRefusedFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (!conversationId || !token) return;
@@ -30,8 +34,9 @@ export function useConversationStream(conversationId: string | null): StreamStat
       },
       onConnected: setConnected,
       onUnauthorized: () => handleUnauthorized(token),
+      onRefused: () => setRefusedFor(conversationId),
     });
   }, [conversationId, token, handleUnauthorized]);
 
-  return { event, dispatchEvent, messageEvent, connected };
+  return { event, dispatchEvent, messageEvent, connected, refused: refusedFor !== null && refusedFor === conversationId };
 }
