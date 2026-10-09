@@ -243,7 +243,7 @@ export function ConversationPage() {
               {c.history && (
                 <span className="inline-flex items-center gap-1.5">
                   <span aria-hidden="true" className={`size-2 rounded-full ${c.connected ? "bg-good" : "bg-ink-3"}`} />
-                  {c.connected ? "Live" : "Reconnecting…"}
+                  {c.connected ? "Live" : c.streamRefused ? "Not live" : "Reconnecting…"}
                 </span>
               )}
             </p>

@@ -815,50 +815,104 @@ export interface StreamHandlers {
   onConnected: (connected: boolean) => void;
   // The session is no longer valid: the stream stops for good.
   onUnauthorized: () => void;
+  // 403 or 404: retrying won't help, so the stream stops for good.
+  onRefused?: (status: number) => void;
+}
+
+// How long to wait before the next try after `failures` failed ones in a
+// row: 1s, doubling, capped at 30s, give or take 20% so many tabs don't
+// all come back at once.
+export function streamRetryDelay(failures: number, random: () => number = Math.random): number {
+  const base = Math.min(1000 * 2 ** failures, 30_000);
+  return Math.round(base * (0.8 + 0.4 * random()));
 }
 
 // openConversationStream follows a conversation's stream until the
 // returned function is called. Like every other call it sends the Bearer
 // token, which native EventSource can't (see docs/design/web-client-design.md
 // "Real-time updates"), so it uses fetchEventSource. A drop, or the server
-// ending the stream (a restart), is retried with backoff.
-export function openConversationStream(token: string, conversationId: string, handlers: StreamHandlers): () => void {
-  const controller = new AbortController();
-  void fetchEventSource(`${API_BASE}/conversations/${encodeURIComponent(conversationId)}/stream`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: controller.signal,
-    openWhenHidden: true,
-    async onopen(res) {
-      if (res.status === 401) {
-        handlers.onUnauthorized();
-        controller.abort();
-        return;
-      }
-      // While Loomux restarts, the proxy in front of it answers with an
-      // error page: a failed connection, retried via onerror.
-      if (!res.ok) throw new Error(`stream: HTTP ${res.status}`);
-      handlers.onConnected(true);
-    },
-    onmessage(msg) {
-      if (!msg.data) return;
-      if (msg.event === "task_update" || msg.event === "dispatch_update" || msg.event === "message_added") {
-        let data = JSON.parse(msg.data);
-        if (msg.event === "task_update" && data && typeof data === "object") data = normalizeTask(data);
-        handlers.onEvent({ type: msg.event, data } as StreamEvent);
-      }
-    },
-    onclose() {
+// ending the stream (a restart), is retried with backoff (streamRetryDelay),
+// which starts over once a connection opens. A hidden tab closes the
+// stream and opens it again when shown; that isn't a failure.
+export function openConversationStream(
+  token: string,
+  conversationId: string,
+  handlers: StreamHandlers,
+  random: () => number = Math.random,
+): () => void {
+  const stopped = new AbortController();
+  let current: AbortController | null = null;
+  let failures = 0;
+
+  const stop = () => {
+    stopped.abort();
+    current?.abort();
+    current = null;
+    document.removeEventListener("visibilitychange", onVisibility);
+  };
+
+  const connect = () => {
+    const controller = new AbortController();
+    current = controller;
+    void fetchEventSource(`${API_BASE}/conversations/${encodeURIComponent(conversationId)}/stream`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+      // Hidden tabs are handled here (onVisibility), not by fetchEventSource.
+      openWhenHidden: true,
+      async onopen(res) {
+        if (res.status === 401) {
+          handlers.onUnauthorized();
+          stop();
+          return;
+        }
+        if (res.status === 403 || res.status === 404) {
+          handlers.onRefused?.(res.status);
+          stop();
+          return;
+        }
+        // While Loomux restarts, the proxy in front of it answers with an
+        // error page: a failed connection, retried via onerror.
+        if (!res.ok) throw new Error(`stream: HTTP ${res.status}`);
+        failures = 0;
+        handlers.onConnected(true);
+      },
+      onmessage(msg) {
+        if (!msg.data) return;
+        if (msg.event === "task_update" || msg.event === "dispatch_update" || msg.event === "message_added") {
+          let data = JSON.parse(msg.data);
+          if (msg.event === "task_update" && data && typeof data === "object") data = normalizeTask(data);
+          handlers.onEvent({ type: msg.event, data } as StreamEvent);
+        }
+      },
+      onclose() {
+        handlers.onConnected(false);
+        // The server ending the stream (a restart, say) isn't the end of
+        // the conversation: throwing hands it to onerror, which retries.
+        throw new Error("stream: closed by server");
+      },
+      onerror(err) {
+        if (controller.signal.aborted) throw err;
+        handlers.onConnected(false);
+        // Returning a delay (rather than throwing) tells fetchEventSource
+        // to try again after it instead of giving up.
+        return streamRetryDelay(failures++, random);
+      },
+    });
+  };
+
+  function onVisibility() {
+    if (stopped.signal.aborted) return;
+    if (document.hidden) {
+      if (!current) return;
+      current.abort();
+      current = null;
       handlers.onConnected(false);
-      // The server ending the stream (a restart, say) isn't the end of
-      // the conversation: throwing hands it to onerror, which retries.
-      throw new Error("stream: closed by server");
-    },
-    onerror(err) {
-      handlers.onConnected(false);
-      // Returning (rather than throwing) tells fetchEventSource to keep
-      // retrying with its own backoff instead of giving up permanently.
-      if (controller.signal.aborted) throw err;
-    },
-  });
-  return () => controller.abort();
+    } else if (!current) {
+      connect();
+    }
+  }
+
+  document.addEventListener("visibilitychange", onVisibility);
+  if (!document.hidden) connect();
+  return stop;
 }

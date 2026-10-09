@@ -50,4 +50,16 @@ describe("useConversationStream", () => {
     });
     expect(result.current.connected).toBe(false);
   });
+
+  // 403/404 won't get better by retrying (LOOM-159): the page says the
+  // stream is off rather than reconnecting forever.
+  it.each([403, 404])("reports a %i as refused", async (status) => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const { result } = renderHook(() => useConversationStream("abc123"), { wrapper });
+    expect(result.current.refused).toBe(false);
+
+    await act(() => sse.options!.onopen(new Response("", { status })));
+    expect(result.current.refused).toBe(true);
+    expect(result.current.connected).toBe(false);
+  });
 });
