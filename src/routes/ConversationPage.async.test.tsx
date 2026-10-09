@@ -312,6 +312,66 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     expect(await screen.findByText(/loomux is restarting/i)).toBeInTheDocument();
   });
 
+  // LOOM-149: a send that fails without the server saying it wasn't taken.
+  describe("a failed send", () => {
+    const sendText = async (user: ReturnType<typeof userEvent.setup>, text: string) => {
+      const box = screen.getByPlaceholderText(/message the agent fleet/i);
+      await user.clear(box);
+      await user.type(box, text);
+      await user.click(screen.getByRole("button", { name: /send/i }));
+    };
+    const failed = () => screen.findByText(/wasn't sent/i);
+
+    it("on a 5xx gives the draft back and leaves no stuck message", async () => {
+      const user = userEvent.setup();
+      const server = fakeServer({ messages: [], tasks: [], dispatches: [] });
+      server.respondWith(() => jsonResponse({ error: "bad gateway" }, 502));
+      renderPage();
+
+      await sendText(user, "check disk");
+      expect(await failed()).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("check disk");
+      expect(within(screen.getByRole("log", { name: "Messages" })).queryByText("check disk")).not.toBeInTheDocument();
+    });
+
+    it("on a dropped connection gives the draft back and leaves no stuck message", async () => {
+      const user = userEvent.setup();
+      const server = fakeServer({ messages: [], tasks: [], dispatches: [] });
+      server.respondWith(() => {
+        throw new TypeError("Failed to fetch");
+      });
+      renderPage();
+
+      await sendText(user, "check disk");
+      expect(await failed()).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("check disk");
+      expect(within(screen.getByRole("log", { name: "Messages" })).queryByText("check disk")).not.toBeInTheDocument();
+    });
+
+    it("sent again reuses its idempotency key; a different message gets a new one", async () => {
+      const user = userEvent.setup();
+      const server = fakeServer({ messages: [], tasks: [], dispatches: [] });
+      server.respondWith(() => {
+        throw new TypeError("Failed to fetch");
+      });
+      renderPage();
+
+      await sendText(user, "check disk");
+      await failed();
+      await user.click(screen.getByRole("button", { name: /send/i }));
+      await waitFor(() => expect(server.posts).toHaveLength(2));
+      await waitFor(() => expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("check disk"));
+      await sendText(user, "check memory");
+      await waitFor(() => expect(server.posts).toHaveLength(3));
+
+      const keys = server.posts.map((p) => p.headers.get("Idempotency-Key"));
+      expect(keys[0]).toBeTruthy();
+      expect(keys[1]).toBe(keys[0]);
+      expect(keys[2]).toBeTruthy();
+      expect(keys[2]).not.toBe(keys[0]);
+    });
+  });
+
   it("cancels the turn in flight, which then shows as cancelled with Retry (LOOM-99)", async () => {
     const user = userEvent.setup();
     const conv = {
