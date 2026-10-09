@@ -133,4 +133,22 @@ describe("TodayPage", () => {
     expect(router.state.location.pathname).toBe("/today");
     expect(screen.queryByRole("link", { name: /Next day/ })).not.toBeInTheDocument();
   });
+
+  // LOOM-171: no rolling an impossible date over into a real one.
+  it.each([["2026-13-45"], ["2026-02-30"], ["2026-00-10"], ["2026-1-5"], ["yesterday"]])("refuses /today/%s", async (date) => {
+    serve();
+    const router = renderToday(`/today/${date}`);
+    const h1 = screen.getAllByRole("heading", { level: 1 });
+    expect(h1).toHaveLength(1);
+    expect(h1[0]).toHaveTextContent("Not a date");
+    await userEvent.click(screen.getByRole("link", { name: "Go to today" }));
+    expect(router.state.location.pathname).toBe("/today");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Today");
+  });
+
+  it("takes a leap day", () => {
+    serve();
+    renderToday("/today/2024-02-29");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/29 February|February 29/);
+  });
 });

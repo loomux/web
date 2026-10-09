@@ -143,7 +143,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     expect(server.posts[0].headers.get("Prefer")).toBe("respond-async");
     expect(server.posts[0].headers.get("Idempotency-Key")).toMatch(/^[0-9a-f-]{36}$/);
 
-    const card = await screen.findByRole("status", { name: /turn in progress/i });
+    const card = await screen.findByRole("region", { name: /turn in progress/i });
     await waitFor(() => expect(card).toHaveTextContent(/deciding where this goes/i));
     // The composer stays open for the next message; Send waits for the turn.
     expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
@@ -179,7 +179,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     act(() => stream.push({ dispatch_id: "d1", status: "succeeded", reply: "fixed it", updated_at: T0 }));
 
     expect(await screen.findByText("fixed it")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("region", { name: /turn in progress/i })).not.toBeInTheDocument());
     await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument());
   });
 
@@ -226,7 +226,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     });
     renderPage();
 
-    const card = await screen.findByRole("status", { name: /turn in progress/i });
+    const card = await screen.findByRole("region", { name: /turn in progress/i });
     await waitFor(() => expect(card).toHaveTextContent(/claude-code is working in my-app/i));
     expect(within(card).getByRole("button", { name: /show attach command/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
@@ -297,7 +297,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     await user.click(screen.getByRole("button", { name: /send/i }));
 
     expect(await screen.findByText(/still running in this conversation/i)).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: /turn in progress/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /turn in progress/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("second message");
   });
 
@@ -324,7 +324,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     const server = fakeServer(conv);
     renderPage();
 
-    const card = await screen.findByRole("status", { name: /turn in progress/i });
+    const card = await screen.findByRole("region", { name: /turn in progress/i });
     await user.click(within(card).getByRole("button", { name: /cancel/i }));
     await waitFor(() => expect(server.cancels).toEqual(["d1"]));
     expect(within(card).getByRole("button", { name: /cancelling/i })).toBeDisabled();
@@ -345,7 +345,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
 
     const cancelled = await screen.findByRole("region", { name: /you cancelled this turn/i });
     expect(within(cancelled).getByRole("button", { name: /retry/i })).toBeEnabled();
-    expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /turn in progress/i })).not.toBeInTheDocument();
   });
 
   it("says so when a cancel comes too late, and leaves the turn to finish", async () => {
@@ -358,7 +358,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     server.respondToCancelWith(() => jsonResponse({ error: "the dispatch isn't running" }, 409));
     renderPage();
 
-    const card = await screen.findByRole("status", { name: /turn in progress/i });
+    const card = await screen.findByRole("region", { name: /turn in progress/i });
     await user.click(within(card).getByRole("button", { name: /cancel/i }));
     expect(await screen.findByText(/already finished/i)).toBeInTheDocument();
   });
@@ -374,11 +374,11 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
     };
     fakeServer(conv);
     renderPage();
-    await screen.findByRole("status", { name: /turn in progress/i });
+    await screen.findByRole("region", { name: /turn in progress/i });
     conv.dispatches = [{ dispatch_id: "d1", conversation_id: "abc123", status: "succeeded", created_at: T0 }];
     conv.messages = [...conv.messages, { id: "m2", role: "assistant", content: "e2e answer: the sky is blue", task_id: "", created_at: T0 }];
     expect(await screen.findByText("e2e answer: the sky is blue", {}, { timeout: 7000 })).toBeInTheDocument();
-    expect(screen.queryByRole("status", { name: /turn in progress/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /turn in progress/i })).not.toBeInTheDocument();
   }, 10_000);
 
   // "Send when done" holds a message during a turn. The server reads the
@@ -396,7 +396,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
       const user = userEvent.setup();
       const server = fakeServer(conv);
       renderPage();
-      await screen.findByRole("status", { name: /turn in progress/i });
+      await screen.findByRole("region", { name: /turn in progress/i });
       await user.type(screen.getByPlaceholderText(/message the agent fleet/i), text);
       await user.click(screen.getByRole("button", { name: "Send when done" }));
       expect(screen.getByText(/sends when this turn finishes/i)).toBeInTheDocument();
@@ -465,7 +465,7 @@ describe("ConversationPage async dispatch (LOOM-81)", () => {
       const user = userEvent.setup();
       const server = fakeServer(conv);
       renderPage();
-      await screen.findByRole("status", { name: /turn in progress/i });
+      await screen.findByRole("region", { name: /turn in progress/i });
       await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "and then this");
       await user.click(screen.getByRole("button", { name: "Send when done" }));
       conv.dispatches = [
