@@ -533,6 +533,9 @@ export interface AttachTargetInfo {
   kind: string;
   host: string;
   user: string;
+  // 0: the SSH config's port. Absent from servers that don't send it;
+  // AttachCommand then takes it from the target list.
+  ssh_port?: number;
 }
 
 export interface AttachInfoResponse {
@@ -629,12 +632,12 @@ export const api = {
   // Deletes a workspace, its tasks and their tmux sessions (LOOM-70); the
   // files on its target are kept. 409 carries why it can't be deleted yet.
   deleteWorkspace: (token: string, id: string) =>
-    request<{ sessions_not_killed: string[] }>(`/workspaces/${id}`, token, { method: "DELETE" }),
+    request<{ sessions_not_killed: string[] }>(`/workspaces/${encodeURIComponent(id)}`, token, { method: "DELETE" }),
 
   // "idle" puts a failed or archived workspace back in service; "archived"
   // takes one out (LOOM-70).
   setWorkspaceStatus: (token: string, id: string, status: "idle" | "archived") =>
-    request<void>(`/workspaces/${id}`, token, { method: "PATCH", body: JSON.stringify({ status }) }),
+    request<void>(`/workspaces/${encodeURIComponent(id)}`, token, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   listConversations: async (token: string) => {
     const res = await request<{ conversations: ConversationSummary[] }>("/conversations", token);
@@ -650,18 +653,18 @@ export const api = {
       dispatches?: Dispatch[];
       // Absent from servers before LOOM-123.
       confirmations?: Confirmation[];
-    }>(`/conversations/${id}`, token);
+    }>(`/conversations/${encodeURIComponent(id)}`, token);
     return { ...res, tasks: (res.tasks ?? []).map(normalizeTask) };
   },
 
   getDispatch: (token: string, id: string) =>
-    request<Dispatch>(`/dispatches/${id}`, token),
+    request<Dispatch>(`/dispatches/${encodeURIComponent(id)}`, token),
 
   // Stops a turn in flight (LOOM-99): 202 once the job has been told; it
   // then ends failed with error_class "cancelled". 409 if it had already
   // ended.
   cancelDispatch: (token: string, id: string) =>
-    request<{ dispatch_id: string }>(`/dispatches/${id}/cancel`, token, { method: "POST" }),
+    request<{ dispatch_id: string }>(`/dispatches/${encodeURIComponent(id)}/cancel`, token, { method: "POST" }),
 
   // local_targets false: this server refuses targets on its own host
   // (server LOOM-183). Absent from older servers, which allow them.
@@ -675,14 +678,14 @@ export const api = {
     }),
 
   updateTarget: (token: string, id: string, body: TargetRequest) =>
-    request<Target>(`/targets/${id}`, token, {
+    request<Target>(`/targets/${encodeURIComponent(id)}`, token, {
       method: "PUT",
       body: JSON.stringify(body),
     }),
 
   // 204 No Content on success; 409 when a workspace still references it.
   deleteTarget: (token: string, id: string) =>
-    request<void>(`/targets/${id}`, token, { method: "DELETE" }),
+    request<void>(`/targets/${encodeURIComponent(id)}`, token, { method: "DELETE" }),
 
   listCredentials: (token: string) => request<{ credentials: Credential[] }>("/credentials", token),
 
@@ -691,13 +694,13 @@ export const api = {
 
   // 204 No Content: the value is replaced, name and scope kept.
   setCredentialValue: (token: string, id: string, value: string) =>
-    request<void>(`/credentials/${id}/value`, token, { method: "PUT", body: JSON.stringify({ value }) }),
+    request<void>(`/credentials/${encodeURIComponent(id)}/value`, token, { method: "PUT", body: JSON.stringify({ value }) }),
 
   deleteCredential: (token: string, id: string) =>
-    request<void>(`/credentials/${id}`, token, { method: "DELETE" }),
+    request<void>(`/credentials/${encodeURIComponent(id)}`, token, { method: "DELETE" }),
 
   getAttachInfo: (token: string, taskId: string) =>
-    request<AttachInfoResponse>(`/tasks/${taskId}/attach-info`, token),
+    request<AttachInfoResponse>(`/tasks/${encodeURIComponent(taskId)}/attach-info`, token),
 
   getTaskTranscript: (token: string, taskId: string, page: { limit?: number; before?: string } = {}) => {
     const q = new URLSearchParams();
@@ -821,7 +824,7 @@ export interface StreamHandlers {
 // ending the stream (a restart), is retried with backoff.
 export function openConversationStream(token: string, conversationId: string, handlers: StreamHandlers): () => void {
   const controller = new AbortController();
-  void fetchEventSource(`${API_BASE}/conversations/${conversationId}/stream`, {
+  void fetchEventSource(`${API_BASE}/conversations/${encodeURIComponent(conversationId)}/stream`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: controller.signal,
     openWhenHidden: true,
