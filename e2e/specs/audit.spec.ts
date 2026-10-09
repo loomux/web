@@ -75,7 +75,6 @@ test("hostile markdown in a reply renders inert", async ({ page, baseURL }) => {
 // F10: a dispatch that fails with something other than 409 (a 5xx or a
 // dropped connection) must give the text back and leave no stuck bubble.
 test("a failed send gives the draft back", async ({ page }) => {
-  test.fail(true, "LOOM-139 finding F10: the optimistic message sticks and the draft is lost");
   await login(page);
   await newConversation(page);
   await expect(page.getByPlaceholder("Message the agent fleet…")).toBeVisible();
