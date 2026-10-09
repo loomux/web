@@ -663,8 +663,10 @@ export const api = {
   cancelDispatch: (token: string, id: string) =>
     request<{ dispatch_id: string }>(`/dispatches/${id}/cancel`, token, { method: "POST" }),
 
+  // local_targets false: this server refuses targets on its own host
+  // (server LOOM-183). Absent from older servers, which allow them.
   listTargets: (token: string) =>
-    request<{ targets: Target[] }>("/targets", token),
+    request<{ targets: Target[]; local_targets?: boolean }>("/targets", token),
 
   createTarget: (token: string, body: TargetRequest) =>
     request<Target>("/targets", token, {
