@@ -68,7 +68,7 @@ export function InboxPage() {
     });
   }
 
-  const { data: list, dataUpdatedAt } = useQuery({ queryKey: ["conversations"], queryFn: apiClient.listConversations });
+  const { data: list, dataUpdatedAt, isError: listFailed } = useQuery({ queryKey: ["conversations"], queryFn: apiClient.listConversations });
   const { data: workspacesData } = useQuery({ queryKey: ["workspaces"], queryFn: apiClient.listWorkspaces });
   const workspaceName = useMemo(() => {
     const names = new Map((workspacesData?.workspaces ?? []).map((w) => [w.id, w.name] as const));
@@ -193,7 +193,9 @@ export function InboxPage() {
             <h2 id="working" className="mb-2 text-lg font-extrabold text-ink">
               Working
             </h2>
-            {working.length === 0 ? (
+            {listFailed && !list ? (
+              <p className="text-ink-3">Couldn't load this.</p>
+            ) : working.length === 0 ? (
               <p className="text-ink-3">Nothing is running.</p>
             ) : (
               <ul className="-mx-3 flex flex-col">
@@ -207,7 +209,9 @@ export function InboxPage() {
             <h2 id="done" className="mb-2 text-lg font-extrabold text-ink">
               Done today
             </h2>
-            {done.length === 0 ? (
+            {listFailed && !list ? (
+              <p className="text-ink-3">Couldn't load this.</p>
+            ) : done.length === 0 ? (
               <p className="text-ink-3">Nothing finished in the last day.</p>
             ) : (
               <ul className="-mx-3 flex flex-col">

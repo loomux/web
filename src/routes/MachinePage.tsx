@@ -67,6 +67,18 @@ export function MachinePage() {
   }
 
   if (targets.isLoading) return <p className="px-4 py-8 text-ink-3 md:px-8">Loading…</p>;
+  if (targets.isError && !targets.data) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
+        <p role="alert" className="rounded-card border border-bad/40 bg-bad-soft p-4 text-bad">
+          Couldn't load this machine. Check that Loomux is reachable, then reload.
+        </p>
+        <Link to="/machines" className="mt-2 inline-block font-bold text-accent">
+          Back to Machines
+        </Link>
+      </div>
+    );
+  }
   if (!target) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">

@@ -32,7 +32,8 @@ function MachineCard({
   onDeleted,
 }: {
   target: Target;
-  workspaces: WorkspaceSummary[];
+  // Undefined until the workspaces are read.
+  workspaces: WorkspaceSummary[] | undefined;
   onChanged: () => void;
   onDeleted: (name: string, left: number) => void;
 }) {
@@ -79,18 +80,20 @@ function MachineCard({
           </li>
         )}
       </ul>
-      <div>
-        <h3 className="text-sm font-bold text-ink-3">Workspaces</h3>
-        {workspaces.length === 0 ? (
-          <p className="py-2 text-sm text-ink-3">None yet. The router sets them up here when you ask for work on {target.name}.</p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {workspaces.map((ws) => (
-              <WorkspaceRow key={ws.id} ws={ws} onChanged={onChanged} onDeleted={onDeleted} />
-            ))}
-          </ul>
-        )}
-      </div>
+      {workspaces && (
+        <div>
+          <h3 className="text-sm font-bold text-ink-3">Workspaces</h3>
+          {workspaces.length === 0 ? (
+            <p className="py-2 text-sm text-ink-3">None yet. The router sets them up here when you ask for work on {target.name}.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {workspaces.map((ws) => (
+                <WorkspaceRow key={ws.id} ws={ws} onChanged={onChanged} onDeleted={onDeleted} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -154,6 +157,11 @@ export function MachinesPage() {
             Couldn't load your machines. Check that Loomux is reachable; this page retries on its own.
           </p>
         )}
+        {targets.data && workspaces.isError && !workspaces.data && (
+          <p role="alert" className="rounded-card border border-bad/40 bg-bad-soft p-4 text-bad">
+            Couldn't load the workspaces. Check that Loomux is reachable; this page retries on its own.
+          </p>
+        )}
         {targets.data && sorted.length === 0 && (
           <div className="rounded-card border border-dashed border-line px-5 py-8 text-center">
             <p className="font-bold text-ink">No machines yet.</p>
@@ -165,7 +173,7 @@ export function MachinesPage() {
           </div>
         )}
         {sorted.map((t) => (
-          <MachineCard key={t.id} target={t} workspaces={byTarget.get(t.id) ?? []} onChanged={refreshWorkspaces} onDeleted={onDeleted} />
+          <MachineCard key={t.id} target={t} workspaces={workspaces.data ? byTarget.get(t.id) ?? [] : undefined} onChanged={refreshWorkspaces} onDeleted={onDeleted} />
         ))}
         {orphans.length > 0 && (
           <section aria-label="Workspaces on an unknown machine" className="rounded-card border border-line bg-surface p-4">
