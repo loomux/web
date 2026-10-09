@@ -35,15 +35,18 @@ export function TurnCard({
     ...(routed ? [{ label: stage.label.replace(/…$/, ""), done: false, current: true }] : []),
   ];
 
+  // Only the stage is a live region (LOOM-150): the ticking time, the
+  // terminal and the rest would be read out again on every change.
   return (
     <section
-      role="status"
       aria-label="Turn in progress"
       className="flex flex-col gap-3 rounded-card border border-accent/40 bg-surface p-4 shadow-1"
     >
       <div className="flex flex-wrap items-center gap-3">
         <span aria-hidden="true" className="size-2.5 animate-pulse rounded-full bg-accent" />
-        <p className="flex-1 font-bold text-ink">{stage.label}</p>
+        <p role="status" className="flex-1 font-bold text-ink">
+          {stage.label}
+        </p>
         <span className="font-mono text-sm text-ink-2 tabular-nums">{formatElapsed(now - Date.parse(active.created_at))}</span>
         <Button size="sm" isDisabled={cancelling} isPending={cancelling} pendingLabel="Cancelling…" onPress={onCancel}>
           Cancel
