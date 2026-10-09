@@ -75,7 +75,6 @@ test("hostile markdown in a reply renders inert", async ({ page, baseURL }) => {
 // F10: a dispatch that fails with something other than 409 (a 5xx or a
 // dropped connection) must give the text back and leave no stuck bubble.
 test("a failed send gives the draft back", async ({ page }) => {
-  test.fail(true, "LOOM-139 finding F10: the optimistic message sticks and the draft is lost");
   await login(page);
   await newConversation(page);
   await expect(page.getByPlaceholder("Message the agent fleet…")).toBeVisible();
@@ -110,7 +109,6 @@ test("the conversation stream backs off while the server is unreachable", async 
 
 // F32: an impossible date in the URL is not a real day.
 test("an impossible date in /today/:date is refused", async ({ page }) => {
-  test.fail(true, "LOOM-139 finding F32: 2026-13-45 renders as February 14");
   await login(page);
   await page.goto("/today/2026-13-45");
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);

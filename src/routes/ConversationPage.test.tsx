@@ -637,7 +637,7 @@ describe("ConversationPage", () => {
     expect(bodies.map((b) => b.workspace_hint)).toEqual([undefined, undefined, undefined, undefined, "ws-project", "ws-project"]);
   });
 
-  it("keeps the optimistic user message visible and shows an error when dispatch fails", async () => {
+  it("gives the text back and drops the optimistic message when dispatch fails (LOOM-149)", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     const user = userEvent.setup();
 
@@ -667,8 +667,9 @@ describe("ConversationPage", () => {
     await user.type(screen.getByPlaceholderText(/message the agent fleet/i), "hello?");
     await user.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(await log().findByText("hello?")).toBeInTheDocument();
-    expect(await screen.findByText("dispatch failed")).toBeInTheDocument();
+    expect(await screen.findByText(/wasn't sent: dispatch failed/i)).toBeInTheDocument();
+    expect(log().queryByText("hello?")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/message the agent fleet/i)).toHaveValue("hello?");
   });
 
   it("uses a multiline composer where Shift+Enter inserts a newline and Enter sends", async () => {

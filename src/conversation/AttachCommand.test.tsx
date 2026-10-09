@@ -64,6 +64,27 @@ describe("AttachCommand", () => {
     expect(await screen.findByText(/copied/i)).toBeInTheDocument();
   });
 
+  it("takes the port from the target list when attach-info has none", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/tasks/task-1/attach-info") {
+        return jsonResponse({
+          task_id: "task-1",
+          tmux_session: "session-1",
+          attach_command: "tmux -L loomux attach -t session-1",
+          target: { id: "tgt-1", name: "devbox", kind: "ssh", host: "10.0.0.5", user: "admin" },
+        });
+      }
+      if (url === "/api/v1/targets") return jsonResponse({ targets: [{ id: "tgt-1", name: "devbox", kind: "ssh", ssh_port: 2222 }] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const user = userEvent.setup();
+    renderComponent();
+    await user.click(screen.getByRole("button", { name: /show attach command/i }));
+    expect(await screen.findByText("ssh -t -p 2222 admin@10.0.0.5 tmux -L loomux attach -t session-1")).toBeInTheDocument();
+  });
+
   it("says when it couldn't load the command, beside the button rather than inside it", async () => {
     localStorage.setItem("loomux.token", "tok-1");
     globalThis.fetch = vi.fn(async () => jsonResponse({ error: "no such task" }, 404));

@@ -27,14 +27,20 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "done", label: "Done" },
 ];
 
-function parseDay(param: string | undefined): Date {
-  const m = param?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) {
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    if (!Number.isNaN(d.getTime())) return d;
-  }
+function startOfToday() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+// No date: today. A date that isn't a real day (2026-13-45, 2026-02-30)
+// is null, not rolled over into another one.
+function parseDay(param: string | undefined): Date | null {
+  if (param === undefined) return startOfToday();
+  const m = param.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]) - 1, Number(m[3])];
+  const day = new Date(y, mo, d);
+  return day.getFullYear() === y && day.getMonth() === mo && day.getDate() === d ? day : null;
 }
 
 function dayParam(d: Date) {
@@ -46,13 +52,32 @@ function shiftDay(d: Date, days: number) {
 }
 
 export function TodayPage() {
+  const { date } = useParams<{ date?: string }>();
+  const day = useMemo(() => parseDay(date), [date]);
+  return day ? <DayPage day={day} /> : <NotADay />;
+}
+
+function NotADay() {
+  useDocumentTitle("Not a date");
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-8 md:py-8">
+      <h1 className="text-[1.75rem] font-extrabold text-ink">Not a date</h1>
+      <p className="mt-3 text-ink-2">
+        That address doesn't name a real day. Days look like 2026-10-09.{" "}
+        <Link to="/today" className="font-bold text-accent underline-offset-2 hover:underline">
+          Go to today
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+function DayPage({ day }: { day: Date }) {
   const apiClient = useApiClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const { date } = useParams<{ date?: string }>();
   const [params, setParams] = useSearchParams();
-  const day = useMemo(() => parseDay(date), [date]);
-  const today = parseDay(undefined);
+  const today = startOfToday();
   const isToday = day.getTime() === today.getTime();
   const { weave, now, isLoading, error } = useDayWeave(day);
 
