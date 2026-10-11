@@ -27,6 +27,20 @@ outputs; never edit an output by hand.
 python3 docs/brand/generate.py   # needs rsvg-convert (librsvg) and ImageMagick
 ```
 
+The SVGs and `brandPaths.ts` are plain text and come out the same
+anywhere. The PNG and .ico bytes depend on the rasteriser, so re-running
+with other versions can change them without any visible difference. The
+committed files were made with:
+
+| Tool | Version |
+|---|---|
+| rsvg-convert (librsvg) | 2.63.2 (cairo 1.18.6) |
+| ImageMagick | 7.1.2-32 Q16-HDRI |
+| Python | 3.14.7 (any 3.9+ works) |
+
+`src/ui/brandPaths.test.ts` runs `generate.py --paths` and fails if the
+committed `brandPaths.ts` doesn't match the generator.
+
 | File | Use |
 |---|---|
 | `docs/brand/wordmark-light.svg`, `-dark.svg` | The wordmark, 24 px tall and up |
@@ -36,9 +50,9 @@ python3 docs/brand/generate.py   # needs rsvg-convert (librsvg) and ImageMagick
 | `docs/brand/icon-maskable.svg` | Full-bleed tile, mark inside the 80% safe zone |
 | `docs/brand/icon-monochrome.svg` | White mark on transparent (Android themed icons, notifications) |
 | `docs/brand/banner-light.svg`, `-dark.svg` | README banner, 1280 × 320 |
-| `public/icon.svg` | SVG favicon (drawn with the heavier small-size stroke) |
+| `public/icon.svg` | SVG favicon, drawn with the heavier small-size stroke. Linked from `index.html` only, not from the manifest (the PWA uses the PNGs) |
 | `public/favicon.ico` | 16 and 32 px, for browsers that ask for `/favicon.ico` |
-| `public/apple-touch-icon.png` | 180 px |
+| `public/apple-touch-icon.png` | 180 px, opaque and full bleed: iOS rounds the corners itself and would fill transparent ones with black |
 | `public/icon-192.png`, `icon-512.png` | PWA icons |
 | `public/icon-maskable-512.png` | PWA maskable icon |
 | `public/icon-monochrome-512.png` | PWA monochrome icon |
