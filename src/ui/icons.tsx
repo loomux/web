@@ -62,13 +62,6 @@ const PATHS = {
   ),
   plus: <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />,
   diamond: <path d="M12 2.5l9.5 9.5-9.5 9.5L2.5 12z" fill="currentColor" />,
-  // The shuttle: Loomux's mark.
-  shuttle: (
-    <>
-      <path d="M1.8 12c3.4-4.4 7-6.2 10.2-6.2S18.8 7.6 22.2 12c-3.4 4.4-7 6.2-10.2 6.2S5.2 16.4 1.8 12z" fill="currentColor" />
-      <rect x="8.3" y="10.6" width="7.4" height="2.8" rx="1.4" fill="var(--surface)" />
-    </>
-  ),
 } as const;
 
 export type IconName = keyof typeof PATHS;
