@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/authContext";
 import { SIGNED_OUT_KEY } from "../lib/auth";
 import { ApiError } from "../lib/api";
-import { Icon } from "../ui/icons";
+import { BrandTile, Wordmark } from "../ui/Wordmark";
 
 function readSignedOut() {
   try {
@@ -62,11 +62,11 @@ export function LoginPage() {
   return (
     <main className="flex min-h-svh items-center justify-center bg-ground px-4 py-10">
       <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-5 rounded-card border border-line bg-surface p-6 shadow-2">
-        <div className="flex items-center gap-2.5 text-2xl font-extrabold text-ink">
-          <span className="grid size-10 place-items-center rounded-[11px] bg-ink text-surface">
-            <Icon name="shuttle" className="size-6" />
-          </span>
-          <h1>Loomux</h1>
+        <div className="flex items-center gap-3">
+          <BrandTile className="size-10" />
+          <h1>
+            <Wordmark height={30} />
+          </h1>
         </div>
         {signedOut && !error && (
           <p role="status" className="rounded-control bg-mari-soft px-3 py-2 text-sm text-mari-ink">

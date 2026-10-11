@@ -17,7 +17,7 @@ import { useApiClient } from "../lib/useApiClient";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
 import { stitchFromEvent, type Stitch } from "../lib/weave";
 import { Button } from "../ui/Button";
-import { Icon } from "../ui/icons";
+import { BrandTile } from "../ui/Wordmark";
 import { Sheet } from "../ui/Sheet";
 import { StatusShapeIcon } from "../ui/StatusMark";
 
@@ -83,9 +83,7 @@ function Bubble({ m }: { m: DisplayMessage }) {
   return (
     <div className={`flex gap-2.5 ${mine ? "justify-end" : ""}`}>
       {!mine && (
-        <span aria-hidden="true" className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-[9px] bg-ink text-surface">
-          <Icon name="shuttle" className="size-5" />
-        </span>
+        <BrandTile className="mt-0.5 size-8" />
       )}
       <div
         className={`min-w-0 max-w-[min(42rem,85%)] rounded-card px-4 py-3 ${

@@ -7,6 +7,7 @@ import { useAuth } from "../lib/authContext";
 import { useNeedsYouCount } from "../lib/useNeedsYouCount";
 import { useOnline } from "../lib/useOnline";
 import { CountBadge } from "../ui/CountBadge";
+import { BrandTile, Wordmark } from "../ui/Wordmark";
 import { Icon, type IconName } from "../ui/icons";
 import { Sheet } from "../ui/Sheet";
 
@@ -47,11 +48,9 @@ const barLink = ({ isActive }: { isActive: boolean }) =>
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 px-3 pb-4 text-lg font-extrabold text-ink">
-      <span className="grid size-8 place-items-center rounded-[9px] bg-ink text-surface">
-        <Icon name="shuttle" className="size-5" />
-      </span>
-      Loomux
+    <div className="flex items-center gap-2.5 px-3 pb-4">
+      <BrandTile />
+      <Wordmark height={22} />
     </div>
   );
 }

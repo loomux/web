@@ -36,6 +36,10 @@
   --mari-soft: light-dark(#fff3d8, #32260c);
   --mari-ink: light-dark(#5a3a00, #ffe1a6);
   --mari-on: #281a00;
+  /* The logo's golden weft (docs/brand.md): deep marigold on light, where
+     --mari is only 1.8:1 against the ground; marigold on dark. Brand only,
+     never a status. */
+  --mari-deep: light-dark(#b06f00, #f5b23a);
 
   --bad: light-dark(#bc372d, #ff8075);
   --bad-soft: light-dark(#fbe7e4, #3a1815);
