@@ -1,10 +1,20 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../lib/auth";
 import { TodayPage } from "./TodayPage";
+
+// The fixtures are minutes before "now" and the page draws the local
+// day: run just after midnight, some fell on yesterday and the test
+// failed (LOOM-189). Noon, whenever it runs. Only Date is faked, so
+// timers (react-query, user-event) stay real.
+vi.useFakeTimers({ toFake: ["Date"] });
+vi.setSystemTime(new Date(2026, 9, 12, 12, 0));
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const MIN = 60_000;
 const iso = (offset: number) => new Date(Date.now() + offset).toISOString();

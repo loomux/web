@@ -124,6 +124,54 @@ describe("RouterModel", () => {
     await waitFor(() => expect(deleted).toEqual([expect.stringMatching(/\/api\/v1\/settings\/router\/primary$/)]));
   });
 
+  // LOOM-189: the warning says to remove settings that don't decrypt, so
+  // the way to remove them is there, though the environment's are in use.
+  it("offers to remove saved settings that can't be decrypted", async () => {
+    const deleted: string[] = [];
+    const unreadable = settings();
+    unreadable.tiers[0] = { ...unreadable.tiers[0], source: "env", stored_unreadable: true };
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "DELETE") {
+        deleted.push(url);
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes("/audit")) return new Response(JSON.stringify({ entries: [] }), { status: 200 });
+      return new Response(JSON.stringify(unreadable), { status: 200 });
+    }) as typeof fetch;
+    renderIt();
+    expect(await screen.findByText(/can't be decrypted/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Remove saved settings" }));
+    expect(deleted).toEqual([]);
+    expect(screen.getByText("Remove the saved primary settings that can't be decrypted?")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Yes, remove them" }));
+    await waitFor(() => expect(deleted).toEqual([expect.stringMatching(/\/api\/v1\/settings\/router\/primary$/)]));
+  });
+
+  // LOOM-189: an empty base URL is Anthropic's own API, which the server
+  // fills in; clearing the field doesn't move the tier, so the saved key
+  // is kept without asking for it again.
+  it("keeps the saved key when an anthropic tier's base URL is cleared to its default", async () => {
+    const puts: Record<string, unknown>[] = [];
+    const anthropic = settings();
+    anthropic.tiers[0] = { ...anthropic.tiers[0], provider: "anthropic", base_url: "https://api.anthropic.com", model: "claude-small" };
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(anthropic.tiers[0]), { status: 200 });
+      }
+      if (String(input).includes("/audit")) return new Response(JSON.stringify({ entries: [] }), { status: 200 });
+      return new Response(JSON.stringify(anthropic), { status: 200 });
+    }) as typeof fetch;
+    renderIt();
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    await userEvent.clear(screen.getByLabelText("Base URL"));
+    expect(screen.queryByText(/Needed again/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toEqual({ provider: "anthropic", base_url: "", model: "claude-small" });
+  });
+
   it("hides itself on a server without router settings", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: "not available" }), { status: 404 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
