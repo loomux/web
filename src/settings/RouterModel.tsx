@@ -29,6 +29,16 @@ function message(err: unknown) {
   return err instanceof Error ? err.message : "Something went wrong.";
 }
 
+// What the server makes of an empty base URL: Anthropic's own API for an
+// anthropic tier (server llmrouter's defaultBaseURL), so clearing the
+// field doesn't move the tier anywhere.
+const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
+
+function effectiveBaseURL(provider: string, baseURL: string) {
+  const url = baseURL.trim();
+  return !url && provider === "anthropic" ? ANTHROPIC_BASE_URL : url;
+}
+
 function keyText(t: RouterTier) {
   if (!t.key_fingerprint) return "";
   return t.key_last4 ? `•••• ${t.key_last4} · ${t.key_fingerprint}` : t.key_fingerprint;
@@ -58,12 +68,13 @@ function EditForm({ tier, providers, onDone }: { tier: RouterTier; providers: st
   });
 
   // The saved key is only kept for the endpoint it was entered for.
-  const moved = stored && (provider !== tier.provider || baseURL.trim() !== (tier.base_url ?? ""));
+  const sameEndpoint = provider === tier.provider && effectiveBaseURL(provider, baseURL) === (tier.base_url ?? "");
+  const moved = stored && !sameEndpoint;
   const keyNeeded = !stored || moved;
   const anthropic = provider === "anthropic";
   // The tier's own endpoint can be listed with its saved key; another
   // needs the key being typed (LOOM-191).
-  const ownEndpoint = tier.source !== "none" && provider === tier.provider && baseURL.trim() === (tier.base_url ?? "");
+  const ownEndpoint = tier.source !== "none" && sameEndpoint;
   const models = useModelList(tier.tier, { provider, baseURL, key }, ownEndpoint);
 
 
@@ -236,15 +247,19 @@ function TierCard({ tier, providers }: { tier: RouterTier; providers: string[] }
               Test
             </Button>
           )}
-          {tier.source === "stored" && !confirm && (
+          {(tier.source === "stored" || tier.stored_unreadable) && !confirm && (
             <Button size="sm" variant="danger" onPress={() => setConfirm(true)}>
-              Use environment settings
+              {tier.stored_unreadable ? "Remove saved settings" : "Use environment settings"}
             </Button>
           )}
           {confirm && (
             <>
               <span className="text-sm text-ink">
-                {tier.env_configured ? `Go back to the environment's settings for the ${tier.tier} tier?` : "Turn escalation off?"}
+                {tier.stored_unreadable
+                  ? `Remove the saved ${tier.tier} settings that can't be decrypted?`
+                  : tier.env_configured
+                    ? `Go back to the environment's settings for the ${tier.tier} tier?`
+                    : "Turn escalation off?"}
               </span>
               <Button size="sm" variant="danger" isPending={clear.isPending} pendingLabel="Removing…" onPress={() => clear.mutate()}>
                 Yes, remove them

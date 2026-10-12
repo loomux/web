@@ -46,6 +46,7 @@ Needs Docker and Node. CI runs it as the `e2e` job.
 | `workspaces` | provision a workspace with an agent, a follow-up turn, then Archive, Reopen, Delete (with its confirmation) |
 | `audit` | LOOM-139: every main screen at phone size in both themes (no sideways scroll, axe clean); hostile markdown renders inert; and `test.fail()` cases pinning open bugs (failed send loses the draft, stream reconnect without backoff, impossible `/today/:date`); the app shell's CSP and framing headers (LOOM-143) |
 | `credentials` | add, replace and delete a credential; its value never appears |
+| `router` | Settings → Router model: test the environment's primary tier, save one over it (key never shown again), route a message with it, go back to the environment's |
 
 Not covered: **restart mid-turn**. The local target's tmux runs inside the
 loomuxd container, so restarting the server ends the agent too. It's covered
