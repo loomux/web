@@ -8,6 +8,8 @@
 //   propose <cmd> on <target>       → run_command (not an exact order: an offer)
 //   provision <name> on <target>: … → provision_workspace with claude-code
 //   in <workspace>: …               → use_workspace with claude-code
+//   which model?                    → answer_directly with the model asked
+//                                     for, so a test sees which tier routed
 //   anything else                   → answer_directly, echoing it
 //
 // Relay (condense_output) returns the agent's output as the reply, done.
@@ -28,8 +30,9 @@ function listed(prompt) {
   return out;
 }
 
-function decide(prompt) {
+function decide(prompt, model) {
   const message = messageOf(prompt);
+  if (message === "which model?") return { action: "answer_directly", direct_answer: `e2e model: ${model}` };
   const things = listed(prompt);
   const idOf = (name) => things.find((t) => t.name === name)?.id ?? "";
   let m;
@@ -83,7 +86,7 @@ const server = http.createServer((req, res) => {
     const user = request.messages.find((m) => m.role === "user")?.content ?? "";
     const text = typeof user === "string" ? user : user.map((p) => p.text ?? "").join("");
     const args =
-      tool === "condense_output" ? { reply: text.trim().split("\n").filter(Boolean).pop() ?? "", done: true } : decide(text);
+      tool === "condense_output" ? { reply: text.trim().split("\n").filter(Boolean).pop() ?? "", done: true } : decide(text, request.model);
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(completion(tool, args)));
   });
 });

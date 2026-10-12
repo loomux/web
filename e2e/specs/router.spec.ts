@@ -38,15 +38,22 @@ test("save a primary router tier, route with it, then go back to the environment
   expect(await page.content()).not.toContain(key);
   await expect(page.getByRole("list", { name: "Recent router changes" })).toContainText(/Primary: .*api_key.* changed/);
 
-  // The saved tier routes the next message, with no restart.
-  await newConversation(page);
-  await send(page, "answer: routed by the saved tier");
-  await expect(page.getByText("e2e answer: routed by the saved tier")).toBeVisible();
-  await turnDone(page);
+  // The saved tier routes the next message, with no restart: the stand-in
+  // router answers with the model it was asked for.
+  await askWhichModel(page, "e2e-stored");
 
   await page.getByRole("link", { name: "Settings" }).click();
   await primary.getByRole("button", { name: "Use environment settings" }).click();
   await primary.getByRole("button", { name: "Yes, remove them" }).click();
   await expect(primary).toContainText("From the environment");
   await expect(page.getByRole("list", { name: "Recent router changes" })).toContainText("Primary: removed");
+  // And the environment's routes again (run-server.sh's model, "e2e").
+  await askWhichModel(page, "e2e");
 });
+
+async function askWhichModel(page: Page, want: string) {
+  await newConversation(page);
+  await send(page, "which model?");
+  await expect(page.getByText(`e2e model: ${want}`, { exact: true })).toBeVisible();
+  await turnDone(page);
+}

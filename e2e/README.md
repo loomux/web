@@ -24,7 +24,7 @@ Needs Docker and Node. CI runs it as the `e2e` job.
   endpoint on 127.0.0.1:18091. It decides from keywords in the message:
   `answer: …`, `` run `cmd` on local `` (an exact order: runs at once),
   `propose cmd on local` (an offer), `provision <name> on local: …`,
-  `in <workspace>: …`. Relay returns the agent's output.
+  `in <workspace>: …`, `which model?` (answers with the model it was asked for). Relay returns the agent's output.
 - **A stand-in agent**: `bin/claude`, mounted over the image's PATH. It
   answers Loomux's version and auth probes and, for each turn, prints
   "e2e agent reply: <the prompt's last line>" and does what Claude Code's
@@ -46,7 +46,7 @@ Needs Docker and Node. CI runs it as the `e2e` job.
 | `workspaces` | provision a workspace with an agent, a follow-up turn, then Archive, Reopen, Delete (with its confirmation) |
 | `audit` | LOOM-139: every main screen at phone size in both themes (no sideways scroll, axe clean); hostile markdown renders inert; and `test.fail()` cases pinning open bugs (failed send loses the draft, stream reconnect without backoff, impossible `/today/:date`); the app shell's CSP and framing headers (LOOM-143) |
 | `credentials` | add, replace and delete a credential; its value never appears |
-| `router` | Settings → Router model: test the environment's primary tier, save one over it (key never shown again), route a message with it, go back to the environment's |
+| `router` | Settings → Router model: test the environment's primary tier, save one over it (key never shown again), route a message with it and see that model answer, go back to the environment's and see its model again |
 
 Not covered: **restart mid-turn**. The local target's tmux runs inside the
 loomuxd container, so restarting the server ends the agent too. It's covered
