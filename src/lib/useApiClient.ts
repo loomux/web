@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { api, ApiError, type CredentialRequest, type RouterModelsRequest, type RouterTierRequest, type TargetRequest } from "./api";
+import { api, ApiError, type CredentialRequest, type MachineRequest, type RouterModelsRequest, type RouterTierRequest, type TargetRequest } from "./api";
 import { useAuth } from "./authContext";
 
 // Binds every token-requiring `api` call to the current session token and
@@ -46,6 +46,21 @@ export function useApiClient() {
       updateTarget: (id: string, body: TargetRequest) =>
         guarded((t) => api.updateTarget(t, id, body)),
       deleteTarget: (id: string) => guarded((t) => api.deleteTarget(t, id)),
+      getTarget: (id: string) => guarded((t) => api.getTarget(t, id)),
+      createMachine: (body: MachineRequest) => guarded((t) => api.createMachine(t, body)),
+      startMachine: (id: string) => guarded((t) => api.startMachine(t, id)),
+      stopMachine: (id: string) => guarded((t) => api.stopMachine(t, id)),
+      recreateMachine: (id: string, size?: string) => guarded((t) => api.recreateMachine(t, id, size)),
+      listAvailablePlugins: () => guarded((t) => api.listAvailablePlugins(t)),
+      listPlugins: () => guarded((t) => api.listPlugins(t)),
+      getPlugin: (id: string) => guarded((t) => api.getPlugin(t, id)),
+      installPlugin: (body: { plugin: string; source: string; label: string; config: Record<string, unknown> }) =>
+        guarded((t) => api.installPlugin(t, body)),
+      setPluginConfig: (id: string, config: Record<string, unknown>) => guarded((t) => api.setPluginConfig(t, id, config)),
+      pluginAction: (id: string, action: "enable" | "disable" | "upgrade" | "check") =>
+        guarded((t) => api.pluginAction(t, id, action)),
+      uninstallPlugin: (id: string, targets?: "destroy" | "keep") => guarded((t) => api.uninstallPlugin(t, id, targets)),
+      describeMachines: (id: string) => guarded((t) => api.describeMachines(t, id)),
       listCredentials: () => guarded((t) => api.listCredentials(t)),
       createCredential: (body: CredentialRequest) => guarded((t) => api.createCredential(t, body)),
       setCredentialValue: (id: string, value: string) => guarded((t) => api.setCredentialValue(t, id, value)),

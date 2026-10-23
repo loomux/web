@@ -17,6 +17,8 @@ const ConversationRoute = lazy(() => import("./routes/ConversationPage").then((m
 const MachinesPage = lazy(() => import("./routes/MachinesPage").then((m) => ({ default: m.MachinesPage })));
 const MachinePage = lazy(() => import("./routes/MachinePage").then((m) => ({ default: m.MachinePage })));
 const MachineNewPage = lazy(() => import("./routes/MachineNewPage").then((m) => ({ default: m.MachineNewPage })));
+const MachineCreatePage = lazy(() => import("./routes/MachineCreatePage").then((m) => ({ default: m.MachineCreatePage })));
+const PluginsPage = lazy(() => import("./routes/PluginsPage").then((m) => ({ default: m.PluginsPage })));
 const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import("./routes/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const VaultPage = lazy(() => import("./routes/VaultPage").then((m) => ({ default: m.VaultPage })));
@@ -48,9 +50,11 @@ export function App() {
               <Route path="/conversations/:id" element={<ConversationRoute />} />
               <Route path="/machines" element={<MachinesPage />} />
               <Route path="/machines/new" element={<MachineNewPage />} />
+              <Route path="/machines/create" element={<MachineCreatePage />} />
               <Route path="/machines/:id" element={<MachinePage />} />
               <Route path="/vault" element={<VaultPage />} />
               <Route path="/settings" element={<RouteTitle title="Settings"><SettingsPage /></RouteTitle>} />
+              <Route path="/settings/plugins" element={<PluginsPage />} />
 
               {/* Old addresses keep working. */}
               <Route path="/conversations" element={<KeepQueryRedirect to="/today" hash="#all" />} />

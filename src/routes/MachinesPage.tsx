@@ -6,7 +6,9 @@ import { relayInfo } from "../lib/status";
 import { compareTargets, defaultRelay, describePolicy, formatDestination } from "../lib/targets";
 import { useApiClient } from "../lib/useApiClient";
 import { useDocumentTitle } from "../lib/useDocumentTitle";
+import { CreatedBadge } from "../machines/CreatedMachine";
 import { HealthSummary } from "../machines/Health";
+import { canCreateMachines } from "../lib/plugins";
 import { WorkspaceRow } from "../machines/WorkspaceRow";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/icons";
@@ -55,19 +57,20 @@ function MachineCard({
           Settings and checks
         </Link>
       </header>
+      {target.plugin && <CreatedBadge plugin={target.plugin} />}
       <HealthSummary target={target} />
       <ul className="flex flex-col gap-1 text-sm text-ink-2">
         <li>{policy || "Anything may run here, without asking first."}</li>
         <li>
           The router models see: <b className="text-ink">{relay}</b>
         </li>
-        {remote && (
+        {remote && !target.plugin && (
           <li className="flex items-center gap-1.5">
             <StatusShapeIcon shape={pinned ? "check" : "diamond-open"} tone={pinned ? "good" : "mari"} />
             {pinned ? "Host key pinned" : "Host key not pinned"}
           </li>
         )}
-        {remote && target.ssh_mode === "managed" && !target.ready && target.next_step && (
+        {remote && !target.plugin && target.ssh_mode === "managed" && !target.ready && target.next_step && (
           <li className="flex items-center gap-1.5">
             <StatusShapeIcon shape="diamond" tone="mari" />
             {NEXT_STEP[target.next_step] ?? "Not ready yet"}
@@ -105,6 +108,10 @@ export function MachinesPage() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<string | null>(null);
   const targets = useQuery({ queryKey: ["targets"], queryFn: apiClient.listTargets, refetchInterval: 15_000 });
+  // Create a machine, when a plugin instance can (LOOM-178); a server
+  // without plugins answers 404 and the button stays away.
+  const plugins = useQuery({ queryKey: ["plugins"], queryFn: apiClient.listPlugins, retry: false });
+  const canCreate = (plugins.data?.plugins ?? []).some(canCreateMachines);
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: apiClient.listWorkspaces, refetchInterval: 15_000 });
 
   const refreshWorkspaces = () => void queryClient.invalidateQueries({ queryKey: ["workspaces"] });
@@ -135,10 +142,18 @@ export function MachinesPage() {
           <h1 className="text-[1.75rem] font-extrabold text-ink">Machines</h1>
           <p className="text-ink-2">Where your agents run, and what they may do there.</p>
         </div>
-        <Button variant="primary" onPress={() => navigate("/machines/new")}>
-          <Icon name="plus" />
-          Register machine
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {canCreate && (
+            <Button variant="primary" onPress={() => navigate("/machines/create")}>
+              <Icon name="plus" />
+              Create machine
+            </Button>
+          )}
+          <Button variant={canCreate ? "secondary" : "primary"} onPress={() => navigate("/machines/new")}>
+            {!canCreate && <Icon name="plus" />}
+            Register machine
+          </Button>
+        </div>
       </header>
 
       {notice && (
