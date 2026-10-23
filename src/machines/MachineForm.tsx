@@ -41,6 +41,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// A machine a plugin made (LOOM-178): only its name is ours to change;
+// its address, user, port and key are the plugin's.
+export function NameField({ values, onChange }: { values: TargetFormValues; onChange: (patch: Partial<TargetFormValues>) => void }) {
+  const id = useId();
+  return (
+    <Section title="Name">
+      <Field id={`${id}-name`} label="Name" hint="Its address and key come from the plugin that made it.">
+        <input id={`${id}-name`} className={INPUT} value={values.name} onChange={(e) => onChange({ name: e.target.value })} required />
+      </Field>
+    </Section>
+  );
+}
+
 export function ConnectionFields({
   values,
   onChange,

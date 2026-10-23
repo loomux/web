@@ -66,6 +66,19 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+// A plugin call: a 422 whose body is the plugin (install or configure
+// saved it, but its check failed) becomes a PluginCheckError carrying it;
+// any other failure is the usual ApiError.
+async function pluginRequest(path: string, token: string | null, init?: RequestInit): Promise<Plugin> {
+  const res = await send(path, token, init);
+  if (res.ok) return (await res.json()) as Plugin;
+  if (res.status === 422) {
+    const body = (await res.clone().json().catch(() => null)) as Partial<Plugin> | null;
+    if (body && typeof body.id === "string" && typeof body.status === "string") throw new PluginCheckError(body as Plugin);
+  }
+  throw await apiError(res);
+}
+
 // The ApiError a failed response stands for: its {error} message, or the
 // status text when the body isn't one.
 async function apiError(res: Response): Promise<ApiError> {
@@ -259,8 +272,129 @@ export interface Target {
   pinned_host_keys?: HostKey[];
   // The last health probe, null before the first.
   health?: TargetHealth | null;
+  // A machine a plugin made (LOOM-178): the plugin instance and the
+  // machine's state; null for a registered host. Absent from older
+  // servers.
+  plugin?: TargetPlugin | null;
   created_at: string;
   updated_at: string;
+}
+
+// A target's plugin object (server api/machines.go targetPluginResponse).
+export interface TargetPlugin {
+  // The owning plugin instance; id is "" once it was uninstalled keeping
+  // its machines (status "detached").
+  id: string;
+  name: string;
+  label: string;
+  version: string;
+  environment_id: string;
+  // creating, starting, running, stopped, recreating, destroying, lost,
+  // error or detached; status_reason says why for error, lost, detached,
+  // and what is happening while one comes up ("pulling the image…").
+  status: string;
+  status_reason: string;
+  // While the machine comes up: "image_pull" when its image is being
+  // pulled (LOOM-203). Proposed for the API; today's servers only say so
+  // in status_reason, which the page reads when this is absent.
+  progress?: string;
+  size: string;
+  persistent: boolean;
+  egress: string;
+  image: string;
+  image_digest: string;
+  update_available: boolean;
+  warnings: { code: string; message: string }[];
+  created_at: string;
+}
+
+// POST /targets' plugin object: make the target as a machine of that
+// plugin instance (LOOM-178).
+export interface TargetPluginRequest {
+  id: string;
+  size?: string;
+  persistent?: boolean;
+  egress?: string;
+}
+
+// An installed plugin instance (server api/plugins.go pluginResponse).
+export interface Plugin {
+  id: string;
+  name: string;
+  label: string;
+  version: string;
+  available_version: string;
+  protocol: string;
+  source: string;
+  path: string;
+  // bundled, unsigned, signed:<identity> or pinned:sha256:<hex> (LOOM-218).
+  trust: string;
+  // installing, installed, disabled or error.
+  status: string;
+  status_reason: string;
+  enabled: boolean;
+  capabilities: string[];
+  // Every setting; a secret shows as {set: boolean}, never its value.
+  config: Record<string, unknown>;
+  secrets_unreadable: boolean;
+  check: PluginCheck | null;
+  // The running instance's state (running, restarting, failed, stopped),
+  // "" when none runs.
+  instance: string;
+  instance_reason: string;
+  machines: number;
+  installed_at: string;
+  updated_at: string;
+}
+
+export interface PluginCheck {
+  ok: boolean;
+  problems: { code: string; message: string; severity: string }[];
+}
+
+// One catalog entry (server availablePluginResponse).
+export interface AvailablePlugin {
+  name: string;
+  title: string;
+  version: string;
+  protocol: string;
+  vendor: string;
+  homepage: string;
+  description: string;
+  min_host_version: string;
+  source: string;
+  path: string;
+  trust: string;
+  // none (a subprocess of loomuxd's own user) or container (a sidecar).
+  isolation: string;
+  capabilities: string[];
+  permissions: { scope: string; detail: string }[];
+  config_schema: unknown;
+  installed: string[];
+  incompatible?: string;
+  incompatible_warning?: string;
+}
+
+// What a plugin instance offers for new machines (its targets.describe).
+export interface TargetsInfo {
+  sizes: { name: string; cpu: string; memory: string; disk: string }[];
+  persistent_default: boolean;
+  egress_options: string[];
+  image: string;
+  max_environments: number;
+  environments: number;
+}
+
+// A 422 from install or configure: the instance was saved but can't work
+// (its check failed). The plugin as it is comes with it, so the page can
+// show the problems and the configuration can be fixed.
+export class PluginCheckError extends ApiError {
+  plugin: Plugin;
+
+  constructor(plugin: Plugin) {
+    super(422, plugin.status_reason || "The plugin was saved, but its check failed.");
+    this.plugin = plugin;
+  }
 }
 
 export interface HostKey {
@@ -545,7 +679,18 @@ export interface TargetRequest {
   ssh_key_id?: string;
   generate_ssh_key?: boolean;
   ssh_proxy?: string;
+  // Ask a plugin for the machine instead (create only, LOOM-178): host,
+  // user, ssh_port, ssh_key_id, generate_ssh_key, ssh_proxy and
+  // workspace_root must then be left out.
+  plugin?: TargetPluginRequest;
 }
+
+// What POST /targets takes for a created machine: the name, the policy
+// fields and the plugin object; never the connection fields.
+export type MachineRequest = Omit<
+  TargetRequest,
+  "kind" | "host" | "user" | "workspace_root" | "ssh_port" | "ssh_key_id" | "generate_ssh_key" | "ssh_proxy"
+> & { plugin: TargetPluginRequest };
 
 export interface AttachTargetInfo {
   id: string;
@@ -704,8 +849,56 @@ export const api = {
     }),
 
   // 204 No Content on success; 409 when a workspace still references it.
+  // For a created machine it cascades: its workspaces, credentials and the
+  // machine itself with its data.
   deleteTarget: (token: string, id: string) =>
     request<void>(`/targets/${encodeURIComponent(id)}`, token, { method: "DELETE" }),
+
+  getTarget: (token: string, id: string) => request<Target>(`/targets/${encodeURIComponent(id)}`, token),
+
+  // A machine a plugin makes (LOOM-178): 201 with the target, its
+  // plugin.status "creating"; it comes up in the background.
+  createMachine: (token: string, body: MachineRequest) =>
+    request<Target>("/targets", token, { method: "POST", body: JSON.stringify(body) }),
+
+  // 202 with the target; 409 while a task runs there, for a stop of a
+  // machine that doesn't keep its data, or when its plugin isn't running.
+  startMachine: (token: string, id: string) =>
+    request<Target>(`/targets/${encodeURIComponent(id)}/start`, token, { method: "POST" }),
+  stopMachine: (token: string, id: string) =>
+    request<Target>(`/targets/${encodeURIComponent(id)}/stop`, token, { method: "POST" }),
+  recreateMachine: (token: string, id: string, size?: string) =>
+    request<Target>(`/targets/${encodeURIComponent(id)}/recreate`, token, {
+      method: "POST",
+      body: JSON.stringify(size ? { size } : {}),
+    }),
+
+  // Plugins (LOOM-178). The routes are 404 on a server built without them.
+  listAvailablePlugins: (token: string) => request<{ plugins: AvailablePlugin[] }>("/plugins/available", token),
+  listPlugins: (token: string) => request<{ plugins: Plugin[] }>("/plugins", token),
+  getPlugin: (token: string, id: string) => request<Plugin>(`/plugins/${encodeURIComponent(id)}`, token),
+  installPlugin: (token: string, body: { plugin: string; source: string; label: string; config: Record<string, unknown> }) =>
+    pluginRequest("/plugins", token, { method: "POST", body: JSON.stringify(body) }),
+  // A secret left out keeps its value; "" clears it.
+  setPluginConfig: (token: string, id: string, config: Record<string, unknown>) =>
+    pluginRequest(`/plugins/${encodeURIComponent(id)}/config`, token, { method: "PUT", body: JSON.stringify({ config }) }),
+  pluginAction: (token: string, id: string, action: "enable" | "disable" | "upgrade" | "check") =>
+    pluginRequest(`/plugins/${encodeURIComponent(id)}/${action}`, token, { method: "POST" }),
+  // 409 when it owns machines and targets is absent: then "destroy" (the
+  // machines and their data go) or "keep" (they stay, as plain hosts).
+  uninstallPlugin: (token: string, id: string, targets?: "destroy" | "keep") =>
+    request<void>(`/plugins/${encodeURIComponent(id)}${targets ? `?targets=${targets}` : ""}`, token, { method: "DELETE" }),
+  // What an instance offers for a new machine (its targets.describe).
+  // Proposed server route; null when the server doesn't have it, so the
+  // create form falls back to what the instance's configuration says.
+  describeMachines: async (token: string, id: string): Promise<TargetsInfo | null> => {
+    try {
+      return await request<TargetsInfo>(`/plugins/${encodeURIComponent(id)}/targets`, token);
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 405 || err.status === 501)) return null;
+      throw err;
+    }
+  },
 
   listCredentials: (token: string) => request<{ credentials: Credential[] }>("/credentials", token),
 

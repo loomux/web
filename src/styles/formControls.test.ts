@@ -39,6 +39,8 @@ function controlClasses() {
   const found: { where: string; classes: string }[] = [];
   for (const [file, text] of Object.entries(scripts)) {
     for (const m of text.matchAll(/<(input|select|textarea)\b/g)) {
+      // A native radio or checkbox draws its own box; the rule is for fields.
+      if (/^<input\b[^>]*\btype="(radio|checkbox)"/.test(text.slice(m.index))) continue;
       const cls = text.slice(m.index).match(/className=(?:"([^"]*)"|\{`([^`]*)`\}|\{([A-Z_]+)\})/);
       if (!cls) continue;
       const named = cls[3] && text.match(new RegExp(`const ${cls[3]} = "([^"]*)"`))?.[1];

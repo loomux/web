@@ -193,6 +193,19 @@ describe("api", () => {
     ["testRouterTier", () => api.testRouterTier("t", "primary"), "POST", "/api/v1/settings/router/primary/test"],
     ["listRouterModels", () => api.listRouterModels("t", "primary", {}), "POST", "/api/v1/settings/router/primary/models"],
     ["listRouterSettingsChanges", () => api.listRouterSettingsChanges("t"), "GET", "/api/v1/settings/router/audit?limit=20"],
+    ["getTarget", () => api.getTarget("t", "x1"), "GET", "/api/v1/targets/x1"],
+    ["createMachine", () => api.createMachine("t", { name: "m", plugin: { id: "p1" } }), "POST", "/api/v1/targets"],
+    ["startMachine", () => api.startMachine("t", "x1"), "POST", "/api/v1/targets/x1/start"],
+    ["stopMachine", () => api.stopMachine("t", "x1"), "POST", "/api/v1/targets/x1/stop"],
+    ["recreateMachine", () => api.recreateMachine("t", "x1"), "POST", "/api/v1/targets/x1/recreate"],
+    ["listAvailablePlugins", () => api.listAvailablePlugins("t"), "GET", "/api/v1/plugins/available"],
+    ["listPlugins", () => api.listPlugins("t"), "GET", "/api/v1/plugins"],
+    ["getPlugin", () => api.getPlugin("t", "p1"), "GET", "/api/v1/plugins/p1"],
+    ["installPlugin", () => api.installPlugin("t", { plugin: "kubernetes", source: "socket", label: "k", config: {} }), "POST", "/api/v1/plugins"],
+    ["setPluginConfig", () => api.setPluginConfig("t", "p1", {}), "PUT", "/api/v1/plugins/p1/config"],
+    ["pluginAction", () => api.pluginAction("t", "p1", "check"), "POST", "/api/v1/plugins/p1/check"],
+    ["uninstallPlugin", () => api.uninstallPlugin("t", "p1", "keep"), "DELETE", "/api/v1/plugins/p1?targets=keep"],
+    ["describeMachines", () => api.describeMachines("t", "p1"), "GET", "/api/v1/plugins/p1/targets"],
   ] as const)("%s calls %s %s", async (_name, call, method, path) => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     await call();
@@ -229,6 +242,14 @@ describe("api", () => {
     ["setRouterTier", () => api.setRouterTier("t", odd, { base_url: "u", model: "m" }), `/api/v1/settings/router/${enc}`],
     ["clearRouterTier", () => api.clearRouterTier("t", odd), `/api/v1/settings/router/${enc}`],
     ["testRouterTier", () => api.testRouterTier("t", odd), `/api/v1/settings/router/${enc}/test`],
+    ["getTarget", () => api.getTarget("t", odd), `/api/v1/targets/${enc}`],
+    ["startMachine", () => api.startMachine("t", odd), `/api/v1/targets/${enc}/start`],
+    ["recreateMachine", () => api.recreateMachine("t", odd), `/api/v1/targets/${enc}/recreate`],
+    ["getPlugin", () => api.getPlugin("t", odd), `/api/v1/plugins/${enc}`],
+    ["setPluginConfig", () => api.setPluginConfig("t", odd, {}), `/api/v1/plugins/${enc}/config`],
+    ["pluginAction", () => api.pluginAction("t", odd, "enable"), `/api/v1/plugins/${enc}/enable`],
+    ["uninstallPlugin", () => api.uninstallPlugin("t", odd), `/api/v1/plugins/${enc}`],
+    ["describeMachines", () => api.describeMachines("t", odd), `/api/v1/plugins/${enc}/targets`],
   ] as const)("%s encodes the id", async (_name, call, path) => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     await call();
@@ -257,6 +278,8 @@ describe("api", () => {
         "probeTarget", "listSessions", "deleteSession", "getDeepHealth", "getTaskPane",
         "listSSHKeys", "createSSHKey", "deleteSSHKey", "migrateSSH",
         "getRouterSettings", "setRouterTier", "clearRouterTier", "testRouterTier", "listRouterSettingsChanges", "listRouterModels",
+        "getTarget", "createMachine", "startMachine", "stopMachine", "recreateMachine", "listAvailablePlugins", "listPlugins", "getPlugin",
+        "installPlugin", "setPluginConfig", "pluginAction", "uninstallPlugin", "describeMachines",
       ].sort(),
     );
   });

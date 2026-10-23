@@ -1,5 +1,6 @@
 import { WebClientUpdate } from "../components/WebClientUpdate";
 import { Devices } from "../settings/Devices";
+import { PluginsLink } from "../settings/PluginsLink";
 import { RouterModel } from "../settings/RouterModel";
 import { useThemePreference, type ThemePreference } from "../lib/theme";
 import { Segmented } from "../ui/Segmented";
@@ -10,8 +11,8 @@ const THEMES: { key: ThemePreference; label: string }[] = [
   { key: "dark", label: "Dark" },
 ];
 
-// Settings (build-plan §4): appearance, the router model (LOOM-185), the
-// devices signed in, and the web client's version.
+// Settings (build-plan §4): appearance, the router model (LOOM-185),
+// plugins (LOOM-178), the devices signed in, and the web client's version.
 export function SettingsPage() {
   const [theme, setTheme] = useThemePreference();
   return (
@@ -27,6 +28,10 @@ export function SettingsPage() {
       {/* Hides itself on servers without router settings. */}
       <div className="mt-6">
         <RouterModel />
+      </div>
+      {/* Hides itself on servers without plugins. */}
+      <div className="mt-6">
+        <PluginsLink />
       </div>
       <div className="mt-6">
         <Devices />
