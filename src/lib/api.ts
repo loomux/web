@@ -168,6 +168,9 @@ export interface Confirmation {
   workspace?: string;
   git_remote?: string;
   status: "pending" | "approved" | "denied" | "expired";
+  // Why a yes was refused afterwards (status denied, LOOM-216): the offer
+  // changed, the name was taken, the quota was reached. Absent otherwise.
+  status_reason?: string;
   created_at: string;
   expires_at: string;
   resolved_at?: string;
