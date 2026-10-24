@@ -378,7 +378,7 @@ describe("ConversationPage", () => {
   // LOOM-123: an offer awaiting a yes is a card under the reply that made
   // it; Approve sends "yes" naming the offer, and once answered the card
   // says how.
-  function offerHistory(status: string) {
+  function offerHistory(status: string, statusReason?: string) {
     return {
       conversation_id: "abc123",
       tasks: [],
@@ -395,6 +395,7 @@ describe("ConversationPage", () => {
           target_name: "devbox",
           command: "df -h",
           status,
+          ...(statusReason ? { status_reason: statusReason } : {}),
           created_at: "2026-10-05T09:00:01Z",
           // Still open: the card goes inert at expires_at.
           expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
@@ -449,6 +450,26 @@ describe("ConversationPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/Expired: nothing was run/);
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
+
+  // LOOM-216: a yes refused afterwards is denied with the reason, which
+  // the card shows; a plain no keeps saying nothing was run.
+  for (const [reason, want] of [
+    ["a target named builds was registered meanwhile.", "Denied: a target named builds was registered meanwhile."],
+    [undefined, "Denied: nothing was run"],
+  ] as const) {
+    it(`shows a denied offer ${reason ? "with its reason" : "without a reason"}`, async () => {
+      localStorage.setItem("loomux.token", "tok-1");
+      globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/v1/conversations/abc123") return jsonResponse(offerHistory("denied", reason));
+        if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+        throw new Error(`unexpected fetch: ${url}`);
+      });
+      renderPage();
+      expect(await screen.findByRole("status")).toHaveTextContent(want);
+      expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
+    });
+  }
 
   // LOOM-130: a new message (or the progress card) brings the view to the
   // end of the conversation instead of leaving it where it was.
