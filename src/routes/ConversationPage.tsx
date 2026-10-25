@@ -66,13 +66,15 @@ function waitingOnUser(history: ConversationDetail, now: number): boolean {
 function ResolvedOffer({ c }: { c: Confirmation }) {
   const status = c.status;
   const action = offerAction(c);
+  // A yes refused afterwards says why rather than only that nothing ran.
+  const label = status === "denied" && c.status_reason ? `Denied: ${c.status_reason}` : RESOLVED[status];
   return (
     <section aria-label="Confirmation" className="flex flex-col gap-2 rounded-card border border-line bg-surface-2 p-4">
       <p className="font-bold text-ink-2">{offerHeading(c)}</p>
       {action && <code className="rounded-md bg-sunken px-2 py-1 font-mono text-sm break-all text-ink-2">{action}</code>}
       <p role="status" className="flex items-center gap-2 font-bold text-ink">
         <StatusShapeIcon shape={status === "approved" ? "check" : "cross"} tone={status === "approved" ? "good" : "muted"} />
-        {RESOLVED[status]}
+        {label}
       </p>
     </section>
   );
