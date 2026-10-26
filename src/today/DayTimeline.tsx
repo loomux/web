@@ -21,6 +21,7 @@ const WEIGHT: Record<Stitch["kind"], number> = {
   agent: 3,
   command: 3,
   provision: 2,
+  machine: 2,
   relay: 2,
   routed: 1,
 };

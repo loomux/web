@@ -9,5 +9,6 @@ export const LEGEND: { kind: GlyphKind; label: string }[] = [
   { kind: "offer", label: "Offer" },
   { kind: "answered", label: "Offer answered" },
   { kind: "provision", label: "Workspace set up" },
+  { kind: "machine", label: "New machine" },
   { kind: "failed", label: "Failed" },
 ];

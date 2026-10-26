@@ -11,6 +11,7 @@ import type { Decision } from "./needsYou";
 export type StitchKind =
   | "routed" // the router decided where a turn goes
   | "provision" // a workspace was set up
+  | "machine" // a machine was made from chat
   | "agent" // an agent's turn (a span)
   | "command" // a command ran (a span)
   | "offer" // the router offered something and waited
@@ -95,11 +96,20 @@ export function stitchFromEvent(conversationId: string, e: ConversationEvent, la
   const at = Date.parse(e.created_at);
   const base = { id: e.id, conversationId, dispatchId: e.dispatch_id, laneId: laneOf(e), start: at, end: at };
   const workspace = names.workspace(e.workspace_id);
+  const machineStitch = (): Stitch => {
+    const name = names.target(e.target_id);
+    return { ...base, kind: "machine", label: name ? `New machine ${name}` : "New machine" };
+  };
   switch (e.kind) {
     case "decision":
       return { ...base, kind: "routed", label: e.target_id ? `Routed to ${names.target(e.target_id) ?? "a machine"}` : "Answered directly" };
     case "provision":
+      // Before LOOM-247 a machine made from chat was logged as a
+      // provision naming no workspace; a workspace's always names one.
+      if (!e.workspace_id && e.target_id) return machineStitch();
       return { ...base, kind: "provision", label: `Set up ${workspace ?? "a workspace"}` };
+    case "machine":
+      return machineStitch();
     case "agent_turn":
       return { ...base, kind: "agent", start: at - e.duration_ms, label: `Agent turn, ${formatDuration(e.duration_ms)}` };
     case "command":

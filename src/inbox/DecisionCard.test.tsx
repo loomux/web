@@ -81,6 +81,42 @@ describe("DecisionCard", () => {
     expect(within(card).getByRole("link", { name: "Restart the staging ledger deploy" })).toHaveAttribute("href", "/conversations/c1");
   });
 
+  // LOOM-247: a machine offer is a card too: the machine it would create,
+  // its plan part by part, and Approve and Deny naming the offer.
+  it("shows a machine offer's plan and answers it from the card", async () => {
+    const user = userEvent.setup();
+    const { sent } = setup(
+      offerDecision({
+        workspaceHint: undefined,
+        confirmation: {
+          id: "o2",
+          kind: "create_target",
+          target_name: "loom216-verify",
+          command: "plugin kubernetes (thewysekube); size small: 1 CPU, 2Gi memory, 10Gi disk; ephemeral; egress internet",
+          status: "pending",
+          created_at: iso(-1 * MIN),
+          expires_at: iso(14 * MIN),
+        },
+      }),
+    );
+    const card = screen.getByRole("region", { name: "Confirmation" });
+    expect(within(card).getByRole("heading", { name: "Create the machine loom216-verify?" })).toBeInTheDocument();
+    const terms = within(card).getAllByRole("term").map((t) => t.textContent);
+    const values = within(card).getAllByRole("definition").map((t) => t.textContent);
+    expect(terms).toEqual(["Plugin", "Size", "Data", "Network"]);
+    expect(values).toEqual([
+      "kubernetes (thewysekube)",
+      "small: 1 CPU, 2Gi memory, 10Gi disk",
+      "Ephemeral: its files go when it is destroyed",
+      "internet",
+    ]);
+    // Not a workspace's offer: no "In <workspace>" line.
+    expect(card).not.toHaveTextContent(/\bIn\b/);
+    expect(within(card).getByRole("button", { name: "Deny" })).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: "Approve" }));
+    expect(sent.map((s) => s.body)).toEqual([{ conversation_id: "c1", message: "yes", confirmation_id: "o2" }]);
+  });
+
   it("approves with a yes that names the offer, then reports it", async () => {
     const { sent, onAnswered } = setup(offerDecision());
     await userEvent.click(screen.getByRole("button", { name: "Approve" }));

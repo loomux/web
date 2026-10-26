@@ -70,6 +70,32 @@ describe("buildWeave", () => {
     expect(thread.stitches[1].laneId).toBe("w-ledger");
   });
 
+  // LOOM-247: a machine made from chat is its own step, whether the
+  // server logs it as kind machine or, before LOOM-247, as a provision
+  // that names no workspace.
+  it("shows a machine made from chat as a new machine, not a workspace set up", () => {
+    const w = buildWeave(
+      input({
+        summaries: [summary("mk", at(10))],
+        eventsById: new Map([
+          [
+            "mk",
+            [
+              ev("e1", "machine", at(9, 0), { target_id: "t-kestrel", dispatch_id: "d1" }),
+              ev("e2", "provision", at(9, 30), { target_id: "t-atlas", dispatch_id: "d2" }),
+              ev("e3", "machine", at(9, 40), { target_id: "t-gone", dispatch_id: "d3" }),
+            ],
+          ],
+        ]),
+      }),
+    );
+    expect(w.threads[0].stitches.map((s) => [s.kind, s.label])).toEqual([
+      ["machine", "New machine kestrel"],
+      ["machine", "New machine atlas"],
+      ["machine", "New machine"],
+    ]);
+  });
+
   it("marks a failed turn and an offer's answer", () => {
     const w = buildWeave(
       input({
