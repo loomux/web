@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { MachinePlan } from "../components/MachinePlan";
 import { describeDispatchError } from "../lib/dispatchTurn";
 import type { Decision } from "../lib/needsYou";
-import { offerAction, offerHeading, offerWorkspace } from "../lib/offerText";
+import { machinePlan, offerAction, offerHeading, offerWorkspace } from "../lib/offerText";
 import { answerErrorText, useAnswer, type Answer } from "../lib/useAnswer";
 import { formatRelativeTime } from "../lib/time";
 import { Button } from "../ui/Button";
@@ -124,6 +125,7 @@ export function DecisionCard({
   else if (d.kind === "takeover") heading = "Someone has taken over this session";
   else heading = failure!.message;
 
+  const plan = d.confirmation && machinePlan(d.confirmation);
   const isFailed = d.kind === "failed";
   const attention = d.kind === "prompt" ? d.task?.attention : undefined;
   // An option is answered by its number in the agent's own list, so the
@@ -168,7 +170,11 @@ export function DecisionCard({
       <div className="flex flex-col gap-3 p-4 md:p-5">
         <h3 className="text-lg font-extrabold text-balance text-ink">{heading}</h3>
 
-        {d.confirmation && offerAction(d.confirmation) && <CodeBlock>{offerAction(d.confirmation)!}</CodeBlock>}
+        {plan ? (
+          <MachinePlan rows={plan} />
+        ) : (
+          d.confirmation && offerAction(d.confirmation) && <CodeBlock>{offerAction(d.confirmation)!}</CodeBlock>
+        )}
         {attention?.title && <p className="font-bold text-ink">{attention.title}</p>}
         {attention?.detail && <CodeBlock>{attention.detail}</CodeBlock>}
         {attention?.question && <p className="text-ink">{attention.question}</p>}

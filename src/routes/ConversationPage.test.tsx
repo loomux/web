@@ -471,6 +471,40 @@ describe("ConversationPage", () => {
     });
   }
 
+  // LOOM-247: an answered machine offer keeps its plan and says how it
+  // ended, with the server's reason when a yes was refused.
+  for (const [status, reason, want] of [
+    ["approved", undefined, "Approved"],
+    ["denied", "a target named builds was registered meanwhile.", "Denied: a target named builds was registered meanwhile."],
+  ] as const) {
+    it(`shows an answered machine offer: ${status}`, async () => {
+      localStorage.setItem("loomux.token", "tok-1");
+      const history = offerHistory(status, reason);
+      Object.assign(history.confirmations[0], {
+        kind: "create_target",
+        target_name: "builds",
+        command: "plugin docker; size small: 1 CPU, 1Gi memory, 5Gi disk; keeps its data; egress internet",
+      });
+      globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/v1/conversations/abc123") return jsonResponse(history);
+        if (url === "/api/v1/workspaces") return jsonResponse({ workspaces: [] });
+        throw new Error(`unexpected fetch: ${url}`);
+      });
+      renderPage();
+      expect(await screen.findByRole("status")).toHaveTextContent(want);
+      const card = screen.getByRole("region", { name: "Confirmation" });
+      expect(card).toHaveTextContent("Create the machine builds?");
+      expect(within(card).getAllByRole("definition").map((d) => d.textContent)).toEqual([
+        "docker",
+        "small: 1 CPU, 1Gi memory, 5Gi disk",
+        "Kept: its files survive stop, start and recreate",
+        "internet",
+      ]);
+      expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    });
+  }
+
   // LOOM-130: a new message (or the progress card) brings the view to the
   // end of the conversation instead of leaving it where it was.
   it("scrolls to the newest message", async () => {

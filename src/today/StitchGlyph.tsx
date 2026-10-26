@@ -20,6 +20,14 @@ export function StitchMark({ kind, size = 10 }: { kind: GlyphKind; size?: number
       );
     case "provision":
       return <rect x={-r * 0.8} y={-r * 0.8} width={r * 1.6} height={r * 1.6} rx="1.5" fill="var(--surface)" stroke="var(--ink-2)" strokeWidth="1.8" />;
+    case "machine":
+      // A machine: a box split in two, like a rack unit.
+      return (
+        <g fill="none" stroke="var(--ink-2)" strokeWidth="1.8">
+          <rect x={-r} y={-r * 0.8} width={size} height={r * 1.6} rx="1.5" fill="var(--surface)" />
+          <path d={`M${-r} 0H${r}`} />
+        </g>
+      );
     case "relay":
       return <circle r={r * 0.75} fill="var(--surface)" stroke="var(--accent)" strokeWidth="1.8" />;
     case "routed":

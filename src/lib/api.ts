@@ -157,7 +157,9 @@ export interface Attention {
 export interface Confirmation {
   id: string;
   dispatch_id?: string;
-  kind: "run_command" | "install_agent" | "clone_remote" | "policy";
+  // create_target (LOOM-216): target_name is the machine it would create
+  // and command its plan on one line.
+  kind: "run_command" | "install_agent" | "clone_remote" | "policy" | "create_target";
   target_id?: string;
   target_name?: string;
   agent_type?: string;
@@ -601,6 +603,7 @@ export type ConversationEventKind =
   | "decision"
   | "command"
   | "provision"
+  | "machine"
   | "offer"
   | "offer_answered"
   | "agent_turn"
