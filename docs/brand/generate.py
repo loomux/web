@@ -121,13 +121,27 @@ def icon(kind="any", small=False, size=512):
             f'<g transform="translate({off:g} {off:g}) scale({scale})">{strokes(MARK_THREAD, MARK_WEFT, thread, weft, width)}</g></svg>\n')
 
 
+def led_in(tx, s, c):
+    """The wordmark at page x `tx` and scale `s`, its thread running in from
+    the page's left edge. The lead-in is the start of the thread's own path,
+    in the wordmark's coordinates, so there is no joint: it leaves the edge
+    level at y 64.9, never goes below that, and arrives at the l's first
+    point (2, 58) along the l's own tangent (its last control point is on
+    the line through 2,58 and the l's first control point, 10,50)."""
+    start = "M2 58"
+    assert WORD["thread"].startswith(start + " C10 50 ")
+    x0, y0 = -tx / s, 64.9
+    k = y0 - 58  # the longest handle that stays on the tangent without going below y0
+    lead = f"M{x0:g} {y0:g} C{x0 + (2 - x0) * 0.35:g} {y0:g} {2 - k:g} {58 + k:g} 2 58"
+    return strokes(lead + WORD["thread"][len(start):], WORD["weft"], c["thread"], c["weft"], WORD["stroke"])
+
+
 def banner(c, ink2):
     """The README banner, 1280 x 320: wordmark, then a one-line tagline."""
-    s = 3.4
+    s, tx = 3.4, 196
     return (f'<svg {SVG} viewBox="0 0 1280 320" width="1280" height="320" role="img"><title>Loomux</title>'
             f'<rect width="1280" height="320" fill="{c["ground"]}"/>'
-            f'<path d="M0 260.6 C90 260.6 150 256 196 236" fill="none" stroke="{c["thread"]}" stroke-width="{5 * s:g}" stroke-linecap="round"/>'
-            f'<g transform="translate(196 40) scale({s})">{strokes(WORD["thread"], WORD["weft"], c["thread"], c["weft"], WORD["stroke"])}</g>'
+            f'<g transform="translate({tx} 40) scale({s})">{led_in(tx, s, c)}</g>'
             f'<text x="210" y="300" font-family="Atkinson Hyperlegible Next, Atkinson Hyperlegible, system-ui, sans-serif" font-size="28" fill="{ink2}">'
             "Chat-driven coding agents, in tmux, on your own machines.</text></svg>\n")
 
@@ -143,9 +157,7 @@ def social(role, c=LIGHT, ink="#465668"):
     s, tx, ty = 5, 180, 80
     return (f'<svg {SVG} viewBox="0 0 1280 640" width="1280" height="640" role="img"><title>Loomux: {role}</title>'
             f'<rect width="1280" height="640" fill="{c["ground"]}"/>'
-            f'<path d="M0 {ty + 64.9 * s:g} C{tx * 0.46:g} {ty + 64.9 * s:g} {tx * 0.765:g} {ty + 63.5 * s:g} {tx} {ty + 57.65 * s:g}"'
-            f' fill="none" stroke="{c["thread"]}" stroke-width="{5 * s:g}" stroke-linecap="round"/>'
-            f'<g transform="translate({tx} {ty}) scale({s})">{strokes(WORD["thread"], WORD["weft"], c["thread"], c["weft"], WORD["stroke"])}</g>'
+            f'<g transform="translate({tx} {ty}) scale({s})">{led_in(tx, s, c)}</g>'
             f'<text x="{tx + 20}" y="520" font-family="Atkinson Hyperlegible Next" font-size="64" fill="{ink}">{role}</text></svg>\n')
 
 
