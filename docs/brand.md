@@ -119,6 +119,10 @@ because the tile carries its own ground.
 - **Small cut:** below 24 px tall the tie fuses the o's into one blob, so
   `wordmark-small-*` drops it, opens the gap between the o's by 2 units
   and uses a 5.6-unit stroke. `Wordmark` switches automatically.
+- **Lead-in:** on the banner and the social previews the thread runs in
+  from the left edge. It is the start of the thread's own path, not a
+  second stroke laid against it, so there is no joint: it leaves the edge
+  level and arrives at the l along the l's own direction.
 - **Icons at 32 px and under** use a 6.5-unit stroke (`public/icon.svg`,
   `favicon.ico`, `BrandTile`).
 
