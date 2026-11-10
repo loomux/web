@@ -3,10 +3,14 @@
 
     python3 docs/brand/generate.py      # from the repo root
 
-Writes the SVG masters to docs/brand/, the favicon, PWA and touch icons to
+Writes the SVG masters and the GitHub images (org avatar, one social
+preview per repo) to docs/brand/, the favicon, PWA and touch icons to
 public/, and the wordmark path data to src/ui/brandPaths.ts. Needs
 rsvg-convert (librsvg) and ImageMagick's `magick` for the PNGs and .ico; the
-PNG bytes depend on their versions (docs/brand.md lists the ones used).
+PNG bytes depend on their versions (docs/brand.md lists the ones used). The
+social previews set one line of type in Atkinson Hyperlegible Next, read from
+node_modules (run `npm ci` first) and unpacked with fontTools, so they don't
+depend on installed fonts.
 Edit the geometry here, never the outputs. docs/brand.md explains the rules.
 
     python3 docs/brand/generate.py --paths   # print brandPaths.ts only
@@ -14,14 +18,17 @@ Edit the geometry here, never the outputs. docs/brand.md explains the rules.
 `--paths` needs neither tool; src/ui/brandPaths.test.ts uses it to check
 the committed file matches the generator.
 """
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs/brand"
 PUBLIC = ROOT / "public"
+FONT = ROOT / "node_modules/@fontsource/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-400-normal.woff"
 
 # Colours. Thread = the accent token; weft (the golden crossing of the x) =
 # the --mari-deep token. Light values pass 3:1 on porcelain and the icon
@@ -125,13 +132,31 @@ def banner(c, ink2):
             "Chat-driven coding agents, in tmux, on your own machines.</text></svg>\n")
 
 
+# Each public repo's role, as its social preview says it (LOOM-300).
+ROLES = dict(server="The server and API", web="The web client", tui="The terminal client")
+
+
+def social(role, c=LIGHT, ink="#465668"):
+    """A repo's social preview (GitHub's link-preview card), 1280 x 640: the
+    banner's composition, larger, with the repo's role as the one line. The
+    type is 64 px so it is still about 15 px in a 300 px wide thumbnail."""
+    s, tx, ty = 5, 180, 80
+    return (f'<svg {SVG} viewBox="0 0 1280 640" width="1280" height="640" role="img"><title>Loomux: {role}</title>'
+            f'<rect width="1280" height="640" fill="{c["ground"]}"/>'
+            f'<path d="M0 {ty + 64.9 * s:g} C{tx * 0.46:g} {ty + 64.9 * s:g} {tx * 0.765:g} {ty + 63.5 * s:g} {tx} {ty + 57.65 * s:g}"'
+            f' fill="none" stroke="{c["thread"]}" stroke-width="{5 * s:g}" stroke-linecap="round"/>'
+            f'<g transform="translate({tx} {ty}) scale({s})">{strokes(WORD["thread"], WORD["weft"], c["thread"], c["weft"], WORD["stroke"])}</g>'
+            f'<text x="{tx + 20}" y="520" font-family="Atkinson Hyperlegible Next" font-size="64" fill="{ink}">{role}</text></svg>\n')
+
+
 def write(path, text):
     path.write_text(text)
     print("wrote", path.relative_to(ROOT))
 
 
-def png(svg_text, out, size, opaque=False):
-    subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size), "-o", str(out)], input=svg_text.encode(), check=True)
+def png(svg_text, out, size, opaque=False, height=None, env=None):
+    subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(height or size), "-o", str(out)],
+                   input=svg_text.encode(), check=True, env=env)
     if opaque:  # drop the alpha channel outright, so nothing can show through
         subprocess.run(["magick", str(out), "-background", TILE, "-alpha", "remove", "-alpha", "off",
                         "-strip", "-define", "png:exclude-chunks=date,time", str(out)], check=True)
@@ -170,7 +195,37 @@ def main():
     for p in tmp:
         Path(p).unlink()
 
+    github_images()
+
     write(ROOT / "src/ui/brandPaths.ts", brand_paths_ts())
+
+
+def github_images():
+    """The org avatar and each repo's social preview (LOOM-300). GitHub takes
+    these as uploads in its settings pages; nothing links to them."""
+    # The avatar is the touch icon's drawing: opaque and full bleed, with the
+    # mark well inside the inscribed circle, because GitHub crops it round.
+    png(icon("touch"), DOCS / "avatar-500.png", 500, opaque=True)
+    if not FONT.exists():
+        sys.exit(f"no {FONT.relative_to(ROOT)}: run `npm ci` first")
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        sys.exit("the social previews need fontTools (pip install fonttools)")
+    # librsvg sets type through Pango, which can't read a .woff, so unpack
+    # it to a .ttf, and give fontconfig only that one file: the line is set
+    # in the repo's own copy of the typeface or not at all, never in a
+    # system fallback.
+    with tempfile.TemporaryDirectory() as tmp:
+        font = TTFont(FONT)
+        font.flavor = None
+        (Path(tmp) / "fonts").mkdir()
+        font.save(Path(tmp) / "fonts/atkinson.ttf")
+        conf = Path(tmp) / "fonts.conf"
+        conf.write_text(f"<fontconfig><dir>{tmp}/fonts</dir><cachedir>{tmp}/cache</cachedir></fontconfig>\n")
+        env = dict(os.environ, FONTCONFIG_FILE=str(conf))
+        for repo, role in ROLES.items():
+            png(social(role), DOCS / f"social-{repo}.png", 1280, opaque=True, height=640, env=env)
 
 
 def brand_paths_ts():

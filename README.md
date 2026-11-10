@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/banner-dark.svg">
+  <img alt="Loomux" src="docs/brand/banner-light.svg" width="100%">
+</picture>
+
 # Loomux — web client
 
 The browser-based single-page app for [Loomux](https://github.com/loomux/server):

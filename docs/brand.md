@@ -24,19 +24,30 @@ one set of path data. Change the geometry there, run it, and commit the
 outputs; never edit an output by hand.
 
 ```sh
-python3 docs/brand/generate.py   # needs rsvg-convert (librsvg) and ImageMagick
+npm ci                           # the social previews take their typeface from node_modules
+python3 docs/brand/generate.py   # needs rsvg-convert (librsvg), ImageMagick and fontTools
 ```
 
 The SVGs and `brandPaths.ts` are plain text and come out the same
 anywhere. The PNG and .ico bytes depend on the rasteriser, so re-running
-with other versions can change them without any visible difference. The
-committed files were made with:
+with other versions can change them without any visible difference. If a
+run rewrites a committed PNG or the .ico and you didn't change its
+drawing, restore the committed file. The committed files were made with:
 
-| Tool | Version |
-|---|---|
-| rsvg-convert (librsvg) | 2.63.2 (cairo 1.18.6) |
-| ImageMagick | 7.1.2-32 Q16-HDRI |
-| Python | 3.14.7 (any 3.9+ works) |
+| Tool | The icons in `public/` (LOOM-176) | `avatar-500.png`, `social-*.png` (LOOM-300) |
+|---|---|---|
+| rsvg-convert (librsvg) | 2.63.2 (cairo 1.18.6) | 2.63.4 (cairo 1.18.6, pango 1.58.2, harfbuzz 15.0.0) |
+| ImageMagick | 7.1.2-32 Q16-HDRI | 7.1.2-34 Q16-HDRI |
+| Python | 3.14.7 (any 3.9+ works) | the same, with fontTools 4.68.0 |
+| `@fontsource/atkinson-hyperlegible-next` | not used | 5.3.0 |
+
+The newer versions reproduced every LOOM-176 file byte for byte, so none
+of those changed in LOOM-300.
+
+The social previews are the only outputs with type in them. The generator
+unpacks the latin 400 weight of Atkinson Hyperlegible Next from
+`node_modules` and shows librsvg that one font and no other, so the line
+never falls back to a system font.
 
 `src/ui/brandPaths.test.ts` runs `generate.py --paths` and fails if the
 committed `brandPaths.ts` doesn't match the generator.
@@ -49,7 +60,9 @@ committed `brandPaths.ts` doesn't match the generator.
 | `docs/brand/icon.svg` | App icon master: rounded mist tile |
 | `docs/brand/icon-maskable.svg` | Full-bleed tile, mark inside the 80% safe zone |
 | `docs/brand/icon-monochrome.svg` | White mark on transparent (Android themed icons, notifications) |
-| `docs/brand/banner-light.svg`, `-dark.svg` | README banner, 1280 × 320 |
+| `docs/brand/banner-light.svg`, `-dark.svg` | README banner, 1280 × 320. `loomux/server` and `loomux/tui` keep copies |
+| `docs/brand/avatar-500.png` | GitHub organisation avatar, 500 px: the icon, opaque and full bleed, with the mark inside the circle GitHub crops it to |
+| `docs/brand/social-server.png`, `-web.png`, `-tui.png` | Each repo's GitHub social preview (the link-preview card), 1280 × 640: the wordmark and the repo's role in one line |
 | `public/icon.svg` | SVG favicon, drawn with the heavier small-size stroke. Linked from `index.html` only, not from the manifest (the PWA uses the PNGs) |
 | `public/favicon.ico` | 16 and 32 px, for browsers that ask for `/favicon.ico` |
 | `public/apple-touch-icon.png` | 180 px, opaque and full bleed: iOS rounds the corners itself and would fill transparent ones with black |
@@ -57,6 +70,10 @@ committed `brandPaths.ts` doesn't match the generator.
 | `public/icon-maskable-512.png` | PWA maskable icon |
 | `public/icon-monochrome-512.png` | PWA monochrome icon |
 | `src/ui/brandPaths.ts` | Path data for `Wordmark` and `BrandTile` (`src/ui/Wordmark.tsx`) |
+
+GitHub takes the avatar and the social previews as uploads (the
+organisation's settings; each repo's Settings > General > Social preview),
+so nothing links to those files. Upload them again after changing them.
 
 In the client, use the components, never an image: `<Wordmark height={…} />`
 and `<BrandTile />` take their colours from the tokens, so they follow the
@@ -132,7 +149,8 @@ Don't:
 No brand font. The UI and headings stay in Atkinson Hyperlegible Next and
 code in Atkinson Hyperlegible Mono, self-hosted (`@fontsource`). The
 wordmark is drawn, so it needs no font. The README banner's tagline names
-Atkinson Hyperlegible Next with system fallbacks.
+Atkinson Hyperlegible Next with system fallbacks. The social previews are
+PNGs, so their one line is set in Atkinson Hyperlegible Next itself.
 
 ## Lookalike check
 
