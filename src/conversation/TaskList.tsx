@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ConversationTask } from "../lib/api";
+import { drivingHold, heldSince, holderName } from "../lib/holds";
 import { conversationStatus } from "../lib/status";
 import { formatRelativeTime } from "../lib/time";
 import { StatusMark } from "../ui/StatusMark";
@@ -13,6 +14,7 @@ function TaskRow({ task, workspace, refresh, live }: { task: ConversationTask; w
   const [open, setOpen] = useState<"none" | "attach" | "terminal">("none");
   const isCommand = task.kind === "command";
   const toggle = (which: "attach" | "terminal") => setOpen((o) => (o === which ? "none" : which));
+  const hold = drivingHold(task.hold);
   return (
     <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -23,6 +25,11 @@ function TaskRow({ task, workspace, refresh, live }: { task: ConversationTask; w
         <StatusMark status={conversationStatus(task.status)} className="font-normal" />
         {workspace && <span>in {workspace}</span>}
       </div>
+      {hold && (
+        <p className="text-sm text-mari-ink">
+          Driven from {holderName(hold.client_kind, hold.client_label)} since {heldSince(hold.acquired_at)}
+        </p>
+      )}
       {isCommand && task.command && (
         <code title={task.command} className="line-clamp-3 rounded-md bg-sunken px-2 py-1 font-mono text-xs break-all text-ink">
           {task.command}

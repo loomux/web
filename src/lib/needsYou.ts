@@ -1,5 +1,6 @@
-import type { Confirmation, ConversationMessage, ConversationSummary, ConversationTask, Dispatch } from "./api";
+import type { Confirmation, ConversationMessage, ConversationSummary, ConversationTask, Dispatch, HeldBy } from "./api";
 import { isTerminalDispatch } from "./dispatchTurn";
+import { drivingHold } from "./holds";
 
 // The needs-you model (principles 1-2, build-plan §6 PR 2): every
 // decision waiting on the user, from every conversation, as one list the
@@ -40,6 +41,8 @@ export interface Decision {
   retryMessage?: string;
   // What an agent waiting for a reply last said: its question.
   question?: string;
+  // Who drives a takeover from a terminal (LOOM-267), when the server says.
+  heldBy?: HeldBy;
 }
 
 // Offers first (they expire), then what agents are stuck on, then failures,
@@ -73,7 +76,13 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
   if (!detail) {
     const kind = TASK_KIND[summary.status];
     if (kind) {
-      out.push({ ...base, key: `${summary.conversation_id}:${summary.status}@${summary.updated_at}`, kind, since: summary.updated_at });
+      out.push({
+        ...base,
+        key: `${summary.conversation_id}:${summary.status}@${summary.updated_at}`,
+        kind,
+        since: summary.updated_at,
+        heldBy: kind === "takeover" ? (summary.held_by ?? undefined) : undefined,
+      });
     }
     return out;
   }
@@ -92,6 +101,7 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
   const task = latest(detail.tasks, (t) => t.updated_at);
   const taskKind = task && TASK_KIND[task.status];
   if (task && taskKind) {
+    const hold = taskKind === "takeover" ? drivingHold(task.hold) : null;
     out.push({
       ...withHint,
       workspaceId: task.workspace_id || base.workspaceId,
@@ -103,17 +113,24 @@ export function deriveDecisions(summary: ConversationSummary, detail: Conversati
         taskKind === "awaiting"
           ? detail.messages?.findLast((m) => m.role === "assistant" && m.task_id === task.id)?.content
           : undefined,
+      heldBy: hold
+        ? { client_kind: hold.client_kind, client_label: hold.client_label, since: hold.acquired_at }
+        : taskKind === "takeover"
+          ? (summary.held_by ?? undefined)
+          : undefined,
     });
   }
 
   // The latest turn failed and nothing has been sent since. A turn the
-  // user cancelled isn't waiting on them.
+  // user cancelled isn't waiting on them, nor one a person took over
+  // (LOOM-266): that takeover is its own decision.
   const dispatch = latest(detail.dispatches, (d) => d.created_at);
   if (
     dispatch &&
     isTerminalDispatch(dispatch.status) &&
     (dispatch.status === "failed" || dispatch.status === "interrupted") &&
-    dispatch.error_class !== "cancelled"
+    dispatch.error_class !== "cancelled" &&
+    dispatch.error_class !== "taken_over"
   ) {
     out.push({
       ...withHint,

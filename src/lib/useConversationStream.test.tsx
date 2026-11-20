@@ -7,6 +7,7 @@ import { useConversationStream } from "./useConversationStream";
 type Options = {
   onopen: (res: Response) => Promise<void>;
   onclose: () => void;
+  onmessage: (msg: { event: string; data: string }) => void;
 };
 const sse = vi.hoisted(() => ({ options: null as Options | null }));
 vi.mock("@microsoft/fetch-event-source", () => ({
@@ -49,6 +50,23 @@ describe("useConversationStream", () => {
       await expect(sse.options!.onopen(new Response("bad gateway", { status: 502 }))).rejects.toThrow();
     });
     expect(result.current.connected).toBe(false);
+  });
+
+  // LOOM-274: a task taken or given back (task_hold). The same words twice
+  // (taken, given back, taken again by the same terminal between two looks)
+  // are still two events, so each makes the page look again.
+  it("keeps each task_hold as a new event", async () => {
+    localStorage.setItem("loomux.token", "tok-1");
+    const { result } = renderHook(() => useConversationStream("abc123"), { wrapper });
+    const data = JSON.stringify({ task_id: "t1", hold: null, ended_reason: "released" });
+
+    act(() => sse.options!.onmessage({ event: "task_hold", data }));
+    const first = result.current.holdEvent;
+    expect(first).toEqual({ task_id: "t1", hold: null, ended_reason: "released" });
+
+    act(() => sse.options!.onmessage({ event: "task_hold", data }));
+    expect(result.current.holdEvent).toEqual(first);
+    expect(result.current.holdEvent).not.toBe(first);
   });
 
   // 403/404 won't get better by retrying (LOOM-159): the page says the

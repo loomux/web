@@ -147,6 +147,16 @@ describe("deriveDecisions", () => {
     expect(deriveDecisions(summary(), detail({ dispatches: [failed, retry] }), NOW)).toEqual([]);
   });
 
+  // LOOM-274: a turn ended because someone took the agent over (LOOM-266)
+  // isn't a failure to retry: the takeover is its own card. A message
+  // refused because the task is held (held) wasn't sent, so it still asks.
+  it("doesn't ask about a turn ended by a takeover, but does about a refused message", () => {
+    const taken = dispatch({ status: "failed", error_class: "taken_over" });
+    expect(deriveDecisions(summary(), detail({ dispatches: [taken] }), NOW)).toEqual([]);
+    const refused = dispatch({ status: "failed", error_class: "held" });
+    expect(deriveDecisions(summary(), detail({ dispatches: [refused] }), NOW)).toMatchObject([{ kind: "failed" }]);
+  });
+
   it("doesn't ask about a turn the user cancelled", () => {
     const cancelled = dispatch({ status: "failed", error_class: "cancelled" });
     expect(deriveDecisions(summary(), detail({ dispatches: [cancelled] }), NOW)).toEqual([]);
@@ -235,5 +245,36 @@ describe("detailCandidates", () => {
   it("stops at the limit", () => {
     const many = Array.from({ length: 50 }, (_, i) => summary({ conversation_id: `c${i}`, updated_at: ago(i * MIN) }));
     expect(detailCandidates(many, NOW, 30)).toHaveLength(30);
+  });
+});
+
+// LOOM-274: a takeover names who drives it (loomux/server LOOM-267): the
+// task's hold when the detail is read, else the list row's held_by.
+describe("a takeover's holder", () => {
+  const hold = {
+    id: "h1", task_id: "k1", session_id: "s1", client_kind: "tui", client_label: "laptop", mode: "drive",
+    prev_status: "awaiting_input", ttl_seconds: 45, acquired_at: ago(3 * MIN), renewed_at: ago(MIN), expires_at: inMs(MIN),
+  };
+  const heldBy = { client_kind: "tui", client_label: "laptop", since: ago(3 * MIN) };
+
+  it("comes from the list row without a detail", () => {
+    const [d] = deriveDecisions(summary({ status: "human_takeover", held_by: heldBy }), undefined, NOW);
+    expect(d).toMatchObject({ kind: "takeover", heldBy });
+  });
+
+  it("comes from the task's hold with one", () => {
+    const [d] = deriveDecisions(
+      summary({ status: "human_takeover" }),
+      detail({ tasks: [task({ status: "human_takeover", hold })] }),
+      NOW,
+    );
+    expect(d).toMatchObject({ kind: "takeover", heldBy: { client_kind: "tui", client_label: "laptop", since: hold.acquired_at } });
+  });
+
+  it("is left out when the server names nobody", () => {
+    const [bare] = deriveDecisions(summary({ status: "human_takeover" }), undefined, NOW);
+    expect(bare.heldBy).toBeUndefined();
+    const [withNull] = deriveDecisions(summary({ status: "human_takeover" }), detail({ tasks: [task({ status: "human_takeover", hold: null })] }), NOW);
+    expect(withNull.heldBy).toBeUndefined();
   });
 });

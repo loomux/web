@@ -67,6 +67,7 @@ export function useApiClient() {
       deleteCredential: (id: string) => guarded((t) => api.deleteCredential(t, id)),
       getConversation: (id: string) => guarded((t) => api.getConversation(t, id)),
       getAttachInfo: (taskId: string) => guarded((t) => api.getAttachInfo(t, taskId)),
+      releaseTask: (taskId: string) => guarded((t) => api.releaseTask(t, taskId)),
       getTaskTranscript: (taskId: string, page?: { limit?: number; before?: string }) =>
         guarded((t) => api.getTaskTranscript(t, taskId, page)),
       getConversationEvents: (id: string) => guarded((t) => api.getConversationEvents(t, id)),

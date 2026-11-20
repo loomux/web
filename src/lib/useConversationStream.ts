@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { openConversationStream, type DispatchUpdateEvent, type MessageAddedEvent, type TaskUpdateEvent } from "./api";
+import { openConversationStream, type DispatchUpdateEvent, type MessageAddedEvent, type TaskHoldEvent, type TaskUpdateEvent } from "./api";
 import { useAuth } from "./authContext";
 
 interface StreamState {
@@ -8,6 +8,10 @@ interface StreamState {
   dispatchEvent: DispatchUpdateEvent | null;
   // The latest `message_added` (LOOM-121): the transcript has a new message.
   messageEvent: MessageAddedEvent | null;
+  // The latest `task_hold` (LOOM-267): a task was taken or given back.
+  // Each event is parsed into its own object, so the same words twice
+  // are two events.
+  holdEvent: TaskHoldEvent | null;
   connected: boolean;
   // The server refused the stream (403, 404): it won't reconnect.
   refused: boolean;
@@ -20,6 +24,7 @@ export function useConversationStream(conversationId: string | null): StreamStat
   const [event, setEvent] = useState<TaskUpdateEvent | null>(null);
   const [dispatchEvent, setDispatchEvent] = useState<DispatchUpdateEvent | null>(null);
   const [messageEvent, setMessageEvent] = useState<MessageAddedEvent | null>(null);
+  const [holdEvent, setHoldEvent] = useState<TaskHoldEvent | null>(null);
   const [connected, setConnected] = useState(false);
   // Which conversation's stream was refused, so another one starts clean.
   const [refusedFor, setRefusedFor] = useState<string | null>(null);
@@ -30,6 +35,7 @@ export function useConversationStream(conversationId: string | null): StreamStat
       onEvent: (e) => {
         if (e.type === "task_update") setEvent(e.data);
         else if (e.type === "dispatch_update") setDispatchEvent(e.data);
+        else if (e.type === "task_hold") setHoldEvent(e.data);
         else setMessageEvent(e.data);
       },
       onConnected: setConnected,
@@ -38,5 +44,5 @@ export function useConversationStream(conversationId: string | null): StreamStat
     });
   }, [conversationId, token, handleUnauthorized]);
 
-  return { event, dispatchEvent, messageEvent, connected, refused: refusedFor !== null && refusedFor === conversationId };
+  return { event, dispatchEvent, messageEvent, holdEvent, connected, refused: refusedFor !== null && refusedFor === conversationId };
 }
