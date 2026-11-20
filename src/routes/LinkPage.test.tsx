@@ -267,6 +267,7 @@ describe("LinkPage", () => {
     expect(url).toBe("/api/v1/sessions/s-new");
     expect(init.method).toBe("DELETE");
     expect(screen.queryByRole("button", { name: "Undo approval" })).not.toBeInTheDocument();
+    expect(sessionStorage.getItem("loomux.linkApproved")).toBeNull();
   });
 
   it("Undo of a session that's gone already counts as undone", async () => {
@@ -348,6 +349,39 @@ describe("LinkPage", () => {
     expect(screen.queryByRole("button", { name: "Undo approval" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Undo survives a login in between: back on the page, it's still there", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(created, 201))
+      .mockResolvedValueOnce(json({ error: "unauthorized" }, 401))
+      .mockResolvedValueOnce(json({ token: "web-token-2" }, 200))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    renderAt(`/link#h=${H}&label=laptop`);
+    await screen.findByText(CODE);
+    await userEvent.click(await armedApprove());
+    await userEvent.click(await screen.findByRole("button", { name: "Undo approval" }));
+    await userEvent.type(await screen.findByLabelText(/password/i), "hunter2");
+    await userEvent.click(screen.getByRole("button", { name: /log in/i }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/^Approved\. The terminal on laptop/);
+    await userEvent.click(screen.getByRole("button", { name: "Undo approval" }));
+    expect(await screen.findByText(/undone/i)).toBeInTheDocument();
+    const [url, init] = fetchMock.mock.calls[3];
+    expect(url).toBe("/api/v1/sessions/s-new");
+    expect(init.method).toBe("DELETE");
+  });
+
+  it("a new link replaces an approval kept for Undo", async () => {
+    sessionStorage.setItem("loomux.linkApproved", JSON.stringify({ id: "s-old", label: "old-laptop" }));
+    renderAt(`/link#h=${H}&label=laptop`);
+    expect(await screen.findByText(CODE)).toBeInTheDocument();
+    expect(sessionStorage.getItem("loomux.linkApproved")).toBeNull();
+  });
+
+  it.each(["{not json", '"s-1"', '{"label":"laptop"}', '{"id":7}'])("without a link, a stored approval %s isn't one, and is ignored", async (kept) => {
+    sessionStorage.setItem("loomux.linkApproved", kept);
+    renderAt("/link");
+    expect(await screen.findByText(/this link has no terminal in it/i)).toBeInTheDocument();
   });
 
   it("a failed Undo says so and can be tried again", async () => {

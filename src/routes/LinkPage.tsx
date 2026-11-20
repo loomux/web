@@ -24,6 +24,8 @@ import { BrandTile, Wordmark } from "../ui/Wordmark";
 //   not without WebCrypto, not for a malformed link.
 // - A replayed link is a 409 that changes nothing. A stale one (the
 //   terminal stopped waiting) makes a session no one holds; Undo revokes it.
+//   The approval is kept for this tab (the session's id and label, never a
+//   token), so Undo survives a login in between, or a reload.
 
 type Outcome =
   | { kind: "approved"; session: LoginSession }
@@ -70,6 +72,32 @@ function Note({ children }: { children: ReactNode }) {
   return <p className="text-ink-2">{children}</p>;
 }
 
+// The approval this tab made last, for Undo after the address no longer
+// holds the link.
+const APPROVED_KEY = "loomux.linkApproved";
+
+function keepApproved(session: LoginSession | null) {
+  try {
+    if (session) sessionStorage.setItem(APPROVED_KEY, JSON.stringify({ id: session.id, label: session.label ?? "" }));
+    else sessionStorage.removeItem(APPROVED_KEY);
+  } catch {
+    // Undo just won't outlive this page
+  }
+}
+
+function keptApproved(): LoginSession | null {
+  try {
+    const kept = JSON.parse(sessionStorage.getItem(APPROVED_KEY) ?? "null") as unknown;
+    if (kept && typeof kept === "object" && "id" in kept && typeof kept.id === "string") {
+      const label = "label" in kept && typeof kept.label === "string" ? kept.label : "";
+      return { id: kept.id, label, created_at: "", last_used_at: "", current: false };
+    }
+  } catch {
+    // nothing usable kept
+  }
+  return null;
+}
+
 const ARM_DELAY_MS = 1000;
 
 // useArmed: true once the window has had the focus for ARM_DELAY_MS since
@@ -109,7 +137,12 @@ export function LinkPage() {
   const [framed] = useState(isFramed);
   const [code, setCode] = useState<string | null>(null);
   const [noCrypto, setNoCrypto] = useState(false);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // Without a link, the approval this tab made last, so Undo is still
+  // there after a login or a reload.
+  const [outcome, setOutcome] = useState<Outcome | null>(() => {
+    const kept = seen.link.kind === "missing" ? keptApproved() : null;
+    return kept ? { kind: "approved", session: kept } : null;
+  });
   const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [undoing, setUndoing] = useState(false);
@@ -123,6 +156,11 @@ export function LinkPage() {
   useLayoutEffect(() => {
     address.current = location.hash;
   });
+
+  // A new link supersedes the approval kept for Undo.
+  useEffect(() => {
+    if (tokenHash) keepApproved(null);
+  }, [tokenHash]);
 
   useEffect(() => {
     if (!tokenHash || framed) return;
@@ -150,6 +188,7 @@ export function LinkPage() {
     setError(null);
     try {
       const session = await apiClient.linkSession({ token_hash: link.tokenHash, label: link.label, client_kind: "tui" });
+      keepApproved(session);
       finish({ kind: "approved", session });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) finish({ kind: "used" });
@@ -164,11 +203,16 @@ export function LinkPage() {
     setUndoError(null);
     try {
       await apiClient.deleteSession(session.id);
+      keepApproved(null);
       setOutcome({ kind: "undone" });
     } catch (err) {
       // Gone already (revoked elsewhere, or expired): undone all the same.
-      if (err instanceof ApiError && err.status === 404) setOutcome({ kind: "undone" });
-      else setUndoError(err instanceof ApiError ? `Couldn't undo it: ${err.message}` : "Couldn't undo it: Loomux didn't answer. Try again.");
+      if (err instanceof ApiError && err.status === 404) {
+        keepApproved(null);
+        setOutcome({ kind: "undone" });
+      } else {
+        setUndoError(err instanceof ApiError ? `Couldn't undo it: ${err.message}` : "Couldn't undo it: Loomux didn't answer. Try again.");
+      }
     } finally {
       setUndoing(false);
     }
