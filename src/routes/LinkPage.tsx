@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ApiError, type LoginSession } from "../lib/api";
 import { isFramed, linkCode, parseLinkFragment } from "../lib/link";
@@ -118,6 +118,11 @@ export function LinkPage() {
   const link = seen.link;
   const tokenHash = link.kind === "ok" ? link.tokenHash : null;
   const armed = useArmed(code !== null && outcome === null);
+  // The address as it is now, for an answer that arrives after it changed.
+  const address = useRef(location.hash);
+  useLayoutEffect(() => {
+    address.current = location.hash;
+  });
 
   useEffect(() => {
     if (!tokenHash || framed) return;
@@ -134,8 +139,9 @@ export function LinkPage() {
   function finish(o: Outcome) {
     setOutcome(o);
     // Used up: out of the address, so Back or a reload doesn't offer it
-    // again.
-    navigate({ pathname: location.pathname, search: location.search }, { replace: true });
+    // again. A different link opened while the approval was in flight
+    // stays there, to be checked after a reload.
+    if (address.current === seen.hash) navigate({ pathname: location.pathname, search: location.search }, { replace: true });
   }
 
   async function approve() {

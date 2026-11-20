@@ -324,6 +324,18 @@ describe("LinkPage", () => {
     expect(screen.queryByText(/the link in the address changed/i)).not.toBeInTheDocument();
   });
 
+  it("a new link opened while the approval is in flight stays in the address to be checked", async () => {
+    let answer!: (r: Response) => void;
+    fetchMock.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    renderAt(`/link#h=${H}&label=laptop`, { swapTo: `/link#h=${OTHER}&label=desk` });
+    await screen.findByText(CODE);
+    await userEvent.click(await armedApprove());
+    await userEvent.click(screen.getByRole("button", { name: "swap the link" }));
+    await act(async () => answer(json(created, 201)));
+    expect(await screen.findByText(/the link in the address changed/i)).toBeInTheDocument();
+    expect(screen.getByTestId("where")).toHaveTextContent(`/link#h=${OTHER}&label=desk`);
+  });
+
   it("a new link opened in the same tab after a decision asks for a reload, not the old result", async () => {
     fetchMock.mockResolvedValue(json(created, 201));
     renderAt(`/link#h=${H}&label=laptop`, { swapTo: `/link#h=${OTHER}&label=laptop` });
