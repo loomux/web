@@ -287,6 +287,33 @@ describe("api", () => {
   });
 });
 
+// LOOM-138: migrate-ssh answers a plan it couldn't apply (409), or one
+// whose test failed and was rolled back (502), with its own body: those
+// come back as results, not errors. Anything else is an ApiError.
+describe("migrateSSH", () => {
+  const plan = { target_id: "x1", dry_run: false, can_apply: false, problems: ["ProxyJump"], plan: { host: "h", ssh_port: 22, user: "u", ssh_proxy: "none", key: null, host_keys: [] }, applied: false, rolled_back: false, test: null, target: null };
+  it.each([200, 409, 502])("returns the body on %i", async (status) => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(plan), { status }));
+    const r = await api.migrateSSH("t", "x1", { dry_run: false });
+    expect(r.status).toBe(status);
+    expect(r.result.problems).toEqual(["ProxyJump"]);
+  });
+  it("returns the body of a 500 that carries one", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...plan, problems: ["could not be put back"] }), { status: 500 }));
+    const r = await api.migrateSSH("t", "x1", { dry_run: false });
+    expect(r.status).toBe(500);
+  });
+  it("throws on a 502 {error} (the SSH config couldn't be read)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "could not read the SSH config" }), { status: 502 }));
+    await expect(api.migrateSSH("t", "x1", { dry_run: true })).rejects.toMatchObject({ status: 502 });
+  });
+  it("throws on an {error} answer", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "another target is being migrated" }), { status: 409 }));
+    await expect(api.migrateSSH("t", "x1", { dry_run: false })).rejects.toMatchObject({ status: 409, message: "another target is being migrated" });
+  });
+});
+
+
 // LOOM-274: Take back is a release with no hold id (loomux/server
 // LOOM-264): it ends whoever holds the task, so it never names a hold.
 describe("releaseTask", () => {
@@ -325,30 +352,3 @@ describe("the stream's task_hold", () => {
     expect(events).toEqual([{ type: "task_hold", data: { task_id: "t1", hold: null, ended_reason: "released" } }]);
   });
 });
-
-// LOOM-138: migrate-ssh answers a plan it couldn't apply (409), or one
-// whose test failed and was rolled back (502), with its own body: those
-// come back as results, not errors. Anything else is an ApiError.
-describe("migrateSSH", () => {
-  const plan = { target_id: "x1", dry_run: false, can_apply: false, problems: ["ProxyJump"], plan: { host: "h", ssh_port: 22, user: "u", ssh_proxy: "none", key: null, host_keys: [] }, applied: false, rolled_back: false, test: null, target: null };
-  it.each([200, 409, 502])("returns the body on %i", async (status) => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(plan), { status }));
-    const r = await api.migrateSSH("t", "x1", { dry_run: false });
-    expect(r.status).toBe(status);
-    expect(r.result.problems).toEqual(["ProxyJump"]);
-  });
-  it("returns the body of a 500 that carries one", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...plan, problems: ["could not be put back"] }), { status: 500 }));
-    const r = await api.migrateSSH("t", "x1", { dry_run: false });
-    expect(r.status).toBe(500);
-  });
-  it("throws on a 502 {error} (the SSH config couldn't be read)", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "could not read the SSH config" }), { status: 502 }));
-    await expect(api.migrateSSH("t", "x1", { dry_run: true })).rejects.toMatchObject({ status: 502 });
-  });
-  it("throws on an {error} answer", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "another target is being migrated" }), { status: 409 }));
-    await expect(api.migrateSSH("t", "x1", { dry_run: false })).rejects.toMatchObject({ status: 409, message: "another target is being migrated" });
-  });
-});
-
