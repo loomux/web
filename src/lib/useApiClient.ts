@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { api, ApiError, type CredentialRequest, type MachineRequest, type RouterModelsRequest, type RouterTierRequest, type TargetRequest } from "./api";
+import { api, ApiError, type CredentialRequest, type LinkSessionRequest, type MachineRequest, type RouterModelsRequest, type RouterTierRequest, type TargetRequest } from "./api";
 import { useAuth } from "./authContext";
 
 // Binds every token-requiring `api` call to the current session token and
@@ -89,6 +89,7 @@ export function useApiClient() {
       listRouterSettingsChanges: () => guarded((t) => api.listRouterSettingsChanges(t)),
       listSessions: () => guarded((t) => api.listSessions(t)),
       deleteSession: (id: string) => guarded((t) => api.deleteSession(t, id)),
+      linkSession: (body: LinkSessionRequest) => guarded((t) => api.linkSession(t, body)),
       getDeepHealth: () => guarded((t) => api.getDeepHealth(t)),
       getWebVersion: () => guarded((t) => api.getWebVersion(t)),
       updateWeb: () => guarded((t) => api.updateWeb(t)),
