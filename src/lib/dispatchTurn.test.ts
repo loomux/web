@@ -47,6 +47,8 @@ describe("describeDispatchError", () => {
       "interrupted",
       "cancelled",
       "internal",
+      "held",
+      "taken_over",
     ]) {
       const e = describeDispatchError(cls, "x");
       expect(e.message, cls).not.toBe("");
@@ -62,6 +64,29 @@ describe("describeDispatchError", () => {
     expect(e.message).toBe("The agent hit its usage limit. It resets 5pm (Europe/Istanbul).");
     expect(e.hint).toMatch(/after the reset/);
     expect(describeDispatchError("agent_rate_limited", "no reset given").message).toBe("The agent hit its usage limit.");
+  });
+
+  // LOOM-274: a message to a conversation someone drives from a terminal
+  // isn't typed in (loomux/server LOOM-267's class held); the server's
+  // text names who.
+  it("says a message to a held conversation wasn't sent, and who drives it", () => {
+    const text =
+      "this conversation's task is being driven from the terminal on laptop since 2026-11-20 13:02 UTC; take it back, or wait until it is given back, then send the message again";
+    const e = describeDispatchError("held", text);
+    expect(e.message).toBe("Not sent: the agent is being driven from the terminal on laptop.");
+    expect(e.hint).toBe("Take it back, or wait until it's given back, then retry.");
+    expect(e.detail).toBe(text);
+    expect(describeDispatchError("held", "a person has taken over this conversation's task; take it back").message).toBe(
+      "Not sent: someone is driving the agent by hand.",
+    );
+  });
+
+  // LOOM-266: taking over a running turn ends it, and what the agent
+  // finishes is relayed later.
+  it("says a turn was taken over, not that it broke", () => {
+    const e = describeDispatchError("taken_over", "taken over by a person while the agent was working");
+    expect(e.message).toBe("Someone took over the agent's terminal while it was working.");
+    expect(e.hint).toMatch(/shows up here once it's given back/);
   });
 
   it("tells a cancelled turn from a failure", () => {

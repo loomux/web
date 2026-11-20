@@ -173,6 +173,31 @@ describe("InboxPage", () => {
     expect(screen.getByText("Nothing needs you right now.")).toBeInTheDocument();
   });
 
+  // LOOM-274: a list row names who drives it from a terminal (held_by,
+  // loomux/server LOOM-267). A failed task kept for a sign-in stays failed
+  // while someone signs it in.
+  it("names who drives a conversation in its activity row", async () => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/conversations") {
+        return jsonResponse({
+          conversations: [
+            {
+              conversation_id: "signin", workspace_id: "", status: "failed", updated_at: iso(-MIN), preview: "Sign the agent in",
+              held_by: { client_kind: "tui", client_label: "laptop", since: iso(-MIN) },
+            },
+          ],
+        });
+      }
+      if (url.startsWith("/api/v1/conversations/")) return jsonResponse({ conversation_id: "signin", tasks: [], messages: [], dispatches: [], confirmations: [] });
+      if (url === "/api/v1/targets") return jsonResponse({ targets: [] });
+      return jsonResponse({ workspaces: [] });
+    }) as typeof fetch;
+    renderInbox();
+    const done = await screen.findByRole("region", { name: "Done today" });
+    expect(await within(done).findByRole("link", { name: /Sign the agent in/ })).toHaveTextContent("Driven from the terminal on laptop");
+  });
+
   it("starts a new conversation from the installed app's shortcut", async () => {
     serve();
     const router = renderInbox("/?new=1");

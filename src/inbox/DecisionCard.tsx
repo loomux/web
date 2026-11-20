@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { MachinePlan } from "../components/MachinePlan";
+import { TakeBack } from "../conversation/HolderBanner";
 import { describeDispatchError } from "../lib/dispatchTurn";
+import { drivingHold, heldSince, holderName } from "../lib/holds";
 import type { Decision } from "../lib/needsYou";
 import { machinePlan, offerAction, offerHeading, offerWorkspace } from "../lib/offerText";
 import { answerErrorText, useAnswer, type Answer } from "../lib/useAnswer";
@@ -84,6 +87,7 @@ export function DecisionCard({
   showSource?: boolean;
 }) {
   const answer = useAnswer();
+  const queryClient = useQueryClient();
   const [reply, setReply] = useState("");
   const now = useClock(d.kind === "offer");
 
@@ -122,6 +126,7 @@ export function DecisionCard({
   else if (d.kind === "prompt" && d.task?.attention) heading = `${agent} is asking you something`;
   else if (d.kind === "prompt") heading = `${agent} stopped at a prompt`;
   else if (d.kind === "awaiting") heading = `${agent} is waiting for your reply`;
+  else if (d.kind === "takeover" && d.heldBy) heading = `Driven from ${holderName(d.heldBy.client_kind, d.heldBy.client_label)}`;
   else if (d.kind === "takeover") heading = "Someone has taken over this session";
   else heading = failure!.message;
 
@@ -136,6 +141,8 @@ export function DecisionCard({
     .filter((o) => !/^type something/i.test(o.label));
   const canReply = d.kind === "awaiting" || (d.kind === "prompt" && attention && attention.kind !== "trust");
   const busy = answer.isPending || disabled;
+  // Take back needs the task, which only a read detail gives.
+  const hold = d.kind === "takeover" ? drivingHold(d.task?.hold) : null;
 
   return (
     <section
@@ -184,8 +191,23 @@ export function DecisionCard({
         {d.kind === "prompt" && !attention && (
           <p className="text-ink-2">Its prompt couldn't be read here. Open the conversation, or attach to its terminal.</p>
         )}
-        {d.kind === "takeover" && (
+        {d.kind === "takeover" && !d.heldBy && (
           <p className="text-ink-2">The agent's terminal is being driven by hand. Open the conversation to see where it stands.</p>
+        )}
+        {d.kind === "takeover" && d.heldBy && (
+          <p className="text-ink-2">
+            Since {heldSince(d.heldBy.since)}. Loomux won't type into it until it's given back.
+            {!hold && " Open the conversation to take it back."}
+          </p>
+        )}
+        {hold && (
+          <TakeBack
+            hold={hold}
+            onTakenBack={() => {
+              void queryClient.invalidateQueries({ queryKey: ["conversation", d.conversationId], exact: true });
+              onAnswered?.(d, { label: "Taken back: Loomux can send the agent messages again." });
+            }}
+          />
         )}
         {failure && <p className="text-ink-2">{failure.hint}</p>}
 
