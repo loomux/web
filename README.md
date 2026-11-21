@@ -10,12 +10,15 @@ log in, see registered workspaces, hold conversations with the agent fleet,
 watch a dispatch progress live, and get the attach-info needed to `ssh` +
 `tmux attach` for a manual takeover.
 
-**Status: LOOM-24 build-out.** Auth, the attention-first dashboard,
-workspaces, the conversations list, the conversation detail view (live
-SSE task status, persisted transcript, Markdown + syntax-highlighted
-rendering, attach-info surfacing), and target registration (LOOM-69:
-register/edit/remove the hosts workspaces live on) are all shipped and
-wired up end-to-end against a real `loomuxd`.
+**Status: pre-alpha.** Each `loomux/server` release pins the web
+release it serves. What works today: logging in, the attention-first
+dashboard, workspaces, conversations with live task status and the
+persisted transcript, the Approve / Deny / Reply cards for an agent's
+prompts, attach commands for every task, machines (your own hosts, or
+ones a plugin creates), plugins, credentials, router settings and
+devices. Not yet: a live view of an agent's terminal in the browser,
+and taking a session over or handing it back from here (attach with
+`tmux` for now).
 
 ## Design
 
