@@ -577,7 +577,19 @@ export interface LoginSession {
   id: string;
   created_at: string;
   last_used_at: string;
+  // The device and the client it's for (LOOM-268): "laptop", "tui".
+  // Absent from older servers; "" when unknown.
+  label?: string;
+  client_kind?: string;
   current: boolean;
+}
+
+// POST /sessions (LOOM-268): a session for a token another client made,
+// approved by its hash. The link page's whole request (LOOM-273).
+export interface LinkSessionRequest {
+  token_hash: string;
+  label: string;
+  client_kind: "tui";
 }
 
 // One turn of a task (GET /tasks/{id}/transcript, LOOM-91): what was sent,
@@ -1013,6 +1025,11 @@ export const api = {
 
   deleteSession: (token: string, sessionId: string) =>
     request<void>(`/sessions/${encodeURIComponent(sessionId)}`, token, { method: "DELETE" }),
+
+  // 201 with the new session (current: false); 409 when the hash has one
+  // already; 403 unless this session logged in with the password.
+  linkSession: (token: string, body: LinkSessionRequest) =>
+    request<LoginSession>("/sessions", token, { method: "POST", body: JSON.stringify(body) }),
 
   getDeepHealth: (token: string) => request<DeepHealth>("/health/deep", token),
 
