@@ -118,6 +118,49 @@ export interface ConversationSummary {
   // First-message preview, added server-side in LOOM-45. Older servers may
   // omit it, so the UI falls back to the conversation_id.
   preview?: string;
+  // Who drives one of its tasks from a terminal, and since when
+  // (loomux/server LOOM-267). Left out when nobody does, and by servers
+  // from before holds.
+  held_by?: HeldBy | null;
+  // Its newest offer still waiting on a yes (LOOM-267). Left out when none.
+  pending_confirmation_id?: string;
+}
+
+// A list row's holder (LOOM-267): the active drive hold's who and when.
+export interface HeldBy {
+  client_kind: string;
+  client_label: string;
+  since: string;
+}
+
+// A hold (loomux/server LOOM-264): a session's lease on a task while a
+// person is attached to its pane. A drive hold pauses automation into the
+// pane (the task is human_takeover); the hold says who has it.
+export interface TaskHold {
+  id: string;
+  task_id: string;
+  session_id: string;
+  // The holder's client (tui, web, app; "" when unknown) and device.
+  client_kind: string;
+  client_label: string;
+  // drive; watch once watch holds exist (S10).
+  mode: string;
+  prev_status: string;
+  ttl_seconds: number;
+  acquired_at: string;
+  renewed_at: string;
+  expires_at: string;
+  ended_at?: string | null;
+  // released, taken_back, taken_over, expired, session_revoked, task_ended.
+  ended_reason?: string;
+}
+
+// POST /tasks/{id}/release (LOOM-264): the task's status afterwards, and
+// the hold it ended, if any.
+export interface ReleaseResponse {
+  task_id: string;
+  status: string;
+  hold?: TaskHold | null;
 }
 
 export interface ConversationTask {
@@ -138,6 +181,9 @@ export interface ConversationTask {
   command?: string;
   exit_code?: number | null;
   output_tail?: string;
+  // Its active drive hold: who drives it from a terminal (LOOM-267).
+  // null when nobody does; absent from servers from before holds.
+  hold?: TaskHold | null;
 }
 
 // A prompt read off an agent's pane (LOOM-97): an approval, a question or
@@ -730,6 +776,8 @@ export interface AttachInfoResponse {
   tmux_socket?: string;
   attach_command?: string;
   target: AttachTargetInfo;
+  // The task's active drive hold (LOOM-267); absent from older servers.
+  hold?: TaskHold | null;
 }
 
 export interface TaskUpdateEvent {
@@ -739,6 +787,15 @@ export interface TaskUpdateEvent {
   updated_at: string;
   failure_reason?: string;
   error_class?: string;
+}
+
+// SSE `task_hold` (LOOM-267): one of the conversation's tasks was taken
+// (hold), taken from its holder (hold, ended_reason taken_over) or given
+// back (hold null, ended_reason why).
+export interface TaskHoldEvent {
+  task_id: string;
+  hold: TaskHold | null;
+  ended_reason?: string;
 }
 
 export interface VersionResponse {
@@ -930,6 +987,17 @@ export const api = {
   deleteCredential: (token: string, id: string) =>
     request<void>(`/credentials/${encodeURIComponent(id)}`, token, { method: "DELETE" }),
 
+  // Take back (LOOM-264): with no hold id, it ends whoever holds the task
+  // and detaches their terminal. 502 detach_failed when it couldn't be
+  // detached: then nothing changed.
+  releaseTask: async (token: string, taskId: string) => {
+    const res = await request<ReleaseResponse>(`/tasks/${encodeURIComponent(taskId)}/release`, token, {
+      method: "POST",
+      body: "{}",
+    });
+    return normalizeTask(res);
+  },
+
   getAttachInfo: (token: string, taskId: string) =>
     request<AttachInfoResponse>(`/tasks/${encodeURIComponent(taskId)}/attach-info`, token),
 
@@ -1048,7 +1116,8 @@ export const api = {
 export type StreamEvent =
   | { type: "task_update"; data: TaskUpdateEvent }
   | { type: "dispatch_update"; data: DispatchUpdateEvent }
-  | { type: "message_added"; data: MessageAddedEvent };
+  | { type: "message_added"; data: MessageAddedEvent }
+  | { type: "task_hold"; data: TaskHoldEvent };
 
 export interface StreamHandlers {
   onEvent: (event: StreamEvent) => void;
@@ -1119,7 +1188,7 @@ export function openConversationStream(
       },
       onmessage(msg) {
         if (!msg.data) return;
-        if (msg.event === "task_update" || msg.event === "dispatch_update" || msg.event === "message_added") {
+        if (msg.event === "task_update" || msg.event === "dispatch_update" || msg.event === "message_added" || msg.event === "task_hold") {
           let data = JSON.parse(msg.data);
           if (msg.event === "task_update" && data && typeof data === "object") data = normalizeTask(data);
           handlers.onEvent({ type: msg.event, data } as StreamEvent);

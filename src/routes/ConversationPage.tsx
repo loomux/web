@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { MachinePlan } from "../components/MachinePlan";
 import { MessageContent } from "../components/MessageContent";
 import { Composer } from "../conversation/Composer";
+import { HolderBanner } from "../conversation/HolderBanner";
+import { OpenInTerminal } from "../conversation/OpenInTerminal";
 import { TaskList } from "../conversation/TaskList";
 import { TurnCard } from "../conversation/TurnCard";
 import { TurnSteps } from "../conversation/TurnSteps";
@@ -11,6 +13,7 @@ import { useConversation, type DisplayMessage } from "../conversation/useConvers
 import { DecisionCard } from "../inbox/DecisionCard";
 import type { Confirmation, Dispatch } from "../lib/api";
 import { isTerminalDispatch } from "../lib/dispatchTurn";
+import { drivingHold } from "../lib/holds";
 import type { ConversationDetail, Decision, DecisionKind } from "../lib/needsYou";
 import { machinePlan, offerAction, offerHeading } from "../lib/offerText";
 import { formatRelativeTime } from "../lib/time";
@@ -215,7 +218,9 @@ export function ConversationPage() {
   // first: the server reads the next message as its answer, before
   // anything else (router Dispatch), so no other card may ask for one.
   const latest = c.attentionTask ?? c.latestTask;
-  const endKind = latest ? TASK_DECISION[latest.status] : undefined;
+  // A takeover whose holder is known is the banner under the header
+  // (LOOM-274), with Take back; the card would only say it again.
+  const endKind = latest && !(latest.status === "human_takeover" && drivingHold(latest.hold)) ? TASK_DECISION[latest.status] : undefined;
   const endDecision: Decision | null =
     latest && endKind && c.pendingUser === null && !c.inFlight
       ? {
@@ -270,6 +275,9 @@ export function ConversationPage() {
             Tasks ({tasks.length})
           </Button>
         </header>
+        {c.holds.map((h) => (
+          <HolderBanner key={h.id} hold={h} onTakenBack={() => void c.refetchHistory()} />
+        ))}
 
         <div
           onScroll={(e) => {
@@ -385,11 +393,13 @@ export function ConversationPage() {
 
       <aside aria-label="Tasks in this conversation" className="hidden w-80 shrink-0 overflow-y-auto border-l border-line bg-surface px-4 py-4 xl:block">
         <h2 className="mb-1 text-lg font-extrabold text-ink">Tasks</h2>
+        {conversationId && <OpenInTerminal conversationId={conversationId} />}
         <TaskList tasks={tasks} workspaceName={(wid) => workspaceName(wid)} />
       </aside>
 
       <Sheet title="Tasks in this conversation" isOpen={tasksOpen} onOpenChange={setTasksOpen}>
         <div className="max-h-[70svh] overflow-y-auto px-5 pb-2">
+          {conversationId && <OpenInTerminal conversationId={conversationId} />}
           <TaskList tasks={tasks} workspaceName={(wid) => workspaceName(wid)} />
         </div>
       </Sheet>

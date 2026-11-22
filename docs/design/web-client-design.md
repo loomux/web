@@ -194,6 +194,34 @@ copyable text. The client never attempts to open an SSH connection itself
 attaching is something a human does directly against the target, outside
 Loomux's client/server boundary entirely.
 
+### Holds: who drives a task from a terminal
+
+The terminal client attaches through a **hold**, a lease the server keeps
+on the task (loomux/server `docs/design/tui-client-design.md`, "Server
+awareness: holds"; LOOM-264/267). The web shows it and never takes one
+(LOOM-274):
+
+- A task's `hold` (on `GET /conversations/{id}`) is a banner under the
+  conversation's header: "Driven from the terminal on laptop since 14:02",
+  in the same words as the server's own refusal of a message. It goes by
+  the hold, not the status, since a failed task kept for a sign-in can be
+  held too. A watch hold, or an ended one, isn't shown as driving.
+- **Take back** is `POST /tasks/{id}/release` with no `hold_id`. It asks
+  first, since it detaches whoever is typing there. On `502
+  detach_failed` nothing changed, and the banner says so.
+- The stream's `task_hold` makes the page read the conversation again.
+- List rows carry `held_by`; the inbox's takeover card names the holder
+  and takes it back when its detail (with the task) has been read.
+- A message refused with error class `held` names the holder from the
+  server's text. A turn ended by a takeover (`taken_over`) isn't a failure
+  in the inbox.
+- Settings → Devices names each session's client and device from
+  `client_kind` and `label` ("loomux TUI · laptop").
+- The tasks panel offers `loomux open <id>` to copy.
+
+A server from before holds sends no `hold` and no `held_by`, and none of
+this shows.
+
 ### Real-time updates
 
 `fetchEventSource` (`@microsoft/fetch-event-source`) against

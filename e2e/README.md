@@ -43,6 +43,7 @@ Needs Docker and Node. CI runs it as the `e2e` job.
 | `auth` | wrong password refused, login, logout |
 | `chat` | a direct answer; an exact command order runs and shows its output and exit status |
 | `offers` | an offered command: Approve runs it, Deny runs nothing |
+| `devices` | LOOM-274: Settings → Devices names a linked terminal ("loomux TUI · <label>", from the server's `client_kind` and `label`) and the web's own sessions; signing the terminal out says it needs `loomux login` and ends its token (401) |
 | `workspaces` | provision a workspace with an agent, a follow-up turn, then Archive, Reopen, Delete (with its confirmation) |
 | `audit` | LOOM-139: every main screen at phone size in both themes (no sideways scroll, axe clean); hostile markdown renders inert; and `test.fail()` cases pinning open bugs (failed send loses the draft, stream reconnect without backoff, impossible `/today/:date`); the app shell's CSP and framing headers (LOOM-143) |
 | `credentials` | add, replace and delete a credential; its value never appears |
