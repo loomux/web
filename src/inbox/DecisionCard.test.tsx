@@ -248,6 +248,53 @@ describe("DecisionCard", () => {
     expect(screen.queryByRole("button", { name: "Snooze until tomorrow" })).not.toBeInTheDocument();
   });
 
+  // LOOM-274: a takeover names who drives it and takes it back from the
+  // card, once confirmed, with a release that names no hold.
+  it("names who drives a takeover and takes it back", async () => {
+    const hold = {
+      id: "h1", task_id: "k1", session_id: "s1", client_kind: "tui", client_label: "laptop", mode: "drive",
+      prev_status: "awaiting_input", ttl_seconds: 45, acquired_at: iso(-3 * MIN), renewed_at: iso(-MIN), expires_at: iso(MIN),
+    };
+    const { onAnswered } = setup({
+      key: "t",
+      kind: "takeover",
+      conversationId: "c1",
+      since: iso(-3 * MIN),
+      heldBy: { client_kind: "tui", client_label: "laptop", since: hold.acquired_at },
+      task: { id: "k1", workspace_id: "w1", kind: "agent", agent_type: "claude-code", status: "human_takeover", created_at: iso(-9 * MIN), updated_at: iso(-3 * MIN), hold },
+    });
+    const releases: string[] = [];
+    const inner = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/release")) {
+        releases.push(`${init?.method} ${String(input)} ${String(init?.body)}`);
+        return new Response(JSON.stringify({ task_id: "k1", status: "awaiting_input" }), { status: 200 });
+      }
+      return inner(input, init);
+    }) as typeof fetch;
+    const card = screen.getByRole("region", { name: "Driven from the terminal on laptop" });
+    expect(card).toHaveTextContent("Loomux won't type into it until it's given back.");
+    await userEvent.click(within(card).getByRole("button", { name: "Take back" }));
+    expect(releases).toEqual([]);
+    await userEvent.click(within(card).getByRole("button", { name: "Yes, take it back" }));
+    await vi.waitFor(() => expect(onAnswered).toHaveBeenCalled());
+    expect(releases).toEqual(["POST /api/v1/tasks/k1/release {}"]);
+    expect(onAnswered.mock.calls[0][1]).toEqual({ label: "Taken back: Loomux can send the agent messages again." });
+  });
+
+  it("names the holder from the list alone, and sends to the conversation to take it back", () => {
+    setup({ key: "t", kind: "takeover", conversationId: "c1", since: iso(-MIN), heldBy: { client_kind: "tui", client_label: "", since: iso(-MIN) } });
+    const card = screen.getByRole("region", { name: "Driven from the terminal" });
+    expect(within(card).queryByRole("button", { name: "Take back" })).not.toBeInTheDocument();
+    expect(card).toHaveTextContent("Open the conversation to take it back.");
+  });
+
+  it("keeps the anonymous takeover card when nobody is named", () => {
+    setup({ key: "t", kind: "takeover", conversationId: "c1", since: iso(-MIN) });
+    expect(screen.getByRole("region", { name: "Someone has taken over this session" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Take back" })).not.toBeInTheDocument();
+  });
+
   // LOOM-175: the agent's question is on the card, and a preview that
   // ends a sentence gets no second full stop.
   it("shows what an agent waiting for a reply asked, without a double full stop", () => {

@@ -22,6 +22,7 @@ const PluginsPage = lazy(() => import("./routes/PluginsPage").then((m) => ({ def
 const SettingsPage = lazy(() => import("./routes/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import("./routes/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const VaultPage = lazy(() => import("./routes/VaultPage").then((m) => ({ default: m.VaultPage })));
+const LinkPage = lazy(() => import("./routes/LinkPage").then((m) => ({ default: m.LinkPage })));
 
 function RouteFallback() {
   return <p className="p-4 text-ink-3">Loading…</p>;
@@ -41,6 +42,9 @@ export function App() {
         <Routes>
           <Route path="/login" element={<RouteTitle title="Log in"><LoginPage /></RouteTitle>} />
           <Route element={<ProtectedRoute />}>
+            {/* A terminal's sign-in (LOOM-273): a decision on its own page,
+                without the app around it. */}
+            <Route path="/link" element={<RouteTitle title="Sign in a terminal"><LinkPage /></RouteTitle>} />
             <Route element={<AppShell />}>
               {/* Route map: docs/design/redesign/build-plan.md §4. Screens not yet
                   rebuilt render their current page inside the new shell. */}

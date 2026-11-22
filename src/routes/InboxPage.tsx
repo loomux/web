@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnsweredCard, DecisionCard, type Answered } from "../inbox/DecisionCard";
 import { newId } from "../lib/id";
 import type { Decision } from "../lib/needsYou";
+import { holderName } from "../lib/holds";
 import { conversationStatus } from "../lib/status";
 import { formatRelativeTime } from "../lib/time";
 import { useApiClient } from "../lib/useApiClient";
@@ -33,6 +34,7 @@ function ActivityRow({ c, workspace }: { c: ConversationSummary; workspace?: str
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-3">
           <StatusMark status={conversationStatus(c.status)} className="!text-ink-3 font-normal" />
           {workspace && <span>{workspace}</span>}
+          {c.held_by && <span>Driven from {holderName(c.held_by.client_kind, c.held_by.client_label)}</span>}
           <span className="tabular-nums">{formatRelativeTime(c.updated_at)}</span>
         </span>
       </Link>

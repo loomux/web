@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LoginSession } from "../lib/api";
+import { clientName } from "../lib/holds";
 import { formatRelativeTime } from "../lib/time";
 import { useApiClient } from "../lib/useApiClient";
 import { Button } from "../ui/Button";
 
-// Every browser and installed app signed in to this Loomux (GET /sessions),
-// most recently used first, with a way to sign one out remotely: a lost
-// phone, an old laptop. This device signs out with Log out instead.
+// Every browser, installed app and terminal signed in to this Loomux (GET
+// /sessions), most recently used first, with a way to sign one out
+// remotely: a lost phone, an old laptop. This device signs out with Log
+// out instead. A session names its client and device where the server
+// says (LOOM-268: "loomux TUI · laptop").
 function when(iso: string) {
   return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
 }
@@ -16,6 +19,7 @@ function SessionRow({ s }: { s: LoginSession }) {
   const apiClient = useApiClient();
   const queryClient = useQueryClient();
   const [confirm, setConfirm] = useState(false);
+  const name = [clientName(s.client_kind), s.label].filter(Boolean).join(" · ");
   const revoke = useMutation({
     mutationFn: () => apiClient.deleteSession(s.id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["sessions"] }),
@@ -23,9 +27,11 @@ function SessionRow({ s }: { s: LoginSession }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
       <div className="min-w-0">
-        <p className="font-bold text-ink">{s.current ? "This device" : `Signed in ${when(s.created_at)}`}</p>
+        <p className="font-bold text-ink">{s.current ? "This device" : name || `Signed in ${when(s.created_at)}`}</p>
         <p className="text-sm text-ink-2">
-          {s.current ? `Signed in ${when(s.created_at)}` : `Last used ${formatRelativeTime(s.last_used_at)}`}
+          {s.current
+            ? `Signed in ${when(s.created_at)}`
+            : `${name ? `Signed in ${when(s.created_at)} · ` : ""}Last used ${formatRelativeTime(s.last_used_at)}`}
         </p>
         {revoke.isError && (
           <p role="alert" className="text-sm text-bad">
@@ -40,7 +46,9 @@ function SessionRow({ s }: { s: LoginSession }) {
       )}
       {!s.current && confirm && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-ink">It'll need the password to sign in again.</span>
+          <span className="text-sm text-ink">
+            {s.client_kind === "tui" ? "It'll need loomux login to sign in again." : "It'll need the password to sign in again."}
+          </span>
           <Button size="sm" variant="danger" isPending={revoke.isPending} pendingLabel="Signing out…" onPress={() => revoke.mutate()}>
             Yes, log it out
           </Button>

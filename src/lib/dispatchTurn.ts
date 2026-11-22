@@ -95,6 +95,23 @@ export function describeDispatchError(errorClass: string | undefined, error: str
         hint: "Sign it in there, then retry.",
         detail,
       };
+    case "held": {
+      // Someone drives the task from a terminal (loomux/server LOOM-267).
+      // The server's text reads `… is being driven from the terminal on
+      // laptop since 2026-11-20 13:02 UTC; …`.
+      const holder = error?.match(/being driven from (.+?) since /)?.[1];
+      return {
+        message: holder ? `Not sent: the agent is being driven from ${holder}.` : "Not sent: someone is driving the agent by hand.",
+        hint: "Take it back, or wait until it's given back, then retry.",
+        detail,
+      };
+    }
+    case "taken_over":
+      return {
+        message: "Someone took over the agent's terminal while it was working.",
+        hint: "What the agent finishes shows up here once it's given back.",
+        detail,
+      };
     default:
       return {
         message: "Something went wrong while handling this message.",

@@ -168,6 +168,7 @@ describe("api", () => {
     ["setCredentialValue", () => api.setCredentialValue("t", "k1", "v"), "PUT", "/api/v1/credentials/k1/value"],
     ["deleteCredential", () => api.deleteCredential("t", "k1"), "DELETE", "/api/v1/credentials/k1"],
     ["getAttachInfo", () => api.getAttachInfo("t", "task1"), "GET", "/api/v1/tasks/task1/attach-info"],
+    ["releaseTask", () => api.releaseTask("t", "task1"), "POST", "/api/v1/tasks/task1/release"],
     ["getVersion", () => api.getVersion(), "GET", "/api/v1/version"],
     ["getWebVersion", () => api.getWebVersion("t"), "GET", "/api/v1/web/version"],
     ["updateWeb", () => api.updateWeb("t"), "POST", "/api/v1/web/update"],
@@ -181,6 +182,7 @@ describe("api", () => {
     ["probeTarget", () => api.probeTarget("t", "x1"), "POST", "/api/v1/targets/x1/probe"],
     ["listSessions", () => api.listSessions("t"), "GET", "/api/v1/sessions"],
     ["deleteSession", () => api.deleteSession("t", "s1"), "DELETE", "/api/v1/sessions/s1"],
+    ["linkSession", () => api.linkSession("t", { token_hash: "0".repeat(64), label: "laptop", client_kind: "tui" }), "POST", "/api/v1/sessions"],
     ["getDeepHealth", () => api.getDeepHealth("t"), "GET", "/api/v1/health/deep"],
     ["getTaskPane", () => api.getTaskPane("t", "task1"), "GET", "/api/v1/tasks/task1/pane"],
     ["listSSHKeys", () => api.listSSHKeys("t"), "GET", "/api/v1/ssh-keys"],
@@ -228,6 +230,7 @@ describe("api", () => {
     ["setCredentialValue", () => api.setCredentialValue("t", odd, "v"), `/api/v1/credentials/${enc}/value`],
     ["deleteCredential", () => api.deleteCredential("t", odd), `/api/v1/credentials/${enc}`],
     ["getAttachInfo", () => api.getAttachInfo("t", odd), `/api/v1/tasks/${enc}/attach-info`],
+    ["releaseTask", () => api.releaseTask("t", odd), `/api/v1/tasks/${enc}/release`],
     ["getTaskTranscript", () => api.getTaskTranscript("t", odd), `/api/v1/tasks/${enc}/transcript`],
     ["getConversationEvents", () => api.getConversationEvents("t", odd), `/api/v1/conversations/${enc}/events`],
     ["scanHostKey", () => api.scanHostKey("t", odd), `/api/v1/targets/${enc}/scan-host-key`],
@@ -271,17 +274,43 @@ describe("api", () => {
     expect(Object.keys(api).sort()).toEqual(
       [
         "cancelDispatch", "createCredential", "createTarget", "deleteCredential", "deleteTarget", "deleteWorkspace",
-        "dispatch", "getAttachInfo", "getConversation", "getDispatch", "getVersion", "getWebVersion", "listConversations",
+        "dispatch", "getAttachInfo", "releaseTask", "getConversation", "getDispatch", "getVersion", "getWebVersion", "listConversations",
         "listCredentials", "listTargets", "listWorkspaces", "login", "logout", "rollbackWeb", "setCredentialValue",
         "setWorkspaceStatus", "updateTarget", "updateWeb",
         "getTaskTranscript", "getConversationEvents", "scanHostKey", "pinHostKey", "unpinHostKey", "testTarget",
-        "probeTarget", "listSessions", "deleteSession", "getDeepHealth", "getTaskPane",
+        "probeTarget", "listSessions", "deleteSession", "linkSession", "getDeepHealth", "getTaskPane",
         "listSSHKeys", "createSSHKey", "deleteSSHKey", "migrateSSH",
         "getRouterSettings", "setRouterTier", "clearRouterTier", "testRouterTier", "listRouterSettingsChanges", "listRouterModels",
         "getTarget", "createMachine", "startMachine", "stopMachine", "recreateMachine", "listAvailablePlugins", "listPlugins", "getPlugin",
         "installPlugin", "setPluginConfig", "pluginAction", "uninstallPlugin", "describeMachines",
       ].sort(),
     );
+  });
+});
+
+// LOOM-273: the link page approves a terminal's session by its token's
+// hash. The body is exactly what the server takes; the token is never in it.
+describe("linkSession", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("posts the hash, label and kind with the web's token, and returns the new session", async () => {
+    const created = { id: "s-new", created_at: "2026-11-20T00:00:00Z", last_used_at: "2026-11-20T00:00:00Z", label: "laptop", client_kind: "tui", current: false };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(created), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const body = { token_hash: "a".repeat(64), label: "laptop", client_kind: "tui" as const };
+    await expect(api.linkSession("web-token", body)).resolves.toEqual(created);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/v1/sessions");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual(body);
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer web-token");
+    vi.unstubAllGlobals();
+  });
+
+  it("throws the server's 409 for a hash that already has a session", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "a session already exists for this token" }), { status: 409 })));
+    await expect(api.linkSession("t", { token_hash: "a".repeat(64), label: "", client_kind: "tui" })).rejects.toMatchObject({ status: 409 });
+    vi.unstubAllGlobals();
   });
 });
 
@@ -311,3 +340,42 @@ describe("migrateSSH", () => {
   });
 });
 
+
+// LOOM-274: Take back is a release with no hold id (loomux/server
+// LOOM-264): it ends whoever holds the task, so it never names a hold.
+describe("releaseTask", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("posts an empty body with the token and reads the task's status after", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ task_id: "task1", status: "awaiting-input", hold: { id: "h1", ended_reason: "taken_back" } }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await api.releaseTask("tok", "task1");
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({});
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tok");
+    expect(res.status).toBe("awaiting_input");
+    expect(res.hold?.ended_reason).toBe("taken_back");
+  });
+
+  it("throws detach_failed when the holder couldn't be detached", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "couldn't detach", code: "detach_failed" }), { status: 502 })),
+    );
+    await expect(api.releaseTask("t", "task1")).rejects.toMatchObject({ status: 502, code: "detach_failed" });
+  });
+});
+
+// LOOM-274: the stream's task_hold (loomux/server LOOM-267) says a task
+// was taken, taken from its holder, or given back.
+describe("the stream's task_hold", () => {
+  it("is passed on as it came", () => {
+    const events: StreamEvent[] = [];
+    const stop = openConversationStream("t", "c1", { onEvent: (e) => events.push(e), onConnected: () => {}, onUnauthorized: () => {} });
+    sse.options!.onmessage({ event: "task_hold", data: JSON.stringify({ task_id: "t1", hold: null, ended_reason: "released" }) });
+    stop();
+    expect(events).toEqual([{ type: "task_hold", data: { task_id: "t1", hold: null, ended_reason: "released" } }]);
+  });
+});

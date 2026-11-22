@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, type Confirmation, type Dispatch } from "../lib/api";
+import { ApiError, type Confirmation, type Dispatch, type TaskHold } from "../lib/api";
 import { isTerminalDispatch, turnStage } from "../lib/dispatchTurn";
+import { drivingHold } from "../lib/holds";
 import { newId } from "../lib/id";
 import { useApiClient } from "../lib/useApiClient";
 import { useConversationStream } from "../lib/useConversationStream";
@@ -59,7 +60,7 @@ export function useConversation(conversationId: string | null) {
   // Task history plus the persisted per-turn transcript (LOOM-31) — a
   // fresh conversation 404s here until its first dispatch, which is
   // expected, not an error to surface.
-  const { event: liveTask, dispatchEvent, messageEvent, connected, refused: streamRefused } = useConversationStream(conversationId);
+  const { event: liveTask, dispatchEvent, messageEvent, holdEvent, connected, refused: streamRefused } = useConversationStream(conversationId);
 
   // The dispatch this page started (or was pointed at by a 409) and is
   // following, until it ends (LOOM-81).
@@ -144,6 +145,12 @@ export function useConversation(conversationId: string | null) {
   useEffect(() => {
     if (messageEventId) void refetchHistory();
   }, [messageEventId, refetchHistory]);
+
+  // A task taken from a terminal or given back (LOOM-267): who holds it
+  // is on the task, so read the conversation again.
+  useEffect(() => {
+    if (holdEvent) void refetchHistory();
+  }, [holdEvent, refetchHistory]);
 
   // The optimistic copy of a message until the server has it: it's stored
   // when the dispatch is accepted, so the refetch after that replaces it.
@@ -277,6 +284,13 @@ export function useConversation(conversationId: string | null) {
 
   const stage = inFlight && active ? turnStage(active, history?.tasks ?? [], workspaceNameById) : null;
 
+  // Who drives one of its tasks from a terminal (LOOM-267), whatever the
+  // task's status: a failed task kept for a sign-in can be held too.
+  const holds = (history?.tasks ?? []).flatMap((t): TaskHold[] => {
+    const h = drivingHold(t.hold);
+    return h ? [h] : [];
+  });
+
   return {
     history,
     historyStatus,
@@ -302,5 +316,6 @@ export function useConversation(conversationId: string | null) {
     latestTask,
     attentionTask,
     latestWorkspaceName,
+    holds,
   };
 }
