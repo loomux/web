@@ -159,6 +159,18 @@ extended to this client) — a persistent banner, not a hard block, since
 ### Pages / routes
 
 - `/login` — password form
+- `/link` — approve a terminal's sign-in (LOOM-273, the terminal
+  client's link flow: loomux/server `docs/design/tui-client-design.md`,
+  "The link flow"). `loomux login` opens `/link#h=<H>&label=<host>`,
+  where `H` is `hex(sha256(T))` of a token the terminal keeps. The page
+  shows the code `first 8 of base32(sha256("loomux-link-v1:" + H))`,
+  and Approve sends `POST /sessions {token_hash: H, label, client_kind:
+  "tui"}`. The link stays in the fragment (never sent, never logged) and
+  leaves the address once decided; a fragment changed while the page is
+  open is refused; Approve arms only after the page has had the focus
+  for a second; nothing is approved inside a frame or without WebCrypto.
+  A `409` (the link was used) changes nothing; Undo revokes a session
+  approved after its terminal stopped waiting.
 - `/workspaces` — list: id, name, target, status (mirrors
   `workspaceSummary` exactly, no client-side enrichment)
 - `/conversations` — list, most-recently-updated first (mirrors

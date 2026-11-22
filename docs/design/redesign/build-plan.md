@@ -140,6 +140,7 @@ Domain components:
 | `/vault` | Vault | |
 | `/credentials` | redirect | Goes to `/vault`. |
 | `/settings` | Settings | Theme, devices (`/sessions`), web client version and update, server version. |
+| `/link` | Sign in a terminal | LOOM-273. Behind the login, outside the shell. `loomux login` opens `/link#h=<token hash>&label=<host>`; the page shows the code for the hash and Approve calls `POST /sessions`. See `src/routes/LinkPage.tsx`. |
 | `*` | Not found | Has a link home. |
 
 Every screen sets `document.title` (e.g. "Inbox (3) · Loomux").

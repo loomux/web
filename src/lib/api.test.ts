@@ -182,6 +182,7 @@ describe("api", () => {
     ["probeTarget", () => api.probeTarget("t", "x1"), "POST", "/api/v1/targets/x1/probe"],
     ["listSessions", () => api.listSessions("t"), "GET", "/api/v1/sessions"],
     ["deleteSession", () => api.deleteSession("t", "s1"), "DELETE", "/api/v1/sessions/s1"],
+    ["linkSession", () => api.linkSession("t", { token_hash: "0".repeat(64), label: "laptop", client_kind: "tui" }), "POST", "/api/v1/sessions"],
     ["getDeepHealth", () => api.getDeepHealth("t"), "GET", "/api/v1/health/deep"],
     ["getTaskPane", () => api.getTaskPane("t", "task1"), "GET", "/api/v1/tasks/task1/pane"],
     ["listSSHKeys", () => api.listSSHKeys("t"), "GET", "/api/v1/ssh-keys"],
@@ -277,13 +278,39 @@ describe("api", () => {
         "listCredentials", "listTargets", "listWorkspaces", "login", "logout", "rollbackWeb", "setCredentialValue",
         "setWorkspaceStatus", "updateTarget", "updateWeb",
         "getTaskTranscript", "getConversationEvents", "scanHostKey", "pinHostKey", "unpinHostKey", "testTarget",
-        "probeTarget", "listSessions", "deleteSession", "getDeepHealth", "getTaskPane",
+        "probeTarget", "listSessions", "deleteSession", "linkSession", "getDeepHealth", "getTaskPane",
         "listSSHKeys", "createSSHKey", "deleteSSHKey", "migrateSSH",
         "getRouterSettings", "setRouterTier", "clearRouterTier", "testRouterTier", "listRouterSettingsChanges", "listRouterModels",
         "getTarget", "createMachine", "startMachine", "stopMachine", "recreateMachine", "listAvailablePlugins", "listPlugins", "getPlugin",
         "installPlugin", "setPluginConfig", "pluginAction", "uninstallPlugin", "describeMachines",
       ].sort(),
     );
+  });
+});
+
+// LOOM-273: the link page approves a terminal's session by its token's
+// hash. The body is exactly what the server takes; the token is never in it.
+describe("linkSession", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("posts the hash, label and kind with the web's token, and returns the new session", async () => {
+    const created = { id: "s-new", created_at: "2026-11-20T00:00:00Z", last_used_at: "2026-11-20T00:00:00Z", label: "laptop", client_kind: "tui", current: false };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(created), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const body = { token_hash: "a".repeat(64), label: "laptop", client_kind: "tui" as const };
+    await expect(api.linkSession("web-token", body)).resolves.toEqual(created);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/v1/sessions");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual(body);
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer web-token");
+    vi.unstubAllGlobals();
+  });
+
+  it("throws the server's 409 for a hash that already has a session", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "a session already exists for this token" }), { status: 409 })));
+    await expect(api.linkSession("t", { token_hash: "a".repeat(64), label: "", client_kind: "tui" })).rejects.toMatchObject({ status: 409 });
+    vi.unstubAllGlobals();
   });
 });
 

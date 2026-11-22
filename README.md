@@ -64,9 +64,12 @@ dev server proxies `/api/*` to `http://localhost:8080` by default
 - `src/lib/targets.ts` — target form state, and the client-side mirror of
   the server's `registry.Target.Validate` so the register/edit form
   previews the exact message a `400` would carry
+- `src/lib/link.ts` — the terminal link flow's browser half (LOOM-273):
+  reads `/link`'s fragment with the server's own checks, and computes
+  the verification code the terminal shows
 - `src/routes/` — one file per page (`LoginPage`, `DashboardPage`,
   `WorkspacesPage`, `ConversationsPage`, `ConversationDetailPage`,
-  `TargetsPage`), lazy-loaded per route in `App.tsx`
+  `TargetsPage`, `LinkPage`), lazy-loaded per route in `App.tsx`
 - `src/components/` — `ProtectedRoute` (auth gate), `VersionBanner`
   (API-version-mismatch warning), `AttachInfo` (on-demand attach command),
   `MessageContent` (Markdown/GFM + syntax-highlighted rendering of
