@@ -15,10 +15,11 @@ release it serves. What works today: logging in, the attention-first
 dashboard, workspaces, conversations with live task status and the
 persisted transcript, the Approve / Deny / Reply cards for an agent's
 prompts, attach commands for every task, machines (your own hosts, or
-ones a plugin creates), plugins, credentials, router settings and
-devices. Not yet: a live view of an agent's terminal in the browser,
-and taking a session over or handing it back from here (attach with
-`tmux` for now).
+ones a plugin creates), plugins, credentials, router settings, devices,
+approving a terminal's sign-in (`/link`), and a banner naming the
+terminal that drives a conversation, with Take back. Not yet: a live
+view of an agent's terminal in the browser, and taking a session over
+from here (attach with `tmux` for now).
 
 ## Design
 
